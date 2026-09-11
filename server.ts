@@ -1,8 +1,9 @@
 import express from 'express';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, getDocs, collection, updateDoc, serverTimestamp } from 'firebase/firestore';
 import firebaseConfigData from './firebase-applet-config.json';
 import { evaluateLandslideRisk } from './src/services/mlRiskEngine';
+import { fetchOriginalWeatherForStation, syncStationWithLiveWeather } from './src/services/realWeatherService';
 import type { SensorTelemetry, LandslideStation } from './src/types/landslide';
 
 const app = express();
@@ -17,6 +18,7 @@ const db = getFirestore(
 );
 
 const PORT = Number(process.env.PORT || 10000);
+const WEATHER_REFRESH_MS = 60_000;
 
 const numericFields: Array<keyof SensorTelemetry> = [
   'temperatureC',
@@ -34,6 +36,38 @@ function isValidTelemetry(body: any): boolean {
     body.stationId.length > 0 &&
     body.stationId.length <= 128 &&
     numericFields.every((field) => body[field] === undefined || Number.isFinite(Number(body[field])));
+}
+
+async function refreshAllStationsFromLiveWeather() {
+  try {
+    const snapshot = await getDocs(collection(db, 'stations'));
+
+    await Promise.all(snapshot.docs.map(async (stationDoc) => {
+      const station = stationDoc.data() as LandslideStation;
+      if (!Number.isFinite(station.latitude) || !Number.isFinite(station.longitude)) return;
+
+      const liveWeather = await fetchOriginalWeatherForStation(
+        station.latitude,
+        station.longitude
+      );
+
+      if (!liveWeather) return;
+
+      const updatedStation = syncStationWithLiveWeather(station, liveWeather);
+
+      await updateDoc(stationDoc.ref, {
+        telemetry: updatedStation.telemetry,
+        riskAssessment: updatedStation.riskAssessment,
+        safeAuditResult: updatedStation.safeAuditResult,
+        updatedAt: serverTimestamp(),
+        lastWeatherSync: serverTimestamp()
+      });
+    }));
+
+    console.log(`[BhuShakti] Live weather/risk refresh completed for ${snapshot.size} stations`);
+  } catch (error) {
+    console.error('[BhuShakti] Background weather refresh failed:', error);
+  }
 }
 
 app.get('/api/health', (_req, res) => {
@@ -100,4 +134,6 @@ app.get('*', (_req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[BhuShakti] Sensor API + dashboard running on port ${PORT}`);
+  void refreshAllStationsFromLiveWeather();
+  setInterval(() => void refreshAllStationsFromLiveWeather(), WEATHER_REFRESH_MS);
 });
