@@ -398,4 +398,72 @@ export function subscribeToDisasterEvidence(
     return () => {};
   }
 }
+/**
+ * Real-time listener for all Northeast monitoring stations.
+ * Backend sensor/weather updates in Firestore automatically reach the dashboard.
+ */
+export function subscribeToStations(
+  callback: (stations: LandslideStation[]) => void
+): () => void {
+  if (!db) {
+    callback(INITIAL_STATIONS);
+    return () => {};
+  }
+
+  try {
+    const stationsCol = collection(db, 'stations');
+
+    return onSnapshot(
+      stationsCol,
+      (snapshot) => {
+        const liveStations: LandslideStation[] = [];
+
+        snapshot.forEach((d) => {
+          if (!d.id.startsWith('st-ne-')) return;
+
+          const raw = d.data() as LandslideStation;
+          const base = INITIAL_STATIONS.find((s) => s.id === d.id);
+
+          const station: LandslideStation = {
+            ...(base || {}),
+            ...raw,
+            id: d.id,
+            telemetry: {
+              ...(base?.telemetry || {}),
+              ...(raw.telemetry || {}),
+            },
+            riskAssessment:
+              raw.riskAssessment ||
+              base?.riskAssessment ||
+              ({} as any),
+          } as LandslideStation;
+
+          liveStations.push(station);
+        });
+
+        // Keep a stable ordering
+        liveStations.sort((a, b) => {
+          if (a.id === 'st-ne-agartala') return -1;
+          if (b.id === 'st-ne-agartala') return 1;
+          return a.id.localeCompare(b.id);
+        });
+
+        callback(liveStations);
+      },
+      (error) => {
+        console.error(
+          '[Firebase] Station realtime listener failed:',
+          error
+        );
+      }
+    );
+  } catch (error) {
+    console.error(
+      '[Firebase] Failed to subscribe to stations:',
+      error
+    );
+
+    return () => {};
+  }
+}
 

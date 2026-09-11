@@ -69,7 +69,113 @@ async function refreshAllStationsFromLiveWeather() {
     console.error('[BhuShakti] Background weather refresh failed:', error);
   }
 }
+async function generateVirtualSensorPacket(station: LandslideStation) {
+  const t = station.telemetry;
 
+  const packet = {
+    stationId: station.id,
+
+    temperatureC: Number(
+      (t.temperatureC + (Math.random() - 0.5) * 0.2).toFixed(1)
+    ),
+
+    soilMoisturePct: Number(
+      Math.max(
+        0,
+        Math.min(100, t.soilMoisturePct + (Math.random() - 0.48) * 0.8)
+      ).toFixed(1)
+    ),
+
+    poreWaterPressureKpa: Number(
+      Math.max(
+        0,
+        t.poreWaterPressureKpa + (Math.random() - 0.45) * 0.8
+      ).toFixed(1)
+    ),
+
+    rainfallRateMmH: Number(
+      Math.max(
+        0,
+        t.rainfallRateMmH + (Math.random() - 0.5) * 0.6
+      ).toFixed(1)
+    ),
+
+    rainfall24hMm: Number(
+      Math.max(
+        0,
+        t.rainfall24hMm + Math.random() * 0.3
+      ).toFixed(1)
+    ),
+
+    vibrationMmS: Number(
+      Math.max(
+        0,
+        t.vibrationMmS + (Math.random() - 0.5) * 0.2
+      ).toFixed(1)
+    ),
+
+    displacementMm: Number(
+      Math.max(
+        0,
+        t.displacementMm + (Math.random() - 0.45) * 0.15
+      ).toFixed(2)
+    ),
+
+    tiltAngleDeg: Number(
+      Math.max(
+        0,
+        t.tiltAngleDeg + (Math.random() - 0.45) * 0.08
+      ).toFixed(2)
+    )
+  };
+
+  return packet;
+}
+async function runVirtualSensorStream() {
+  try {
+    const snapshot = await getDocs(collection(db, 'stations'));
+
+    await Promise.all(
+      snapshot.docs.map(async (stationDoc) => {
+        const station = stationDoc.data() as LandslideStation;
+
+        if (!station.id || !station.telemetry) return;
+
+        const packet = await generateVirtualSensorPacket(station);
+
+        const telemetry: SensorTelemetry = {
+          ...station.telemetry,
+          ...packet,
+          lastUpdated: new Date().toISOString()
+        };
+
+        const riskAssessment = evaluateLandslideRisk(
+          telemetry,
+          station.slopeAngleDeg,
+          station.soilType,
+          station.vegetationCoverPct,
+          station.faultDistanceKm
+        );
+
+        await updateDoc(stationDoc.ref, {
+          telemetry,
+          riskAssessment,
+          lastSensorUpdate: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      })
+    );
+
+    console.log(
+      `[BhuShakti] Virtual sensor stream processed ${snapshot.size} stations`
+    );
+  } catch (error) {
+    console.error(
+      '[BhuShakti] Virtual sensor stream failed:',
+      error
+    );
+  }
+}
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'BhuShakti sensor API', time: new Date().toISOString() });
 });
@@ -132,8 +238,22 @@ app.get('*', (_req, res) => {
   res.sendFile('index.html', { root: 'dist' });
 });
 
+const VIRTUAL_SENSOR_REFRESH_MS = 10_000;
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[BhuShakti] Sensor API + dashboard running on port ${PORT}`);
+
   void refreshAllStationsFromLiveWeather();
-  setInterval(() => void refreshAllStationsFromLiveWeather(), WEATHER_REFRESH_MS);
+
+  setInterval(
+    () => void refreshAllStationsFromLiveWeather(),
+    WEATHER_REFRESH_MS
+  );
+
+  void runVirtualSensorStream();
+
+  setInterval(
+    () => void runVirtualSensorStream(),
+    VIRTUAL_SENSOR_REFRESH_MS
+  );
 });
