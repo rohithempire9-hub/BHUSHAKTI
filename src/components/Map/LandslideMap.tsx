@@ -19,7 +19,13 @@ import {
   EyeOff,
   Gauge,
   Sparkles,
-  Info
+  Info,
+  Navigation,
+  LocateFixed,
+  Globe,
+  Waves,
+  Radio,
+  CheckCircle2
 } from 'lucide-react';
 
 interface LandslideMapProps {
@@ -30,6 +36,7 @@ interface LandslideMapProps {
   onFilterChange: (status: RiskStatus | 'all') => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onOpenEscapeModal?: () => void;
 }
 
 export type MapLayerType = 'topo' | 'dark' | 'satellite' | 'osm';
@@ -43,16 +50,20 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   onFilterChange,
   searchQuery,
   onSearchChange,
+  onOpenEscapeModal,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
   const circlesGroupRef = useRef<L.LayerGroup | null>(null);
+  const escapeGroupRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
 
-  // Map state
-  const [mapLayer, setMapLayer] = useState<MapLayerType>('dark');
+  // Map state - Default to satellite to match the screenshot 'Esri World Imagery'
+  const [mapLayer, setMapLayer] = useState<MapLayerType>('satellite');
   const [showHeatMap, setShowHeatMap] = useState<boolean>(true);
+  const [showEscapeRoute, setShowEscapeRoute] = useState<boolean>(true);
+  const [showFloodLayer, setShowFloodLayer] = useState<boolean>(false);
   const [heatMetric, setHeatMetric] = useState<HeatMetricType>('risk');
   const [heatRadius, setHeatRadius] = useState<number>(45);
   const [showStationPins, setShowStationPins] = useState<boolean>(true);
@@ -102,6 +113,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       mapInstanceRef.current = map;
       markersGroupRef.current = L.layerGroup().addTo(map);
       circlesGroupRef.current = L.layerGroup().addTo(map);
+      escapeGroupRef.current = L.layerGroup().addTo(map);
 
       // Attribution control
       L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
@@ -124,6 +136,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       if (circlesGroupRef.current && mapInstanceRef.current) {
         try {
           circlesGroupRef.current.clearLayers();
+        } catch {}
+      }
+      if (escapeGroupRef.current && mapInstanceRef.current) {
+        try {
+          escapeGroupRef.current.clearLayers();
         } catch {}
       }
       if (mapInstanceRef.current) {
@@ -178,13 +195,24 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     }).addTo(map);
   }, [mapLayer]);
 
-  // Filter stations based on search and status
+  // Filter stations based on search and status with strict coordinate validation
   const filteredStations = stations.filter((st) => {
-    const matchesStatus = filterStatus === 'all' ? true : st.riskAssessment.status === filterStatus;
+    if (
+      !st ||
+      typeof st.latitude !== 'number' ||
+      isNaN(st.latitude) ||
+      !isFinite(st.latitude) ||
+      typeof st.longitude !== 'number' ||
+      isNaN(st.longitude) ||
+      !isFinite(st.longitude)
+    ) {
+      return false;
+    }
+    const matchesStatus = filterStatus === 'all' ? true : st.riskAssessment?.status === filterStatus;
     const matchesSearch =
-      st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      st.region.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      st.country.toLowerCase().includes(searchQuery.toLowerCase());
+      (st.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (st.region || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (st.country || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -195,7 +223,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
     // Remove existing heat layer if present
     if (heatLayerRef.current) {
-      map.removeLayer(heatLayerRef.current);
+      try {
+        map.removeLayer(heatLayerRef.current);
+      } catch (e) {
+        // Ignored
+      }
       heatLayerRef.current = null;
     }
 
@@ -205,6 +237,17 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     const heatPoints: [number, number, number][] = [];
 
     filteredStations.forEach((st) => {
+      if (
+        typeof st.latitude !== 'number' ||
+        isNaN(st.latitude) ||
+        !isFinite(st.latitude) ||
+        typeof st.longitude !== 'number' ||
+        isNaN(st.longitude) ||
+        !isFinite(st.longitude)
+      ) {
+        return;
+      }
+
       let intensity = 0.2;
 
       if (heatMetric === 'risk') {
@@ -241,14 +284,37 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         const dist = dispersionRadiusDeg * (0.35 + (i % 3) * 0.25);
         const subLat = st.latitude + Math.sin(angle) * dist;
         const subLng = st.longitude + Math.cos(angle) * dist;
-        const subIntensity = intensity * 0.72;
-        heatPoints.push([subLat, subLng, subIntensity]);
+        if (
+          typeof subLat === 'number' &&
+          !isNaN(subLat) &&
+          isFinite(subLat) &&
+          typeof subLng === 'number' &&
+          !isNaN(subLng) &&
+          isFinite(subLng)
+        ) {
+          const subIntensity = intensity * 0.72;
+          heatPoints.push([subLat, subLng, subIntensity]);
+        }
       }
     });
 
-    if (heatPoints.length > 0) {
+    // Strictly validate all heat points before handing to Leaflet
+    const safeHeatPoints = heatPoints.filter(
+      ([lat, lng, w]) =>
+        typeof lat === 'number' &&
+        !isNaN(lat) &&
+        isFinite(lat) &&
+        typeof lng === 'number' &&
+        !isNaN(lng) &&
+        isFinite(lng) &&
+        typeof w === 'number' &&
+        !isNaN(w) &&
+        isFinite(w)
+    );
+
+    if (safeHeatPoints.length > 0) {
       try {
-        const heat = (L as any).heatLayer(heatPoints, {
+        const heat = (L as any).heatLayer(safeHeatPoints, {
           radius: heatRadius,
           blur: 26,
           maxZoom: 16,
@@ -266,7 +332,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         heat.addTo(map);
         heatLayerRef.current = heat;
       } catch (err) {
-        console.warn('[Leaflet] HeatLayer creation caught:', err);
+        console.warn('[Leaflet] Heatmap layer construction error:', err);
       }
     }
   }, [filteredStations, showHeatMap, heatMetric, heatRadius, isHeatPluginReady]);
@@ -284,7 +350,18 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     if (!showStationPins && !showHeatCircles) return;
 
     filteredStations.forEach((station) => {
-      const { status } = station.riskAssessment;
+      if (
+        typeof station.latitude !== 'number' ||
+        isNaN(station.latitude) ||
+        !isFinite(station.latitude) ||
+        typeof station.longitude !== 'number' ||
+        isNaN(station.longitude) ||
+        !isFinite(station.longitude)
+      ) {
+        return;
+      }
+
+      const { status } = station.riskAssessment || { status: 'moderate' };
       const isSelected = selectedStation?.id === station.id;
 
       // Color scheme based on status
@@ -329,7 +406,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                 : 'bg-amber-500 border-2 border-amber-200 text-white shadow-amber-900/60'
             }">
               <span class="text-[10px] font-extrabold tracking-tighter">
-                ${isSafe ? '✓' : station.riskAssessment.riskScore + '%'}
+                ${isSafe ? '✓' : (station.riskAssessment?.riskScore ?? 50) + '%'}
               </span>
             </div>
 
@@ -347,451 +424,421 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           </div>
         `;
 
-        const customIcon = L.divIcon({
-          html: iconHtml,
-          className: 'custom-landslide-marker',
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
-        });
+        try {
+          const customIcon = L.divIcon({
+            html: iconHtml,
+            className: 'custom-landslide-marker',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+          });
 
-        const marker = L.marker([station.latitude, station.longitude], {
-          icon: customIcon,
-        });
+          const marker = L.marker([station.latitude, station.longitude], {
+            icon: customIcon,
+          });
 
-        // Interactive Popup
-        const popupHtml = `
-          <div class="text-slate-900 font-sans p-1 min-w-[220px]">
-            <div class="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
-              <span class="font-bold text-xs truncate">${station.name}</span>
-              <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                isSafe ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-              }">${isSafe ? 'SAFE' : badgeLabel}</span>
+          // Interactive Popup
+          const popupHtml = `
+            <div class="text-slate-900 font-sans p-1 min-w-[220px]">
+              <div class="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
+                <span class="font-bold text-xs truncate">${station.name}</span>
+                <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                  isSafe ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                }">${isSafe ? 'SAFE' : badgeLabel}</span>
+              </div>
+              <div class="text-[11px] text-slate-600 mb-2">${station.region}, ${station.country}</div>
+              
+              <div class="grid grid-cols-2 gap-1 text-[11px] mb-2 bg-slate-50 p-1.5 rounded">
+                <div><strong>Temp:</strong> ${station.telemetry?.temperatureC ?? 24}°C</div>
+                <div><strong>Moisture:</strong> ${station.telemetry?.soilMoisturePct ?? 50}%</div>
+                <div><strong>Erosion:</strong> ${station.telemetry?.erosionRateMmPerYr ?? 10} mm/y</div>
+                <div><strong>Pore Press:</strong> ${station.telemetry?.poreWaterPressureKpa ?? 15} kPa</div>
+                <div><strong>FS:</strong> ${station.riskAssessment?.safetyFactor ?? 1.5}</div>
+                <div><strong>Rain 24h:</strong> ${station.telemetry?.rainfall24hMm ?? 0} mm</div>
+              </div>
+
+              <button id="inspect-btn-${station.id}" class="w-full text-center py-1.5 text-xs font-semibold rounded bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">
+                Inspect Full Station Telemetry
+              </button>
             </div>
-            <div class="text-[11px] text-slate-600 mb-2">${station.region}, ${station.country}</div>
-            
-            <div class="grid grid-cols-2 gap-1 text-[11px] mb-2 bg-slate-50 p-1.5 rounded">
-              <div><strong>Temp:</strong> ${station.telemetry?.temperatureC ?? 24}°C</div>
-              <div><strong>Moisture:</strong> ${station.telemetry?.soilMoisturePct ?? 50}%</div>
-              <div><strong>Erosion:</strong> ${station.telemetry?.erosionRateMmPerYr ?? 10} mm/y</div>
-              <div><strong>Pore Press:</strong> ${station.telemetry?.poreWaterPressureKpa ?? 15} kPa</div>
-              <div><strong>FS:</strong> ${station.riskAssessment?.safetyFactor ?? 1.5}</div>
-              <div><strong>Rain 24h:</strong> ${station.telemetry?.rainfall24hMm ?? 0} mm</div>
-            </div>
+          `;
 
-            <button id="inspect-btn-${station.id}" class="w-full text-center py-1.5 text-xs font-semibold rounded bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">
-              Inspect Full Station Telemetry
-            </button>
-          </div>
-        `;
+          marker.bindPopup(popupHtml);
 
-        marker.bindPopup(popupHtml);
+          marker.on('click', () => {
+            onSelectStation(station);
+          });
 
-        marker.on('click', () => {
-          onSelectStation(station);
-        });
+          marker.on('popupopen', () => {
+            const btn = document.getElementById(`inspect-btn-${station.id}`);
+            if (btn) {
+              btn.onclick = () => onSelectStation(station);
+            }
+          });
 
-        marker.on('popupopen', () => {
-          const btn = document.getElementById(`inspect-btn-${station.id}`);
-          if (btn) {
-            btn.onclick = () => onSelectStation(station);
-          }
-        });
-
-        markersGroup.addLayer(marker);
+          markersGroup.addLayer(marker);
+        } catch (err) {
+          console.warn('[Leaflet] Marker placement error:', err);
+        }
       }
 
       // 2B. Add Heat / Risk Buffer Circles if enabled
       if (showHeatCircles) {
-        const radiusMeters = isSafe ? 15000 : status === 'critical' ? 45000 : 30000;
-        const circle = L.circle([station.latitude, station.longitude], {
-          radius: radiusMeters,
-          color: color,
-          fillColor: color,
-          fillOpacity: isSafe ? 0.08 : status === 'critical' ? 0.28 : 0.16,
-          weight: isSafe ? 1 : 2,
-          dashArray: isSafe ? '4, 4' : undefined,
-        });
-        circlesGroup.addLayer(circle);
+        try {
+          const radiusMeters = isSafe ? 15000 : status === 'critical' ? 45000 : 30000;
+          const circle = L.circle([station.latitude, station.longitude], {
+            radius: radiusMeters,
+            color: color,
+            fillColor: color,
+            fillOpacity: isSafe ? 0.08 : status === 'critical' ? 0.28 : 0.16,
+            weight: isSafe ? 1 : 2,
+            dashArray: isSafe ? '4, 4' : undefined,
+          });
+          circlesGroup.addLayer(circle);
+        } catch (err) {
+          console.warn('[Leaflet] Circle placement error:', err);
+        }
       }
     });
   }, [filteredStations, selectedStation, showStationPins, showHeatCircles]);
 
-  // Pan to selected station
+  // 3. RENDER SAFE ESCAPE ROUTE & WAYPOINTS
   useEffect(() => {
-    if (selectedStation && mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 9, {
-        duration: 1.2,
-      });
+    const map = mapInstanceRef.current;
+    const escapeGroup = escapeGroupRef.current;
+    if (!map || !escapeGroup) return;
+
+    escapeGroup.clearLayers();
+
+    if (!showEscapeRoute || !selectedStation?.escapeRoute) return;
+
+    const escape = selectedStation.escapeRoute;
+    const waypoints = escape.safeWaypoints || [];
+
+    // Path coordinates starting from station
+    const pathCoords: [number, number][] = [];
+    if (
+      typeof selectedStation.latitude === 'number' &&
+      !isNaN(selectedStation.latitude) &&
+      isFinite(selectedStation.latitude) &&
+      typeof selectedStation.longitude === 'number' &&
+      !isNaN(selectedStation.longitude) &&
+      isFinite(selectedStation.longitude)
+    ) {
+      pathCoords.push([selectedStation.latitude, selectedStation.longitude]);
+    }
+
+    waypoints.forEach((wp) => {
+      if (
+        typeof wp.lat === 'number' &&
+        !isNaN(wp.lat) &&
+        isFinite(wp.lat) &&
+        typeof wp.lng === 'number' &&
+        !isNaN(wp.lng) &&
+        isFinite(wp.lng)
+      ) {
+        if (wp.type === 'Safe Shelter' || wp.type === 'Evacuation Hub') {
+          pathCoords.push([wp.lat, wp.lng]);
+        }
+      }
+    });
+
+    if (pathCoords.length >= 2) {
+      try {
+        const polyline = L.polyline(pathCoords, {
+          color: '#10b981',
+          weight: 4,
+          dashArray: '8, 8',
+          opacity: 0.9,
+        });
+        polyline.bindTooltip(
+          `Safe Route: ${escape.primaryRouteName} (${escape.distanceKm} km, ~${escape.estimatedEscapeMins}m)`,
+          { sticky: true }
+        );
+        escapeGroup.addLayer(polyline);
+      } catch (err) {
+        console.warn('[Leaflet] Escape polyline error:', err);
+      }
+    }
+
+    // Add Waypoint markers
+    waypoints.forEach((wp) => {
+      if (
+        typeof wp.lat !== 'number' ||
+        isNaN(wp.lat) ||
+        !isFinite(wp.lat) ||
+        typeof wp.lng !== 'number' ||
+        isNaN(wp.lng) ||
+        !isFinite(wp.lng)
+      ) {
+        return;
+      }
+
+      const isShelter = wp.type === 'Safe Shelter';
+      const isHub = wp.type === 'Evacuation Hub';
+      const isBlocked = wp.type === 'Blocked Road';
+
+      const iconHtml = `
+        <div class="flex flex-col items-center cursor-pointer">
+          <div class="px-2 py-0.5 rounded-full text-xs font-bold shadow-lg border text-white flex items-center gap-1 ${
+            isShelter
+              ? 'bg-emerald-600 border-emerald-300 shadow-emerald-950 ring-2 ring-emerald-400/40'
+              : isHub
+              ? 'bg-cyan-600 border-cyan-300 shadow-cyan-950'
+              : 'bg-rose-600 border-rose-300 shadow-rose-950 animate-bounce'
+          }">
+            <span>${isShelter ? '🛡️' : isHub ? '🏛️' : isBlocked ? '⛔' : '⚠️'}</span>
+            <span class="text-[10px] whitespace-nowrap">${wp.type}</span>
+          </div>
+          <div class="mt-0.5 px-1.5 py-0.2 rounded bg-slate-950/90 text-white border border-slate-700 text-[9px] font-bold whitespace-nowrap shadow-md">
+            ${wp.name}
+          </div>
+        </div>
+      `;
+
+      try {
+        const customIcon = L.divIcon({
+          html: iconHtml,
+          className: 'custom-escape-marker',
+          iconSize: [120, 36],
+          iconAnchor: [60, 18],
+        });
+
+        const marker = L.marker([wp.lat, wp.lng], { icon: customIcon });
+        marker.bindPopup(`
+          <div class="p-2 text-slate-900 font-sans text-xs">
+            <strong class="${isShelter ? 'text-emerald-700' : isBlocked ? 'text-rose-700' : 'text-slate-800'}">${wp.name}</strong>
+            <div class="text-[11px] text-slate-600 mt-1">Type: ${wp.type}</div>
+            ${isShelter ? `<div class="text-emerald-600 font-bold mt-1">+${escape.elevationGainM}m Vertical Elevation Safety</div>` : ''}
+          </div>
+        `);
+        escapeGroup.addLayer(marker);
+      } catch (err) {
+        console.warn('[Leaflet] Waypoint marker error:', err);
+      }
+    });
+  }, [selectedStation, showEscapeRoute]);
+
+  // Pan to selected station with strict coordinate check
+  useEffect(() => {
+    if (
+      selectedStation &&
+      typeof selectedStation.latitude === 'number' &&
+      !isNaN(selectedStation.latitude) &&
+      isFinite(selectedStation.latitude) &&
+      typeof selectedStation.longitude === 'number' &&
+      !isNaN(selectedStation.longitude) &&
+      isFinite(selectedStation.longitude) &&
+      mapInstanceRef.current
+    ) {
+      try {
+        mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 9, {
+          duration: 1.2,
+        });
+      } catch (err) {
+        console.warn('[Leaflet] flyTo error:', err);
+      }
     }
   }, [selectedStation]);
 
   const fitAllStations = () => {
     if (!mapInstanceRef.current || stations.length === 0) return;
-    const bounds = L.latLngBounds(stations.map((s) => [s.latitude, s.longitude]));
-    mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] });
+    const validCoords = stations
+      .filter(
+        (s) =>
+          typeof s.latitude === 'number' &&
+          !isNaN(s.latitude) &&
+          isFinite(s.latitude) &&
+          typeof s.longitude === 'number' &&
+          !isNaN(s.longitude) &&
+          isFinite(s.longitude)
+      )
+      .map((s) => [s.latitude, s.longitude] as [number, number]);
+    if (validCoords.length === 0) return;
+    try {
+      const bounds = L.latLngBounds(validCoords);
+      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] });
+    } catch (err) {
+      console.warn('[Leaflet] fitBounds error:', err);
+    }
   };
 
   return (
     <div
       id="landslide-map-wrapper"
-      className="relative w-full h-[460px] lg:h-[500px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950"
+      className="relative w-full h-[520px] lg:h-[580px] rounded-3xl overflow-hidden border border-indigo-500/20 shadow-2xl bg-[#080e22]"
     >
       {/* Map Canvas Element */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* Top Floating Bar: Controls & Filters */}
-      <div className="absolute top-4 left-4 right-4 z-[400] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pointer-events-none">
-        {/* Search Bar */}
-        <div className="pointer-events-auto flex items-center bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl px-3 py-1.5 shadow-xl w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
-          <input
-            id="map-search-input"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search Northeast places, states (e.g. Gangtok, Noney, Assam)..."
-            className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="text-xs text-slate-400 hover:text-white ml-1 px-1"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-
-        {/* Status Filter Buttons */}
-        <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 shadow-xl overflow-x-auto">
-          <button
-            id="filter-all"
-            onClick={() => onFilterChange('all')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all whitespace-nowrap ${
-              filterStatus === 'all'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            All ({stations.length})
-          </button>
-          <button
-            id="filter-safe"
-            onClick={() => onFilterChange('safe')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
-              filterStatus === 'safe'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-emerald-400 hover:bg-emerald-950/40'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Safe Only ({stations.filter((s) => s.riskAssessment.status === 'safe').length})
-          </button>
-          <button
-            id="filter-moderate"
-            onClick={() => onFilterChange('moderate')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
-              filterStatus === 'moderate'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'text-amber-400 hover:bg-amber-950/40'
-            }`}
-          >
-            Moderate ({stations.filter((s) => s.riskAssessment.status === 'moderate').length})
-          </button>
-          <button
-            id="filter-high"
-            onClick={() => onFilterChange('high')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
-              filterStatus === 'high'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-orange-400 hover:bg-orange-950/40'
-            }`}
-          >
-            High ({stations.filter((s) => s.riskAssessment.status === 'high').length})
-          </button>
-          <button
-            id="filter-critical"
-            onClick={() => onFilterChange('critical')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 whitespace-nowrap ${
-              filterStatus === 'critical'
-                ? 'bg-rose-600 text-white shadow-md'
-                : 'text-rose-400 hover:bg-rose-950/40'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Critical ({stations.filter((s) => s.riskAssessment.status === 'critical').length})
-          </button>
-        </div>
-      </div>
-
-      {/* Floating Right Map Utility Controls */}
-      <div className="absolute top-20 right-4 z-[400] flex flex-col gap-2 pointer-events-auto">
-        {/* Layer Switcher (Esri Dark, Topo, Satellite, OSM) */}
-        <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 shadow-xl flex flex-col gap-1">
-          <button
-            id="layer-dark-btn"
-            title="Dark Gray GIS Base (Esri)"
-            onClick={() => setMapLayer('dark')}
-            className={`p-2 rounded-lg text-xs font-medium flex items-center justify-center transition-colors ${
-              mapLayer === 'dark' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Compass className="w-4 h-4" />
-          </button>
-          <button
-            id="layer-topo-btn"
-            title="Mountain Topographic Relief (Esri)"
-            onClick={() => setMapLayer('topo')}
-            className={`p-2 rounded-lg text-xs font-medium flex items-center justify-center transition-colors ${
-              mapLayer === 'topo' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-          </button>
-          <button
-            id="layer-satellite-btn"
-            title="High-Res Satellite Imagery (Esri)"
-            onClick={() => setMapLayer('satellite')}
-            className={`p-2 rounded-lg text-xs font-medium flex items-center justify-center transition-colors ${
-              mapLayer === 'satellite' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-          </button>
-          <button
-            id="layer-osm-btn"
-            title="OpenStreetMap Standard"
-            onClick={() => setMapLayer('osm')}
-            className={`p-2 rounded-lg text-xs font-medium flex items-center justify-center transition-colors ${
-              mapLayer === 'osm' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <MapPin className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Heat Map Main Quick Toggle Button */}
-        <div className="relative">
-          <button
-            id="toggle-heatmap-btn"
-            title={showHeatMap ? 'Turn Heat Map Layer OFF' : 'Turn Heat Map Layer ON'}
-            onClick={() => setShowHeatMap(!showHeatMap)}
-            className={`p-2 rounded-xl backdrop-blur-md border shadow-xl flex items-center justify-center transition-all ${
-              showHeatMap
-                ? 'bg-gradient-to-br from-rose-600 to-amber-600 text-white border-rose-400 shadow-rose-900/40 ring-2 ring-rose-500/40'
-                : 'bg-slate-900/90 text-slate-400 hover:text-white border-slate-700/80'
-            }`}
-          >
-            <Flame className={`w-4 h-4 ${showHeatMap ? 'animate-pulse' : ''}`} />
-          </button>
-        </div>
-
-        {/* Heat Map Config Menu Popover Button */}
-        <button
-          id="heat-config-menu-btn"
-          title="Configure Heat Map Metric & Density"
-          onClick={() => setIsHeatConfigOpen(!isHeatConfigOpen)}
-          className={`p-2 rounded-xl backdrop-blur-md border shadow-xl transition-colors ${
-            isHeatConfigOpen ? 'bg-indigo-600 text-white border-indigo-400' : 'bg-slate-900/90 text-slate-400 hover:text-white border-slate-700/80'
-          }`}
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-        </button>
-
-        {/* Toggle Station Marker Pins */}
-        <button
-          id="toggle-pins-btn"
-          title={showStationPins ? 'Hide Station Pin Markers' : 'Show Station Pin Markers'}
-          onClick={() => setShowStationPins(!showStationPins)}
-          className={`p-2 rounded-xl backdrop-blur-md border border-slate-700/80 shadow-xl transition-colors ${
-            showStationPins ? 'bg-slate-900/90 text-indigo-400' : 'bg-slate-900/90 text-slate-500'
-          }`}
-        >
-          {showStationPins ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-        </button>
-
-        {/* Fit All Stations */}
-        <button
-          id="fit-bounds-btn"
-          title="Zoom to Fit All 20 Places"
-          onClick={fitAllStations}
-          className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 shadow-xl backdrop-blur-md"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-
-        {/* Zoom Controls */}
-        <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1 shadow-xl flex flex-col gap-1">
-          <button
-            id="zoom-in-btn"
-            onClick={() => mapInstanceRef.current?.zoomIn()}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            id="zoom-out-btn"
-            onClick={() => mapInstanceRef.current?.zoomOut()}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Heat Map Advanced Configuration Modal / Flyout */}
-      {isHeatConfigOpen && (
-        <div className="absolute top-20 right-16 z-[450] bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-2xl p-4 shadow-2xl w-72 text-white space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-orange-400" />
-              <h4 className="text-xs font-bold uppercase tracking-wider">Heat Map Layer</h4>
-            </div>
-            <button
-              onClick={() => setIsHeatConfigOpen(false)}
-              className="text-xs text-slate-400 hover:text-white"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Toggle Heat Map Active */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-300">Thermal Heat Raster</span>
-            <button
-              id="switch-heatmap-status"
-              onClick={() => setShowHeatMap(!showHeatMap)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                showHeatMap ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'
-              }`}
-            >
-              {showHeatMap ? 'ACTIVE' : 'MUTED'}
-            </button>
-          </div>
-
-          {/* Metric Selector */}
-          <div>
-            <label className="text-[11px] font-semibold text-slate-400 block mb-1.5">
-              ML Geotechnical Metric
-            </label>
-            <div className="grid grid-cols-1 gap-1">
-              <button
-                onClick={() => setHeatMetric('risk')}
-                className={`text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
-                  heatMetric === 'risk' ? 'bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span>ML Landslide Risk Score</span>
-                <Sparkles className="w-3 h-3 text-amber-300" />
-              </button>
-              <button
-                onClick={() => setHeatMetric('pore_pressure')}
-                className={`text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
-                  heatMetric === 'pore_pressure' ? 'bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span>Soil Pore Water Pressure</span>
-                <Gauge className="w-3 h-3 text-cyan-300" />
-              </button>
-              <button
-                onClick={() => setHeatMetric('moisture')}
-                className={`text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
-                  heatMetric === 'moisture' ? 'bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span>Soil Moisture Saturation</span>
-                <Droplets className="w-3 h-3 text-blue-300" />
-              </button>
-              <button
-                onClick={() => setHeatMetric('erosion')}
-                className={`text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center justify-between ${
-                  heatMetric === 'erosion' ? 'bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <span>Accelerated Soil Erosion</span>
-                <Activity className="w-3 h-3 text-rose-300" />
-              </button>
-            </div>
-          </div>
-
-          {/* Thermal Radius Slider */}
-          <div>
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-slate-400">Diffusion Radius</span>
-              <span className="font-mono text-indigo-300">{heatRadius}px</span>
-            </div>
+      <div className="absolute top-4 left-4 right-4 z-[400] flex flex-col md:flex-row items-stretch md:items-start justify-between gap-3 pointer-events-none">
+        {/* Left Side: Search Bar & Floating Select Place Dropdown */}
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          {/* Search Input */}
+          <div className="flex items-center bg-[#0b1433]/90 backdrop-blur-md border border-slate-700/80 rounded-2xl px-3 py-2 shadow-xl w-full md:w-72">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
             <input
-              type="range"
-              min="25"
-              max="70"
-              value={heatRadius}
-              onChange={(e) => setHeatRadius(Number(e.target.value))}
-              className="w-full accent-indigo-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
+              id="map-search-input"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search location..."
+              className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full"
             />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="text-xs text-slate-400 hover:text-white ml-1 px-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          {/* Hazard Buffer Circles */}
-          <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-xs text-slate-300">Hazard Ring Buffers</span>
-            <button
-              onClick={() => setShowHeatCircles(!showHeatCircles)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                showHeatCircles ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
-              }`}
+          {/* Floating SELECT PLACE Card (matching screenshot) */}
+          <div className="bg-[#0b1433]/95 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-3 shadow-2xl min-w-[260px]">
+            <div className="text-[10px] font-extrabold text-cyan-400 tracking-wider uppercase mb-1 flex items-center justify-between">
+              <span>SELECT PLACE</span>
+              <span className="text-[9px] text-slate-400 font-mono">{stations.length} Available</span>
+            </div>
+            <select
+              value={selectedStation?.id || ''}
+              onChange={(e) => {
+                const found = stations.find((s) => s.id === e.target.value);
+                if (found) onSelectStation(found);
+              }}
+              className="w-full bg-[#070d22] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-cyan-400 cursor-pointer"
             >
-              {showHeatCircles ? 'ON' : 'OFF'}
+              {stations.map((st) => (
+                <option key={st.id} value={st.id} className="bg-slate-900 text-white">
+                  {st.name}, {st.region}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-1.5 mt-2 text-[10.5px] text-emerald-400 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>LIVE DASHBOARD • {selectedStation?.name || 'Agartala'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Top-Right Floating Controls (Pills matching screenshot) */}
+        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5">
+          {/* Current Location Button */}
+          <button
+            onClick={() => {
+              if (
+                selectedStation &&
+                typeof selectedStation.latitude === 'number' &&
+                !isNaN(selectedStation.latitude) &&
+                isFinite(selectedStation.latitude) &&
+                typeof selectedStation.longitude === 'number' &&
+                !isNaN(selectedStation.longitude) &&
+                isFinite(selectedStation.longitude) &&
+                mapInstanceRef.current
+              ) {
+                try {
+                  mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 10);
+                } catch (err) {
+                  console.warn('[Leaflet] Current location flyTo error:', err);
+                }
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#0b1433]/90 backdrop-blur-md border border-slate-700/80 hover:border-slate-500 text-xs font-bold text-slate-300 hover:text-white transition-all shadow-xl cursor-pointer"
+          >
+            <LocateFixed className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Current Location</span>
+          </button>
+
+          {/* Satellite Layer Toggle */}
+          <button
+            onClick={() => setMapLayer('satellite')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              mapLayer === 'satellite'
+                ? 'bg-indigo-600 text-white border-indigo-400 shadow-indigo-900/50'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Satellite</span>
+          </button>
+
+          {/* Terrain Layer Toggle */}
+          <button
+            onClick={() => setMapLayer('topo')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              mapLayer === 'topo'
+                ? 'bg-indigo-600 text-white border-indigo-400 shadow-indigo-900/50'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Terrain</span>
+          </button>
+
+          {/* Flood Risk Toggle */}
+          <button
+            onClick={() => setShowFloodLayer(!showFloodLayer)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              showFloodLayer
+                ? 'bg-cyan-600 text-white border-cyan-400'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Waves className="w-3.5 h-3.5 text-cyan-300" />
+            <span>Flood</span>
+          </button>
+
+          {/* Landslide Heatmap Toggle */}
+          <button
+            onClick={() => setShowHeatMap(!showHeatMap)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              showHeatMap
+                ? 'bg-amber-600 text-white border-amber-400'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-300" />
+            <span>Landslide</span>
+          </button>
+
+          {/* Safe Escape Route Toggle */}
+          <button
+            onClick={() => setShowEscapeRoute(!showEscapeRoute)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              showEscapeRoute
+                ? 'bg-emerald-600 text-white border-emerald-400 shadow-emerald-950'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Navigation className="w-3.5 h-3.5 text-emerald-300" />
+            <span>Safe Route</span>
+          </button>
+
+          {/* Zoom Controls */}
+          <div className="flex items-center bg-[#0b1433]/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-0.5 shadow-xl">
+            <button
+              onClick={() => mapInstanceRef.current?.zoomIn()}
+              className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => mapInstanceRef.current?.zoomOut()}
+              className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Bottom Floating Bar: Heat Map Spectrum & Status Legend */}
-      <div className="absolute bottom-4 left-4 right-4 md:right-auto z-[400] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-xl flex flex-col md:flex-row items-start md:items-center gap-4 text-xs">
-        {/* Heat Map Gradient Legend */}
-        {showHeatMap && (
-          <div className="flex flex-col gap-1 pr-3 md:border-r md:border-slate-800">
-            <div className="flex items-center justify-between text-[11px] text-slate-300 font-semibold gap-2">
-              <span className="flex items-center gap-1">
-                <Flame className="w-3 h-3 text-orange-400" />
-                ML Heat Layer:
-              </span>
-              <span className="text-indigo-300 font-medium capitalize">
-                {heatMetric === 'risk'
-                  ? 'Landslide Risk Score'
-                  : heatMetric === 'pore_pressure'
-                  ? 'Pore Water Pressure'
-                  : heatMetric === 'moisture'
-                  ? 'Soil Saturation'
-                  : 'Erosion Rate'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-emerald-400 font-bold">Safe</span>
-              <div className="w-32 h-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-yellow-400 via-orange-500 to-rose-600 border border-slate-700 shadow-inner"></div>
-              <span className="text-[10px] text-rose-400 font-bold">Critical</span>
-            </div>
-          </div>
-        )}
-
-        {/* Standard Geological Advisory Categories */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 border border-emerald-300"></div>
-            <span>SAFE ZONE (FS &ge; 1.80)</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-amber-400 font-medium">
-            <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-            <span>Moderate (25-50%)</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-orange-400 font-medium">
-            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-            <span>High Risk (50-75%)</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-rose-400 font-bold">
-            <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></div>
-            <span>Critical (&gt;75% Evacuate)</span>
-          </div>
-        </div>
+      {/* Floating Bottom Left Tag (matching screenshot) */}
+      <div className="absolute bottom-3 left-4 z-[400] pointer-events-none flex items-center gap-2 text-[11px] bg-[#0b1433]/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800 text-slate-300 shadow-xl">
+        <Globe className="w-3.5 h-3.5 text-cyan-400" />
+        <span>Esri World Imagery • 11 Sept 2026, 10:16 am DEMO</span>
       </div>
     </div>
   );

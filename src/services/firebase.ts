@@ -68,17 +68,46 @@ export async function initializeStations(): Promise<LandslideStation[]> {
       snapshot.forEach((d) => {
         if (d.id.startsWith('st-ne-')) {
           const raw = d.data() as LandslideStation;
+          const defaultStation = INITIAL_STATIONS.find((s) => s.id === d.id);
+          const baseStation = defaultStation || INITIAL_STATIONS[0];
+          const rawLat = Number(raw.latitude);
+          const rawLng = Number(raw.longitude);
+          const validLat = typeof raw.latitude === 'number' && !isNaN(rawLat) && isFinite(rawLat) ? rawLat : (defaultStation?.latitude ?? baseStation.latitude);
+          const validLng = typeof raw.longitude === 'number' && !isNaN(rawLng) && isFinite(rawLng) ? rawLng : (defaultStation?.longitude ?? baseStation.longitude);
+
           const safeStation: LandslideStation = {
+            ...(defaultStation || raw),
             ...raw,
-            disasterHistory: raw.disasterHistory || [],
+            latitude: validLat,
+            longitude: validLng,
+            telemetry: {
+              ...baseStation.telemetry,
+              ...(raw.telemetry || {}),
+            } as any,
+            riskAssessment: raw.riskAssessment || baseStation.riskAssessment,
+            anthropogenicCutting: raw.anthropogenicCutting || baseStation.anthropogenicCutting,
+            glacierRisk: raw.glacierRisk || baseStation.glacierRisk,
+            escapeRoute: raw.escapeRoute || baseStation.escapeRoute,
+            kpis: raw.kpis || baseStation.kpis,
+            disasterHistory: raw.disasterHistory || baseStation.disasterHistory || [],
             safeAuditResult: raw.safeAuditResult || auditStationSafety(raw),
           };
           stations.push(safeStation);
         }
       });
-      // Sort numerically by id (st-ne-01 to st-ne-16)
-      stations.sort((a, b) => a.id.localeCompare(b.id));
-      return stations.length >= 16 ? stations : INITIAL_STATIONS;
+      // Ensure all INITIAL_STATIONS (including Agartala and Glaciers) are present
+      for (const initSt of INITIAL_STATIONS) {
+        if (!stations.some((s) => s.id === initSt.id)) {
+          stations.push(initSt);
+        }
+      }
+      // Sort with Agartala first, then by id
+      stations.sort((a, b) => {
+        if (a.id === 'st-ne-agartala') return -1;
+        if (b.id === 'st-ne-agartala') return 1;
+        return a.id.localeCompare(b.id);
+      });
+      return stations.length > 0 ? stations : INITIAL_STATIONS;
     }
   } catch (err) {
     console.warn('[Firebase] Error reading stations from Firestore, using initial seed:', err);
@@ -151,6 +180,13 @@ export async function getSubscribers(): Promise<SmsSubscriber[]> {
     }
     const subs: SmsSubscriber[] = [];
     snap.forEach((d) => subs.push(d.data() as SmsSubscriber));
+    // Ensure Gutla rohith is present
+    const gutla = INITIAL_SUBSCRIBERS.find((s) => s.phoneNumber.includes('9032479657'));
+    if (gutla && !subs.some((s) => s.phoneNumber.includes('9032479657'))) {
+      subs.unshift(gutla);
+      // Also persist to firestore
+      setDoc(doc(db, 'sms_subscribers', gutla.id), gutla).catch(() => {});
+    }
     return subs;
   } catch (e) {
     return INITIAL_SUBSCRIBERS;

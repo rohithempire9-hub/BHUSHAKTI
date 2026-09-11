@@ -60,6 +60,61 @@ export interface SafeZoneAuditResult {
   geotechnicalNotes: string;
 }
 
+export interface AnthropogenicHillCutting {
+  hasGovernmentCut: boolean;
+  cutActivityType: 'Highway 4-Laning Excavation' | 'Railway Tunnel & Slope Cut' | 'Hill Terracing & Urban Cutting' | 'Quarrying Toe Removal' | 'Natural Stable Slope';
+  naturalSlopeDeg: number;
+  excavatedSlopeDeg: number;
+  toeDebuttressed: boolean;
+  retainingWallCondition: 'Missing / None' | 'Severely Cracked' | 'Shotcrete Damaged' | 'Stable Geotechnical Anchors';
+  blastingFissureIndex: number; // 0 to 10
+  cutRiskScore: number; // 0 to 100
+  governmentFieldNotice: string;
+}
+
+export interface GlacierRisk {
+  isGlacierZone: boolean;
+  glacierName?: string;
+  moraineLakeName?: string;
+  iceMeltRateMmDay?: number;
+  tempTriggerC?: number;
+  moraineDamStabilityFS?: number;
+  tempMoistureSurgeActive?: boolean;
+  thermalSensitivityIndex?: number; // 1 to 10
+  glofRiskDescription?: string;
+}
+
+export interface EscapeRoute {
+  safeShelterName: string;
+  shelterElevationM: number;
+  elevationGainM: number;
+  primaryRouteName: string;
+  alternateRouteName: string;
+  distanceKm: number;
+  estimatedEscapeMins: number;
+  blockedRoadsList: string[];
+  safeWaypoints: {
+    name: string;
+    lat: number;
+    lng: number;
+    type: 'Safe Shelter' | 'Evacuation Hub' | 'Blocked Road' | 'Hazard Zone';
+  }[];
+  evacuationInstructions: string[];
+}
+
+export interface StationKPIs {
+  activeAlerts: number;
+  highRiskZones: number;
+  landslideRiskPct: number;
+  floodRiskPct: number;
+  affectedRoads: number;
+  villagesAtRisk: number;
+  alertSubtitle: string;
+  zoneSubtitle: string;
+  roadSubtitle: string;
+  villageSubtitle: string;
+}
+
 export interface LandslideStation {
   id: string;
   name: string;
@@ -78,6 +133,10 @@ export interface LandslideStation {
   isCustomLocation?: boolean;
   disasterHistory?: NaturalDisasterRecord[];
   safeAuditResult?: SafeZoneAuditResult;
+  anthropogenicCutting?: AnthropogenicHillCutting;
+  glacierRisk?: GlacierRisk;
+  escapeRoute?: EscapeRoute;
+  kpis?: StationKPIs;
 }
 
 export interface SmsSubscriber {
