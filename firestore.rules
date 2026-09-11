@@ -1,8 +1,44 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Stations
+    match /stations/{stationId} {
+      allow read: if true;
+      allow write: if isValidId(stationId);
+    }
+
+    // SMS Emergency Subscribers
+    match /sms_subscribers/{subscriberId} {
+      allow read: if true;
+      allow write: if isValidId(subscriberId);
+    }
+
+    // Emergency Alert Dispatches
+    match /alert_dispatches/{dispatchId} {
+      allow read: if true;
+      allow write: if isValidId(dispatchId);
+    }
+
+    // Disaster Evidence & Photo Reports submitted by users
+    match /disaster_evidence/{evidenceId} {
+      allow read: if true;
+      allow create: if isValidId(evidenceId)
+        && request.resource.data.photoUrl is string
+        && request.resource.data.photoUrl.size() <= 600000
+        && request.resource.data.locationName is string
+        && request.resource.data.disasterType is string;
+      allow update, delete: if isValidId(evidenceId);
+    }
+
+    // Default safety catch-all
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

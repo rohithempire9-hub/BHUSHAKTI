@@ -173,3 +173,52 @@ export interface TelemetryHistoryPoint {
   porePressureKpa: number;
   riskScore: number;
 }
+
+export type DisasterClassification =
+  | 'Rotational Landslide'
+  | 'Rockfall / Topple'
+  | 'Debris Flow / Mudslide'
+  | 'Slope Tension Cracks & Subsidence'
+  | 'Toe Cut Slump'
+  | 'Flash Flood Debris Surge'
+  | 'GLOF Moraine Breach'
+  | 'Riverbank Soil Erosion';
+
+export type DisasterSeverity = 'critical' | 'high' | 'moderate' | 'low';
+
+export interface DisasterEvidenceReport {
+  id: string;
+  stationId?: string;             // Associated station or 'unassigned'
+  locationName: string;          // e.g. "Dima Hasao Hill Cut (NH-27)"
+  region: string;                // e.g. "Assam, Northeast India"
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+
+  // User Reporter Details
+  reporterName: string;
+  reporterRole: 'Citizen Observer' | 'Field Geologist' | 'Emergency Responder' | 'Village Head' | 'Road Transport Inspector';
+  reporterContact?: string;
+  userObservations: string;      // User narrative description of what they observed
+
+  // Photo Evidence
+  photoUrl: string;              // Compressed Data URL (base64 image/webp/jpeg)
+  photoThumbnailUrl?: string;
+  imageDimensions?: { width: number; height: number };
+  imageFileName?: string;
+  imageSizeBytes?: number;
+
+  // AI & Geotechnical Identification
+  disasterType: DisasterClassification;
+  severityLevel: DisasterSeverity;
+  identificationConfidencePct: number; // e.g. 92%
+  detectedFeatures: string[];    // e.g. ['Head Scarp Displacement', 'Tension Fissures >10cm', 'Mud Saturated Mass']
+  recommendedImmediateAction: string; // e.g. "Evacuate downhill radius 200m; close NH-27 lane"
+
+  // Status & Verification
+  verificationStatus: 'Pending Geologist Review' | 'Verified Disaster' | 'Under Investigation' | 'Resolved / Cleared';
+  verifiedBy?: string;
+  verifiedAt?: string;
+  dispatchedAlertId?: string;
+}
+

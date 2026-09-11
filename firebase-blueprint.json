@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "stations": {
+      "title": "LandslideStation",
+      "description": "Landslide sensor monitoring station data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string" },
+        "country": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "elevationM": { "type": "number" },
+        "slopeAngleDeg": { "type": "number" },
+        "soilType": { "type": "string" }
+      },
+      "required": ["id", "name", "region", "latitude", "longitude"]
+    },
+    "sms_subscribers": {
+      "title": "SmsSubscriber",
+      "description": "Registered recipients for SMS emergency alerts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "role": { "type": "string" },
+        "assignedStationId": { "type": "string" },
+        "alertThreshold": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "registeredAt": { "type": "string" }
+      },
+      "required": ["id", "fullName", "phoneNumber", "role"]
+    },
+    "alert_dispatches": {
+      "title": "SmsAlertRecord",
+      "description": "Historical disaster broadcast alerts dispatched via SMS gateway",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "stationId": { "type": "string" },
+        "stationName": { "type": "string" },
+        "region": { "type": "string" },
+        "severity": { "type": "string" },
+        "message": { "type": "string" },
+        "recipientsCount": { "type": "number" },
+        "deliveryStatus": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "stationId", "message"]
+    },
+    "disaster_evidence": {
+      "title": "DisasterEvidenceReport",
+      "description": "User uploaded disaster evidence photos and AI disaster identification reports",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "stationId": { "type": "string", "maxLength": 128 },
+        "locationName": { "type": "string", "maxLength": 200 },
+        "region": { "type": "string", "maxLength": 100 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "timestamp": { "type": "string" },
+        "reporterName": { "type": "string", "maxLength": 120 },
+        "reporterRole": { "type": "string", "maxLength": 80 },
+        "reporterContact": { "type": "string", "maxLength": 50 },
+        "userObservations": { "type": "string", "maxLength": 4000 },
+        "photoUrl": { "type": "string", "maxLength": 600000 },
+        "disasterType": { "type": "string", "maxLength": 100 },
+        "severityLevel": { "type": "string", "maxLength": 30 },
+        "identificationConfidencePct": { "type": "number" },
+        "recommendedImmediateAction": { "type": "string", "maxLength": 1000 },
+        "verificationStatus": { "type": "string", "maxLength": 50 }
+      },
+      "required": [
+        "id",
+        "locationName",
+        "timestamp",
+        "reporterName",
+        "photoUrl",
+        "disasterType",
+        "severityLevel"
+      ]
+    }
+  },
+  "firestore": {
+    "/stations/{stationId}": {
+      "schema": "stations",
+      "description": "Landslide monitoring sensor stations across Northeast India"
+    },
+    "/sms_subscribers/{subscriberId}": {
+      "schema": "sms_subscribers",
+      "description": "Emergency response and community SMS alert subscribers"
+    },
+    "/alert_dispatches/{dispatchId}": {
+      "schema": "alert_dispatches",
+      "description": "Disaster alert SMS broadcasts dispatched to mobile phones"
+    },
+    "/disaster_evidence/{evidenceId}": {
+      "schema": "disaster_evidence",
+      "description": "Field evidence photos and automated disaster identification submitted by users"
+    }
+  }
+}

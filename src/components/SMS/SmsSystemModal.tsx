@@ -31,6 +31,7 @@ interface SmsSystemModalProps {
   alertDispatches: SmsAlertRecord[];
   onDispatchesChange: (dispatches: SmsAlertRecord[]) => void;
   initialStation?: LandslideStation | null;
+  initialMessage?: string | null;
 }
 
 export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
@@ -41,7 +42,8 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
   onSubscribersChange,
   alertDispatches,
   onDispatchesChange,
-  initialStation
+  initialStation,
+  initialMessage
 }) => {
   // Tabs: 'broadcast' | 'subscribers' | 'register' | 'history'
   const [activeTab, setActiveTab] = useState<'broadcast' | 'subscribers' | 'register' | 'history'>('broadcast');
@@ -81,6 +83,13 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
       setNotificationPermission(Notification.permission);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (initialMessage && isOpen) {
+      setCustomMessage(initialMessage);
+      setActiveTab('broadcast');
+    }
+  }, [initialMessage, isOpen]);
 
   if (!isOpen) return null;
 

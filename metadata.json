@@ -1,6 +1,9 @@
 {
   "name": "BhuShakti",
-  "description": "Real-time Northeast India landslide early detection and soil instability monitoring across 16 stations, with geotechnical safe zone certification, interactive GIS mapping, live weather sync, disaster history, and emergency SMS alerts.",
-  "requestFramePermissions": [],
+  "description": "Real-time Northeast India landslide early detection and soil instability monitoring across 16 stations, with user disaster photo evidence submission, AI disaster identification, geotechnical safe zone certification, interactive GIS mapping, live weather sync, disaster history, and emergency SMS alerts.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

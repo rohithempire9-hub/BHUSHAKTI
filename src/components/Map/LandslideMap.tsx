@@ -25,8 +25,10 @@ import {
   Globe,
   Waves,
   Radio,
-  CheckCircle2
+  CheckCircle2,
+  Camera
 } from 'lucide-react';
+import { DisasterEvidenceReport } from '../../types/landslide';
 
 interface LandslideMapProps {
   stations: LandslideStation[];
@@ -37,6 +39,8 @@ interface LandslideMapProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenEscapeModal?: () => void;
+  evidenceList?: DisasterEvidenceReport[];
+  onOpenEvidenceModal?: () => void;
 }
 
 export type MapLayerType = 'topo' | 'dark' | 'satellite' | 'osm';
@@ -51,18 +55,22 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   searchQuery,
   onSearchChange,
   onOpenEscapeModal,
+  evidenceList = [],
+  onOpenEvidenceModal,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersGroupRef = useRef<L.LayerGroup | null>(null);
   const circlesGroupRef = useRef<L.LayerGroup | null>(null);
   const escapeGroupRef = useRef<L.LayerGroup | null>(null);
+  const evidenceGroupRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
 
   // Map state - Default to satellite to match the screenshot 'Esri World Imagery'
   const [mapLayer, setMapLayer] = useState<MapLayerType>('satellite');
   const [showHeatMap, setShowHeatMap] = useState<boolean>(true);
   const [showEscapeRoute, setShowEscapeRoute] = useState<boolean>(true);
+  const [showEvidencePins, setShowEvidencePins] = useState<boolean>(true);
   const [showFloodLayer, setShowFloodLayer] = useState<boolean>(false);
   const [heatMetric, setHeatMetric] = useState<HeatMetricType>('risk');
   const [heatRadius, setHeatRadius] = useState<number>(45);
@@ -114,6 +122,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       markersGroupRef.current = L.layerGroup().addTo(map);
       circlesGroupRef.current = L.layerGroup().addTo(map);
       escapeGroupRef.current = L.layerGroup().addTo(map);
+      evidenceGroupRef.current = L.layerGroup().addTo(map);
 
       // Attribution control
       L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
@@ -618,6 +627,83 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     });
   }, [selectedStation, showEscapeRoute]);
 
+  // 4. RENDER DISASTER EVIDENCE PHOTO MARKERS
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const evidenceGroup = evidenceGroupRef.current;
+    if (!map || !evidenceGroup) return;
+
+    evidenceGroup.clearLayers();
+    if (!showEvidencePins || !evidenceList || evidenceList.length === 0) return;
+
+    evidenceList.forEach((ev) => {
+      if (
+        typeof ev.latitude !== 'number' ||
+        isNaN(ev.latitude) ||
+        !isFinite(ev.latitude) ||
+        typeof ev.longitude !== 'number' ||
+        isNaN(ev.longitude) ||
+        !isFinite(ev.longitude)
+      ) {
+        return;
+      }
+
+      const isCritical = ev.severityLevel === 'critical';
+      const iconHtml = `
+        <div class="relative flex flex-col items-center cursor-pointer group">
+          <div class="w-8 h-8 rounded-xl ${
+            isCritical
+              ? 'bg-rose-600 border-2 border-rose-300 shadow-rose-950/80 animate-pulse'
+              : 'bg-amber-600 border-2 border-amber-300 shadow-amber-950/80'
+          } flex items-center justify-center text-white shadow-xl transform transition-transform group-hover:scale-125">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
+          </div>
+          <div class="mt-1 px-1.5 py-0.2 rounded bg-slate-950/90 text-[9px] font-black text-rose-300 border border-rose-500/40 shadow-md whitespace-nowrap">
+            PHOTO: ${ev.disasterType}
+          </div>
+        </div>
+      `;
+
+      try {
+        const customIcon = L.divIcon({
+          html: iconHtml,
+          className: 'custom-evidence-marker',
+          iconSize: [110, 48],
+          iconAnchor: [55, 24],
+        });
+
+        const marker = L.marker([ev.latitude, ev.longitude], { icon: customIcon });
+
+        marker.bindPopup(`
+          <div class="p-2.5 text-slate-900 font-sans text-xs max-w-xs">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase text-white ${
+                isCritical ? 'bg-rose-600' : 'bg-amber-600'
+              }">
+                ${ev.disasterType}
+              </span>
+              <span class="text-[10px] font-bold text-slate-500 font-mono">${ev.identificationConfidencePct}% AI Confidence</span>
+            </div>
+            <img src="${ev.photoUrl}" alt="${ev.locationName}" style="width:100%; height:110px; object-fit:cover; border-radius:8px; margin-bottom:6px;" />
+            <strong class="text-slate-900 block text-xs">${ev.locationName}</strong>
+            <div class="text-[11px] text-slate-600 mb-1">${ev.region}</div>
+            <p class="text-[10.5px] text-slate-700 italic line-clamp-2">"${ev.userObservations}"</p>
+            <div class="mt-2 text-[10px] text-slate-500">
+              Reported by <strong>${ev.reporterName}</strong> (${ev.reporterRole})
+            </div>
+          </div>
+        `);
+
+        evidenceGroup.addLayer(marker);
+      } catch (err) {
+        console.warn('[Leaflet] Evidence marker error:', err);
+      }
+    });
+  }, [evidenceList, showEvidencePins]);
+
   // Pan to selected station with strict coordinate check
   useEffect(() => {
     if (
@@ -813,6 +899,26 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           >
             <Navigation className="w-3.5 h-3.5 text-emerald-300" />
             <span>Safe Route</span>
+          </button>
+
+          {/* Photo Evidence Layer & Modal Toggle */}
+          <button
+            onClick={() => {
+              if (onOpenEvidenceModal) {
+                onOpenEvidenceModal();
+              } else {
+                setShowEvidencePins(!showEvidencePins);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              showEvidencePins
+                ? 'bg-gradient-to-r from-rose-600 to-amber-600 text-white border-rose-400 shadow-rose-950/40'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+            title="Field Disaster Photo Evidence & AI Identification"
+          >
+            <Camera className="w-3.5 h-3.5 text-rose-300" />
+            <span>Photo Evidence ({evidenceList.length})</span>
           </button>
 
           {/* Zoom Controls */}

@@ -15,8 +15,9 @@ import {
   Firestore
 } from 'firebase/firestore';
 import firebaseConfigData from '../../firebase-applet-config.json';
-import { LandslideStation, SmsSubscriber, SmsAlertRecord, SensorTelemetry } from '../types/landslide';
+import { LandslideStation, SmsSubscriber, SmsAlertRecord, SensorTelemetry, DisasterEvidenceReport } from '../types/landslide';
 import { INITIAL_STATIONS, INITIAL_SUBSCRIBERS, INITIAL_DISPATCHES } from '../data/initialStations';
+import { INITIAL_DISASTER_EVIDENCE } from '../data/initialEvidence';
 import { evaluateLandslideRisk } from './mlRiskEngine';
 import { auditStationSafety } from './safeZoneAuditor';
 
@@ -266,3 +267,130 @@ export async function getAlertDispatches(): Promise<SmsAlertRecord[]> {
     return INITIAL_DISPATCHES;
   }
 }
+
+/**
+ * Initialize / fetch Disaster Evidence & Photos from Cloud Firestore
+ */
+export async function getDisasterEvidence(): Promise<DisasterEvidenceReport[]> {
+  if (!db) {
+    return INITIAL_DISASTER_EVIDENCE;
+  }
+  try {
+    const evCol = collection(db, 'disaster_evidence');
+    const snap = await getDocs(evCol);
+    if (snap.empty) {
+      console.log('[Firebase] Seeding initial disaster evidence field reports to Cloud Firestore...');
+      for (const ev of INITIAL_DISASTER_EVIDENCE) {
+        await setDoc(doc(db, 'disaster_evidence', ev.id), {
+          ...ev,
+          createdAt: serverTimestamp(),
+        });
+      }
+      return INITIAL_DISASTER_EVIDENCE;
+    }
+    const reports: DisasterEvidenceReport[] = [];
+    snap.forEach((d) => reports.push(d.data() as DisasterEvidenceReport));
+    reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return reports;
+  } catch (e) {
+    console.warn('[Firebase] Disaster evidence fetch fallback:', e);
+    return INITIAL_DISASTER_EVIDENCE;
+  }
+}
+
+/**
+ * Submit user disaster photo evidence and AI identification to Cloud Firestore
+ */
+export async function submitDisasterEvidence(
+  evidence: Omit<DisasterEvidenceReport, 'id' | 'timestamp'>
+): Promise<DisasterEvidenceReport> {
+  const newReport: DisasterEvidenceReport = {
+    ...evidence,
+    id: 'ev-' + Date.now(),
+    timestamp: new Date().toISOString(),
+  };
+
+  if (db) {
+    try {
+      await setDoc(doc(db, 'disaster_evidence', newReport.id), {
+        ...newReport,
+        createdAt: serverTimestamp(),
+      });
+      console.log('[Firebase] Disaster evidence photo saved to Firestore:', newReport.id);
+    } catch (e) {
+      console.warn('[Firebase] Evidence save fallback:', e);
+    }
+  }
+
+  return newReport;
+}
+
+/**
+ * Update verification status of a disaster evidence photo
+ */
+export async function updateEvidenceVerificationStatus(
+  id: string,
+  status: DisasterEvidenceReport['verificationStatus'],
+  verifiedBy?: string
+): Promise<void> {
+  if (db) {
+    try {
+      const updates: any = {
+        verificationStatus: status,
+        updatedAt: serverTimestamp(),
+      };
+      if (verifiedBy) {
+        updates.verifiedBy = verifiedBy;
+        updates.verifiedAt = new Date().toISOString();
+      }
+      await updateDoc(doc(db, 'disaster_evidence', id), updates);
+    } catch (e) {
+      console.warn('[Firebase] Update evidence status error:', e);
+    }
+  }
+}
+
+/**
+ * Delete a disaster evidence report
+ */
+export async function deleteDisasterEvidence(id: string): Promise<void> {
+  if (db) {
+    try {
+      await deleteDoc(doc(db, 'disaster_evidence', id));
+    } catch (e) {
+      console.warn('[Firebase] Delete evidence error:', e);
+    }
+  }
+}
+
+/**
+ * Real-time listener for disaster evidence
+ */
+export function subscribeToDisasterEvidence(
+  callback: (evidence: DisasterEvidenceReport[]) => void
+): () => void {
+  if (!db) {
+    callback(INITIAL_DISASTER_EVIDENCE);
+    return () => {};
+  }
+
+  try {
+    const evCol = collection(db, 'disaster_evidence');
+    return onSnapshot(
+      evCol,
+      (snapshot) => {
+        const reports: DisasterEvidenceReport[] = [];
+        snapshot.forEach((d) => reports.push(d.data() as DisasterEvidenceReport));
+        reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        callback(reports);
+      },
+      (error) => {
+        console.warn('[Firebase] Evidence snapshot error:', error);
+      }
+    );
+  } catch (e) {
+    console.warn('[Firebase] Evidence subscribe error:', e);
+    return () => {};
+  }
+}
+

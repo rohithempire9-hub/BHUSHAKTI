@@ -18,7 +18,8 @@ import {
   Zap,
   CheckCircle2,
   FileText,
-  AlertOctagon
+  AlertOctagon,
+  Camera
 } from 'lucide-react';
 
 interface StationDetailModalProps {
@@ -40,6 +41,7 @@ interface StationDetailModalProps {
     }
   ) => void;
   onOpenSmsModalForStation: (station: LandslideStation) => void;
+  onOpenEvidenceForStation?: (station: LandslideStation) => void;
 }
 
 export const StationDetailModal: React.FC<StationDetailModalProps> = ({
@@ -47,7 +49,8 @@ export const StationDetailModal: React.FC<StationDetailModalProps> = ({
   station,
   onClose,
   onUpdateStationTelemetry,
-  onOpenSmsModalForStation
+  onOpenSmsModalForStation,
+  onOpenEvidenceForStation
 }) => {
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiReport, setAiReport] = useState<AIAnalysisResult | null>(null);
@@ -218,13 +221,25 @@ export const StationDetailModal: React.FC<StationDetailModalProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => onOpenSmsModalForStation(station)}
-                className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-1.5 shrink-0"
-              >
-                <Radio className="w-3.5 h-3.5" />
-                Dispatch Alert SMS
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {onOpenEvidenceForStation && (
+                  <button
+                    onClick={() => onOpenEvidenceForStation(station)}
+                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
+                    title="Upload or inspect user photo evidence for this station"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Photo Evidence</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => onOpenSmsModalForStation(station)}
+                  className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition-colors flex items-center gap-1.5"
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  Dispatch Alert SMS
+                </button>
+              </div>
             </div>
           )}
 

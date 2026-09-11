@@ -3,13 +3,16 @@ import {
   LandslideStation,
   SmsSubscriber,
   SmsAlertRecord,
-  RiskStatus
+  RiskStatus,
+  DisasterEvidenceReport
 } from './types/landslide';
 import {
   initializeStations,
   updateStationTelemetry,
   getSubscribers,
   getAlertDispatches,
+  getDisasterEvidence,
+  subscribeToDisasterEvidence,
   isFirebaseAvailable
 } from './services/firebase';
 import { LandslideMap } from './components/Map/LandslideMap';
@@ -18,6 +21,7 @@ import { StationDetailModal } from './components/Sensors/StationDetailModal';
 import { SmsSystemModal } from './components/SMS/SmsSystemModal';
 import { NortheastRiskDashboard } from './components/RiskAnalysis/NortheastRiskDashboard';
 import { NaturalDisastersModal } from './components/Disasters/NaturalDisastersModal';
+import { DisasterEvidenceModal } from './components/Evidence/DisasterEvidenceModal';
 import { syncStationsWithRealWeather } from './services/realWeatherService';
 import {
   Activity,
@@ -41,17 +45,21 @@ import {
   Sliders,
   Sparkles,
   Info,
-  History
+  History,
+  Camera
 } from 'lucide-react';
 
 export default function App() {
   const [stations, setStations] = useState<LandslideStation[]>([]);
   const [subscribers, setSubscribers] = useState<SmsSubscriber[]>([]);
   const [alertDispatches, setAlertDispatches] = useState<SmsAlertRecord[]>([]);
+  const [evidenceList, setEvidenceList] = useState<DisasterEvidenceReport[]>([]);
   const [selectedStation, setSelectedStation] = useState<LandslideStation | null>(null);
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [disastersModalOpen, setDisastersModalOpen] = useState(false);
+  const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
+  const [prefilledSmsMessage, setPrefilledSmsMessage] = useState<string | null>(null);
   const [isSyncingWeather, setIsSyncingWeather] = useState(false);
   const [activeViewTab, setActiveViewTab] = useState<'map' | 'risk_matrix' | 'telemetry_grid'>('map');
 
@@ -66,6 +74,8 @@ export default function App() {
 
   // Initial Data Loading from Firebase / Cloud Firestore
   useEffect(() => {
+    let unsubscribeEvidence: (() => void) | undefined;
+
     async function loadData() {
       const loadedStations = await initializeStations();
       setStations(loadedStations);
@@ -77,9 +87,22 @@ export default function App() {
       const loadedDispatches = await getAlertDispatches();
       setAlertDispatches(loadedDispatches);
 
+      const loadedEvidence = await getDisasterEvidence();
+      setEvidenceList(loadedEvidence);
+
+      unsubscribeEvidence = subscribeToDisasterEvidence((liveEvidence) => {
+        setEvidenceList(liveEvidence);
+      });
+
       setFirebaseConnected(isFirebaseAvailable());
     }
     loadData();
+
+    return () => {
+      if (unsubscribeEvidence) {
+        unsubscribeEvidence();
+      }
+    };
   }, []);
 
   // Real-Time Sensor Telemetry Simulation Interval
@@ -192,6 +215,20 @@ export default function App() {
             >
               <History className="w-3.5 h-3.5 text-amber-400" />
               <span>Disasters Archive (12)</span>
+            </button>
+
+            {/* User Disaster Photo Evidence & AI Identification Button */}
+            <button
+              id="open-evidence-header-btn"
+              onClick={() => setEvidenceModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-950 via-slate-900 to-amber-950 hover:from-rose-900 hover:to-amber-900 border border-rose-500/50 text-rose-200 hover:text-white transition-all shadow-md cursor-pointer font-bold"
+              title="Upload user field photos as evidence with AI disaster classification & identification"
+            >
+              <Camera className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+              <span>Photo Evidence</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-mono">
+                {evidenceList.length} Photos
+              </span>
             </button>
 
             {/* Cloud Firestore Indicator */}
@@ -419,6 +456,8 @@ export default function App() {
                   onFilterChange={setMapFilterStatus}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
+                  evidenceList={evidenceList}
+                  onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
                 />
               </div>
 
@@ -675,18 +714,46 @@ export default function App() {
           setInspectModalOpen(false);
           setSmsModalOpen(true);
         }}
+        onOpenEvidenceForStation={(st) => {
+          setSelectedStation(st);
+          setInspectModalOpen(false);
+          setEvidenceModalOpen(true);
+        }}
+      />
+
+      {/* User Disaster Photo Evidence & AI Identification Modal */}
+      <DisasterEvidenceModal
+        isOpen={evidenceModalOpen}
+        onClose={() => setEvidenceModalOpen(false)}
+        stations={stations}
+        selectedStation={selectedStation}
+        evidenceList={evidenceList}
+        onSelectStation={(st) => setSelectedStation(st)}
+        onOpenSmsModalWithAlert={(alertMsg, stId) => {
+          if (stId) {
+            const found = stations.find((s) => s.id === stId);
+            if (found) setSelectedStation(found);
+          }
+          setPrefilledSmsMessage(alertMsg);
+          setEvidenceModalOpen(false);
+          setSmsModalOpen(true);
+        }}
       />
 
       {/* Cellular SMS Early Warning Modal */}
       <SmsSystemModal
         isOpen={smsModalOpen}
-        onClose={() => setSmsModalOpen(false)}
+        onClose={() => {
+          setSmsModalOpen(false);
+          setPrefilledSmsMessage(null);
+        }}
         stations={stations}
         subscribers={subscribers}
         onSubscribersChange={setSubscribers}
         alertDispatches={alertDispatches}
         onDispatchesChange={setAlertDispatches}
         initialStation={selectedStation}
+        initialMessage={prefilledSmsMessage}
       />
     </div>
   );
