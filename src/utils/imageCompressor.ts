@@ -45,6 +45,9 @@ export async function processUserEvidencePhoto(
           }
         }
 
+        width = Math.max(1, width || 1);
+        height = Math.max(1, height || 1);
+
         // Draw on canvas
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -65,8 +68,8 @@ export async function processUserEvidencePhoto(
         // Also generate small thumbnail (160px max)
         const thumbCanvas = document.createElement('canvas');
         const thumbScale = Math.min(160 / width, 160 / height, 1);
-        const thumbWidth = Math.round(width * thumbScale);
-        const thumbHeight = Math.round(height * thumbScale);
+        const thumbWidth = Math.max(1, Math.round(width * thumbScale));
+        const thumbHeight = Math.max(1, Math.round(height * thumbScale));
         thumbCanvas.width = thumbWidth;
         thumbCanvas.height = thumbHeight;
         const thumbCtx = thumbCanvas.getContext('2d');

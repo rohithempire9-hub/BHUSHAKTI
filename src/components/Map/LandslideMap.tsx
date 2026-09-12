@@ -29,6 +29,7 @@ import {
   Camera
 } from 'lucide-react';
 import { DisasterEvidenceReport } from '../../types/landslide';
+import { HIGHWAY_RISK_SEGMENTS, REMOTE_VILLAGE_PINS } from '../../data/bhuShaktiData';
 
 interface LandslideMapProps {
   stations: LandslideStation[];
@@ -41,6 +42,7 @@ interface LandslideMapProps {
   onOpenEscapeModal?: () => void;
   evidenceList?: DisasterEvidenceReport[];
   onOpenEvidenceModal?: () => void;
+  simulatedRiskLevel?: 'safe' | 'warning' | 'critical';
 }
 
 export type MapLayerType = 'topo' | 'dark' | 'satellite' | 'osm';
@@ -57,6 +59,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   onOpenEscapeModal,
   evidenceList = [],
   onOpenEvidenceModal,
+  simulatedRiskLevel,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -64,6 +67,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const circlesGroupRef = useRef<L.LayerGroup | null>(null);
   const escapeGroupRef = useRef<L.LayerGroup | null>(null);
   const evidenceGroupRef = useRef<L.LayerGroup | null>(null);
+  const highwayGroupRef = useRef<L.LayerGroup | null>(null);
+  const villageGroupRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
 
   // Map state - Default to satellite to match the screenshot 'Esri World Imagery'
@@ -71,6 +76,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const [showHeatMap, setShowHeatMap] = useState<boolean>(true);
   const [showEscapeRoute, setShowEscapeRoute] = useState<boolean>(true);
   const [showEvidencePins, setShowEvidencePins] = useState<boolean>(true);
+  const [showHighways, setShowHighways] = useState<boolean>(true);
+  const [showVillages, setShowVillages] = useState<boolean>(true);
   const [showFloodLayer, setShowFloodLayer] = useState<boolean>(false);
   const [heatMetric, setHeatMetric] = useState<HeatMetricType>('risk');
   const [heatRadius, setHeatRadius] = useState<number>(45);
@@ -78,6 +85,10 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const [showHeatCircles, setShowHeatCircles] = useState<boolean>(false);
   const [isHeatConfigOpen, setIsHeatConfigOpen] = useState<boolean>(false);
   const [isHeatPluginReady, setIsHeatPluginReady] = useState<boolean>(false);
+  const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
 
   // Dynamically load leaflet.heat after verifying global L
   useEffect(() => {
@@ -85,12 +96,105 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       (window as any).L = L;
       import('leaflet.heat')
         .then(() => {
+          // Monkey-patch simpleheat to prevent zero-dimension canvas getImageData crashes
+          if (typeof window !== 'undefined' && (window as any).simpleheat) {
+            const shProto = (window as any).simpleheat.prototype;
+            if (shProto && !shProto._bhushaktiGuarded) {
+              shProto._bhushaktiGuarded = true;
+              const origDraw = shProto.draw;
+              shProto.draw = function (minOpacity: any) {
+                if (!this._width || !this._height || this._width <= 0 || this._height <= 0) {
+                  return this;
+                }
+                try {
+                  return origDraw.call(this, minOpacity);
+                } catch (err) {
+                  console.warn('[simpleheat] Suppressed draw error:', err);
+                  return this;
+                }
+              };
+            }
+          }
+
+          // Monkey-patch Leaflet HeatLayer _redraw & _reset
+          if ((L as any).HeatLayer) {
+            const hlProto = (L as any).HeatLayer.prototype;
+            if (hlProto && !hlProto._bhushaktiGuarded) {
+              hlProto._bhushaktiGuarded = true;
+              const origRedraw = hlProto._redraw;
+              hlProto._redraw = function () {
+                if (!this._map) return this;
+                const size = this._map.getSize();
+                if (!size || size.x <= 0 || size.y <= 0) {
+                  return this;
+                }
+                try {
+                  return origRedraw.apply(this, arguments);
+                } catch (err) {
+                  console.warn('[HeatLayer] Suppressed redraw on invalid map size:', err);
+                  return this;
+                }
+              };
+
+              const origReset = hlProto._reset;
+              hlProto._reset = function () {
+                if (!this._map) return this;
+                const size = this._map.getSize();
+                if (!size || size.x <= 0 || size.y <= 0) {
+                  return this;
+                }
+                try {
+                  return origReset.apply(this, arguments);
+                } catch (err) {
+                  console.warn('[HeatLayer] Suppressed reset on invalid map size:', err);
+                  return this;
+                }
+              };
+            }
+          }
+
           setIsHeatPluginReady(true);
         })
         .catch((err) => {
           console.warn('[Leaflet] Heatmap plugin could not be dynamically loaded:', err);
         });
     }
+  }, []);
+
+  // Monitor map container resizing with ResizeObserver
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      if (container.clientWidth > 0 && container.clientHeight > 0) {
+        setContainerDimensions({
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
+        if (mapInstanceRef.current) {
+          try {
+            mapInstanceRef.current.invalidateSize({ pan: false });
+          } catch {}
+        }
+      }
+    };
+
+    updateSize();
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        updateSize();
+      });
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+    };
   }, []);
 
   // Initialize Map safely
@@ -123,6 +227,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       circlesGroupRef.current = L.layerGroup().addTo(map);
       escapeGroupRef.current = L.layerGroup().addTo(map);
       evidenceGroupRef.current = L.layerGroup().addTo(map);
+      highwayGroupRef.current = L.layerGroup().addTo(map);
+      villageGroupRef.current = L.layerGroup().addTo(map);
 
       // Attribution control
       L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
@@ -322,6 +428,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     );
 
     if (safeHeatPoints.length > 0) {
+      const mapSize = map.getSize();
+      if (!mapSize || mapSize.x <= 0 || mapSize.y <= 0) {
+        return;
+      }
+
       try {
         const heat = (L as any).heatLayer(safeHeatPoints, {
           radius: heatRadius,
@@ -344,7 +455,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         console.warn('[Leaflet] Heatmap layer construction error:', err);
       }
     }
-  }, [filteredStations, showHeatMap, heatMetric, heatRadius, isHeatPluginReady]);
+  }, [filteredStations, showHeatMap, heatMetric, heatRadius, isHeatPluginReady, containerDimensions]);
 
   // 2. RENDER STATION MARKER PINS & HAZARD BUFFER CIRCLES
   useEffect(() => {
@@ -704,6 +815,162 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     });
   }, [evidenceList, showEvidencePins]);
 
+  // 5. RENDER NER HIGHWAY TOPOGRAPHIC RISK CORRIDORS (NH-10, NH-27, NH-29)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const highwayGroup = highwayGroupRef.current;
+    if (!map || !highwayGroup) return;
+
+    highwayGroup.clearLayers();
+    if (!showHighways) return;
+
+    HIGHWAY_RISK_SEGMENTS.forEach((hw) => {
+      // Dynamic shift based on simulatedRiskLevel
+      const effectiveRisk =
+        simulatedRiskLevel === 'critical'
+          ? 'emergency'
+          : simulatedRiskLevel === 'warning'
+          ? (hw.overallRisk === 'low' ? 'warning' : hw.overallRisk)
+          : simulatedRiskLevel === 'safe'
+          ? 'low'
+          : hw.overallRisk;
+
+      const isEmergency = effectiveRisk === 'emergency';
+      const isWarning = effectiveRisk === 'warning';
+      const strokeColor = isEmergency ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
+
+      try {
+        // Outer glow buffer representing simulated topographic risk zone
+        const bufferPolyline = L.polyline(hw.coordinates, {
+          color: strokeColor,
+          weight: 12,
+          opacity: 0.25,
+          lineCap: 'round',
+          lineJoin: 'round',
+        });
+        highwayGroup.addLayer(bufferPolyline);
+
+        // Core road line
+        const corePolyline = L.polyline(hw.coordinates, {
+          color: strokeColor,
+          weight: 5,
+          opacity: 0.95,
+          dashArray: isEmergency ? '8, 6' : undefined,
+        });
+
+        corePolyline.bindTooltip(
+          `<strong>${hw.highwayCode}: ${hw.segmentName}</strong><br/>Risk Score: ${isEmergency ? 92 : isWarning ? 68 : 24}% (${effectiveRisk.toUpperCase()})<br/>Active Blockades: ${isEmergency ? 3 : hw.activeBlockades}`,
+          { sticky: true }
+        );
+        highwayGroup.addLayer(corePolyline);
+
+        // Render critical points on the highway
+        hw.criticalPoints.forEach((cp) => {
+          const cpStatus =
+            simulatedRiskLevel === 'critical'
+              ? 'emergency'
+              : simulatedRiskLevel === 'warning'
+              ? (cp.status === 'low' ? 'warning' : cp.status)
+              : simulatedRiskLevel === 'safe'
+              ? 'low'
+              : cp.status;
+          const cpColor = cpStatus === 'emergency' ? '#ef4444' : cpStatus === 'warning' ? '#f59e0b' : '#10b981';
+          const pointIcon = L.divIcon({
+            html: `
+              <div class="flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black text-white shadow-xl whitespace-nowrap cursor-pointer" style="background-color:${cpColor}; border:1px solid rgba(255,255,255,0.4);">
+                <span>${cpStatus === 'emergency' ? '🚨' : cpStatus === 'warning' ? '⚠️' : '✅'}</span>
+                <span>${hw.highwayCode} ${cp.kmMarker}</span>
+              </div>
+            `,
+            className: 'custom-highway-critical-marker',
+            iconSize: [120, 22],
+            iconAnchor: [60, 11],
+          });
+
+          const cpMarker = L.marker([cp.lat, cp.lng], { icon: pointIcon });
+          cpMarker.bindPopup(`
+            <div class="p-2 text-slate-900 font-sans text-xs">
+              <strong class="text-slate-900 block font-bold">${hw.highwayCode} - ${cp.kmMarker}</strong>
+              <div class="text-[11px] text-slate-600 mt-0.5">${cp.description}</div>
+              <div class="mt-1.5 inline-block px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style="background:${cpColor}">
+                Status: ${cpStatus.toUpperCase()}
+              </div>
+            </div>
+          `);
+          highwayGroup.addLayer(cpMarker);
+        });
+      } catch (err) {
+        console.warn('[Leaflet] Highway corridor render error:', err);
+      }
+    });
+  }, [showHighways, simulatedRiskLevel]);
+
+  // 6. RENDER REMOTE VILLAGE PINS ACROSS NER
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const villageGroup = villageGroupRef.current;
+    if (!map || !villageGroup) return;
+
+    villageGroup.clearLayers();
+    if (!showVillages) return;
+
+    REMOTE_VILLAGE_PINS.forEach((vil) => {
+      const isEmergency = vil.riskStatus === 'emergency';
+      const isWarning = vil.riskStatus === 'warning';
+      const color = isEmergency ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
+
+      const iconHtml = `
+        <div class="flex flex-col items-center cursor-pointer group">
+          <div class="px-2 py-1 rounded-xl font-bold text-[10px] text-white shadow-lg flex items-center gap-1.5 border border-white/30 transform group-hover:scale-110 transition-transform" style="background:${color};">
+            <span>🏡</span>
+            <span class="whitespace-nowrap">${vil.villageName}</span>
+          </div>
+          <div class="mt-0.5 px-1 rounded bg-slate-950/80 text-[8.5px] font-mono text-slate-300 border border-slate-700">
+            Pop: ${vil.populationAtRisk.toLocaleString()}
+          </div>
+        </div>
+      `;
+
+      try {
+        const customIcon = L.divIcon({
+          html: iconHtml,
+          className: 'custom-village-marker',
+          iconSize: [110, 38],
+          iconAnchor: [55, 19],
+        });
+
+        const marker = L.marker([vil.latitude, vil.longitude], { icon: customIcon });
+        marker.bindPopup(`
+          <div class="p-2.5 text-slate-900 font-sans text-xs max-w-xs">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <strong class="text-slate-900 text-sm">${vil.villageName}</strong>
+              <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase text-white" style="background:${color};">
+                ${vil.riskStatus.toUpperCase()}
+              </span>
+            </div>
+            <div class="text-[11px] text-slate-600 mb-1">
+              ${vil.district}, ${vil.state} • Elev: ${vil.elevationM}m
+            </div>
+            <div class="p-1.5 rounded-lg bg-slate-100 border border-slate-200 text-[11px] text-slate-800 mb-1.5">
+              <strong>Advisory:</strong> ${vil.currentAdvisory}
+            </div>
+            <div class="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+              <span>🛡️ Safe Shelter:</span>
+              <span>${vil.safeShelterHaven}</span>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-1">
+              Highway Link: <strong>${vil.associatedHighway}</strong> | Pop: <strong>${vil.populationAtRisk}</strong>
+            </div>
+          </div>
+        `);
+
+        villageGroup.addLayer(marker);
+      } catch (err) {
+        console.warn('[Leaflet] Village pin error:', err);
+      }
+    });
+  }, [showVillages]);
+
   // Pan to selected station with strict coordinate check
   useEffect(() => {
     if (
@@ -751,25 +1018,25 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   return (
     <div
       id="landslide-map-wrapper"
-      className="relative w-full h-[520px] lg:h-[580px] rounded-3xl overflow-hidden border border-indigo-500/20 shadow-2xl bg-[#080e22]"
+      className="relative w-full h-full min-h-[350px] rounded-2xl overflow-hidden border border-indigo-500/20 shadow-inner bg-[#080e22]"
     >
       {/* Map Canvas Element */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* Top Floating Bar: Controls & Filters */}
-      <div className="absolute top-4 left-4 right-4 z-[400] flex flex-col md:flex-row items-stretch md:items-start justify-between gap-3 pointer-events-none">
+      <div className="absolute top-2.5 left-2.5 right-2.5 z-[400] flex flex-wrap items-start justify-between gap-2 pointer-events-none">
         {/* Left Side: Search Bar & Floating Select Place Dropdown */}
-        <div className="flex flex-col gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 pointer-events-auto flex-wrap max-w-full">
           {/* Search Input */}
-          <div className="flex items-center bg-[#0b1433]/90 backdrop-blur-md border border-slate-700/80 rounded-2xl px-3 py-2 shadow-xl w-full md:w-72">
-            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+          <div className="flex items-center bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-xl w-40 sm:w-48">
+            <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
             <input
               id="map-search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search location..."
-              className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full"
+              placeholder="Search station..."
+              className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full min-w-0"
             />
             {searchQuery && (
               <button
@@ -781,30 +1048,25 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             )}
           </div>
 
-          {/* Floating SELECT PLACE Card (matching screenshot) */}
-          <div className="bg-[#0b1433]/95 backdrop-blur-xl border border-indigo-500/30 rounded-2xl p-3 shadow-2xl min-w-[260px]">
-            <div className="text-[10px] font-extrabold text-cyan-400 tracking-wider uppercase mb-1 flex items-center justify-between">
-              <span>SELECT PLACE</span>
-              <span className="text-[9px] text-slate-400 font-mono">{stations.length} Available</span>
-            </div>
+          {/* Compact Select Place */}
+          <div className="bg-[#0b1433]/95 backdrop-blur-md border border-indigo-500/40 rounded-xl px-2.5 py-1 shadow-xl flex items-center gap-1.5">
+            <span className="text-[9px] font-mono font-black text-cyan-400 uppercase tracking-wider shrink-0 hidden sm:inline">
+              PLACE:
+            </span>
             <select
               value={selectedStation?.id || ''}
               onChange={(e) => {
                 const found = stations.find((s) => s.id === e.target.value);
                 if (found) onSelectStation(found);
               }}
-              className="w-full bg-[#070d22] border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-cyan-400 cursor-pointer"
+              className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer max-w-[140px] truncate"
             >
               {stations.map((st) => (
                 <option key={st.id} value={st.id} className="bg-slate-900 text-white">
-                  {st.name}, {st.region}
+                  {st.name} ({st.region.split(',')[0]})
                 </option>
               ))}
             </select>
-            <div className="flex items-center gap-1.5 mt-2 text-[10.5px] text-emerald-400 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>LIVE DASHBOARD • {selectedStation?.name || 'Agartala'}</span>
-            </div>
           </div>
         </div>
 
@@ -899,6 +1161,34 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           >
             <Navigation className="w-3.5 h-3.5 text-emerald-300" />
             <span>Safe Route</span>
+          </button>
+
+          {/* NH Highway Corridors Toggle */}
+          <button
+            onClick={() => setShowHighways(!showHighways)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              showHighways
+                ? 'bg-amber-600 text-white border-amber-400 shadow-amber-950/40'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+            title="Toggle simulated topographic heatmaps for NH-10, NH-27, and NH-29"
+          >
+            <span>🛣️</span>
+            <span>NH Corridors</span>
+          </button>
+
+          {/* Remote Village Pins Toggle */}
+          <button
+            onClick={() => setShowVillages(!showVillages)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+              showVillages
+                ? 'bg-teal-600 text-white border-teal-400 shadow-teal-950/40'
+                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+            }`}
+            title="Toggle interactive pins for remote NER villages"
+          >
+            <span>🏡</span>
+            <span>Remote Villages</span>
           </button>
 
           {/* Photo Evidence Layer & Modal Toggle */}
