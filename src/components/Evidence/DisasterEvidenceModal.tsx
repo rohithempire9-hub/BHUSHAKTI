@@ -40,6 +40,7 @@ import {
   identifyDisasterFromEvidence,
   DisasterIdentificationResult,
 } from '../../services/aiDisasterIdentifier';
+import { CameraCaptureModal, CameraCaptureResult } from './CameraCaptureModal';
 
 interface DisasterEvidenceModalProps {
   isOpen: boolean;
@@ -90,6 +91,9 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
 
   // Lightbox Modal state
   const [lightboxReport, setLightboxReport] = useState<DisasterEvidenceReport | null>(null);
+
+  // Live Camera Viewfinder State
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +148,43 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
       runDisasterIdentification(processed, formObservations);
     } catch (err: any) {
       setSubmitErrorMessage(err.message || 'Failed to process uploaded photo.');
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handlePhotoFromCamera = async (result: CameraCaptureResult) => {
+    try {
+      setIsProcessingImage(true);
+      setSubmitErrorMessage(null);
+
+      // Process and compress camera photo for fast loading & Firestore
+      const processed = await processUserEvidencePhoto(result.file, 960, 0.82);
+      setProcessedImage(processed);
+
+      // Switch to upload tab if not already on it
+      setActiveTab('upload');
+
+      // Auto-populate observations with geotagged live camera credentials if empty
+      if (!formObservations) {
+        setFormObservations(
+          `Photographic evidence captured directly via field camera on ${result.timestamp}. Live geotechnical watermark & GPS verified.`
+        );
+      }
+      if (result.latitude && result.longitude) {
+        setFormLat(result.latitude);
+        setFormLng(result.longitude);
+      }
+
+      // Auto-trigger AI disaster identification immediately on the captured frame
+      runDisasterIdentification(
+        processed,
+        formObservations || 'Direct live camera photographic evidence of slope instability'
+      );
+      setSubmitSuccessMessage('Live camera photo captured and attached as field evidence.');
+      setTimeout(() => setSubmitSuccessMessage(null), 4000);
+    } catch (err: any) {
+      setSubmitErrorMessage(err.message || 'Failed to process captured camera photograph.');
     } finally {
       setIsProcessingImage(false);
     }
@@ -302,6 +343,21 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* Direct Camera Shutter Trigger Button */}
+            <button
+              type="button"
+              id="btn-open-camera-header"
+              onClick={() => {
+                setActiveTab('upload');
+                setIsLiveCameraOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-950/50 border border-rose-400/40 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+              title="Open Live Camera to Snap Field Photo"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Take Camera Photo</span>
+            </button>
+
             {/* View Tabs */}
             <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
               <button
@@ -355,6 +411,35 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                   <span>{submitErrorMessage}</span>
                 </div>
               )}
+
+              {/* DIRECT LIVE CAMERA CAPTURE BANNER */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-rose-950/70 via-purple-950/40 to-slate-950 border border-rose-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-600/30 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0 shadow-inner">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                      <span>Direct Device Camera Evidence</span>
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-rose-900/80 text-rose-300 border border-rose-500/40">
+                        LIVE VIEWFINDER
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Snap slope cracks, mudslides, or rockfall directly using your device camera with live GPS &amp; timestamp watermark.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  id="btn-trigger-live-camera-banner"
+                  onClick={() => setIsLiveCameraOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-rose-950/50 active:scale-95 whitespace-nowrap shrink-0"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Take Photo with Camera</span>
+                </button>
+              </div>
 
               <form onSubmit={handleSubmitEvidence} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -419,28 +504,29 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                               Upload photographs of slope failures, cracks, fallen rocks, mudflows, or flooded cut-sections. Automatically compressed to high-speed WebP/JPEG (&lt;100KB).
                             </p>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center justify-center gap-2.5">
+                              <button
+                                type="button"
+                                id="btn-snap-camera-dropzone"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsLiveCameraOpen(true);
+                                }}
+                                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer ring-2 ring-rose-400/30"
+                              >
+                                <Camera className="w-4 h-4" />
+                                Take Camera Photo
+                              </button>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   fileInputRef.current?.click();
                                 }}
-                                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                className="px-3.5 py-2 rounded-xl bg-indigo-600/90 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                               >
                                 <Upload className="w-3.5 h-3.5" />
-                                Choose File
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  cameraInputRef.current?.click();
-                                }}
-                                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-slate-700"
-                              >
-                                <Camera className="w-3.5 h-3.5 text-rose-400" />
-                                Camera Snap
+                                Choose File from Disk
                               </button>
                             </div>
                           </>
@@ -457,14 +543,22 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                         <div className="absolute top-3 right-3 flex items-center gap-2">
                           <button
                             type="button"
+                            onClick={() => setIsLiveCameraOpen(true)}
+                            className="px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 text-xs font-bold border border-cyan-500/40 flex items-center gap-1.5 backdrop-blur-md shadow-lg cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-rose-400" />
+                            Retake with Camera
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => {
                               setProcessedImage(null);
                               setAiAnalysis(null);
                             }}
-                            className="px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-rose-900 text-rose-300 text-xs font-bold border border-slate-700 flex items-center gap-1 backdrop-blur-md shadow-lg"
+                            className="px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-rose-900 text-rose-300 text-xs font-bold border border-slate-700 flex items-center gap-1 backdrop-blur-md shadow-lg cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            Change Photo
+                            Clear
                           </button>
                         </div>
 
@@ -1128,6 +1222,17 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Live Camera Viewfinder Modal */}
+        <CameraCaptureModal
+          isOpen={isLiveCameraOpen}
+          onClose={() => setIsLiveCameraOpen(false)}
+          onPhotoCaptured={handlePhotoFromCamera}
+          locationName={formLocationName}
+          latitude={formLat}
+          longitude={formLng}
+          stationName={stations.find((s) => s.id === formStationId)?.name}
+        />
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { CitizenCrowdsourceReport, BhuLanguage } from '../../types/bhuShakti';
 import { TRANSLATIONS } from '../../utils/translations';
+import { CameraCaptureModal, CameraCaptureResult } from '../Evidence/CameraCaptureModal';
 
 interface CitizenReportingPortalProps {
   reports: CitizenCrowdsourceReport[];
@@ -53,6 +54,23 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedSuccess, setSubmittedSuccess] = useState(false);
   const [selectedReportForView, setSelectedReportForView] = useState<CitizenCrowdsourceReport | null>(null);
+
+  // Live Device Camera Modal State
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
+
+  const handleCameraPhoto = (result: CameraCaptureResult) => {
+    setPhotoPreviewUrl(result.dataUrl);
+    setPhotoFileName(result.file.name);
+    if (result.latitude && result.longitude) {
+      setLatitude(result.latitude);
+      setLongitude(result.longitude);
+    }
+    setObservations((prev) =>
+      prev
+        ? prev
+        : `Direct field camera evidence recorded on ${result.timestamp}. Live geotechnical watermark & GPS verified.`
+    );
+  };
 
   // Handle file selection and simulated/real EXIF extraction
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,9 +164,25 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
           <div className="space-y-3 text-xs">
             {/* File Upload Box (Drag/Drop + Click) */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                Field Photo Evidence (Crack / Slip / Mudslide)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-300">
+                  Field Photo Evidence (Crack / Slip / Mudslide)
+                </label>
+                <button
+                  type="button"
+                  id="btn-take-camera-photo-citizen"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsLiveCameraOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] shadow-sm transition-all cursor-pointer active:scale-95 border border-rose-400/40"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Take Camera Photo</span>
+                </button>
+              </div>
+
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="relative rounded-xl border-2 border-dashed border-slate-700 hover:border-cyan-400/70 p-3 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-900/60 overflow-hidden group"
@@ -169,20 +203,44 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                       alt="Preview"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2">
-                      <span className="text-[10px] text-white font-mono truncate">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end justify-between p-2">
+                      <span className="text-[10px] text-white font-mono truncate max-w-[170px]">
                         {photoFileName}
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsLiveCameraOpen(true);
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Camera className="w-3 h-3 text-rose-400" />
+                        Retake
+                      </button>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-2">
-                    <UploadCloud className="w-8 h-8 text-cyan-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
+                    <div className="flex items-center justify-center gap-3 mb-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsLiveCameraOpen(true);
+                        }}
+                        className="p-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow transition-all active:scale-95 cursor-pointer"
+                        title="Open Camera"
+                      >
+                        <Camera className="w-5 h-5" />
+                      </button>
+                      <UploadCloud className="w-7 h-7 text-cyan-400 group-hover:scale-110 transition-transform" />
+                    </div>
                     <p className="text-xs text-slate-300 font-semibold">
-                      Drag & Drop photo or <span className="text-cyan-400 underline">Browse File</span>
+                      Take photo with <span className="text-rose-400 font-bold">Camera</span> or <span className="text-cyan-400 underline">Browse File</span>
                     </p>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      Supports JPG, PNG, WEBP (Smartphone Geotagged photos)
+                      Live geotagging, GPS metadata & tamper-proof watermark embedded
                     </p>
                   </div>
                 )}
@@ -426,6 +484,16 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Live Device Camera Modal */}
+      <CameraCaptureModal
+        isOpen={isLiveCameraOpen}
+        onClose={() => setIsLiveCameraOpen(false)}
+        onPhotoCaptured={handleCameraPhoto}
+        locationName={locationName}
+        latitude={latitude}
+        longitude={longitude}
+      />
     </div>
   );
 };

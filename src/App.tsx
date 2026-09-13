@@ -105,7 +105,7 @@ export default function App() {
 
   // Layout & Navigation State
   const [currentLanguage, setCurrentLanguage] = useState<BhuLanguage>('en');
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [isDarkMode] = useState<boolean>(true);
   const [currentNavSection, setCurrentNavSection] = useState<BhuNavSection>('dashboard');
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [mapFilterStatus, setMapFilterStatus] = useState('ALL');
@@ -593,6 +593,8 @@ export default function App() {
                   simulatedDisplacement={simulatedDisplacement}
                   onSimulatedDisplacementChange={setSimulatedDisplacement}
                   onResetSimulation={handleResetSimulation}
+                  isLiveStreamActive={isLiveStreamActive}
+                  onToggleLiveStream={() => setIsLiveStreamActive((prev) => !prev)}
                 />
               )}
             </div>

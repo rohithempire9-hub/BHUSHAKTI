@@ -11,6 +11,7 @@ import {
   FileImage
 } from 'lucide-react';
 import { CitizenCrowdsourceReport } from '../../../types/bhuShakti';
+import { CameraCaptureModal, CameraCaptureResult } from '../../Evidence/CameraCaptureModal';
 
 interface CrowdsourcedFieldReportCardProps {
   reports: CitizenCrowdsourceReport[];
@@ -34,6 +35,15 @@ export const CrowdsourcedFieldReportCard: React.FC<CrowdsourcedFieldReportCardPr
   const [photoFileName, setPhotoFileName] = useState('field_crack_evidence.jpg');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
+  const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
+
+  const handleCameraPhoto = (result: CameraCaptureResult) => {
+    setPhotoPreviewUrl(result.dataUrl);
+    setPhotoFileName(result.file.name);
+    setObservations((prev) =>
+      prev ? prev : `Direct camera photo snapped on ${result.timestamp}. Geotag verified.`
+    );
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,9 +115,24 @@ export const CrowdsourcedFieldReportCard: React.FC<CrowdsourcedFieldReportCardPr
         >
           {/* Dropzone Slot to upload field photos/videos */}
           <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
-              Field Evidence Dropzone (Crack / Slip)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[10px] font-bold uppercase text-slate-400">
+                Field Evidence (Crack / Slip)
+              </label>
+              <button
+                type="button"
+                id="btn-take-camera-photo-card"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsLiveCameraOpen(true);
+                }}
+                className="flex items-center gap-1 px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] shadow-sm transition-all cursor-pointer active:scale-95 border border-rose-400/30"
+              >
+                <Camera className="w-3 h-3" />
+                <span>Snap Camera</span>
+              </button>
+            </div>
             <div
               onClick={() => fileInputRef.current?.click()}
               className="relative rounded-lg border-2 border-dashed border-slate-700 hover:border-cyan-400/80 p-2 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-900/60 overflow-hidden group h-20"
@@ -128,17 +153,41 @@ export const CrowdsourcedFieldReportCard: React.FC<CrowdsourcedFieldReportCardPr
                     alt="Crack Preview"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-2">
                     <span className="text-[10px] text-white font-mono bg-black/60 px-1.5 py-0.5 rounded">
                       Change Photo
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsLiveCameraOpen(true);
+                      }}
+                      className="text-[10px] text-rose-300 font-bold bg-rose-950/80 border border-rose-500/40 px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer"
+                    >
+                      <Camera className="w-2.5 h-2.5" />
+                      Camera
+                    </button>
                   </div>
                 </div>
               ) : (
                 <div className="text-center">
-                  <UploadCloud className="w-5 h-5 text-cyan-400 mx-auto mb-0.5" />
-                  <span className="text-[11px] text-slate-300 font-semibold">
-                    Upload Photo/Video
+                  <div className="flex items-center justify-center gap-2 mb-0.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsLiveCameraOpen(true);
+                      }}
+                      className="p-1 rounded bg-rose-600/80 hover:bg-rose-600 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Camera className="w-3 h-3" />
+                      Camera
+                    </button>
+                    <UploadCloud className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-[10px] text-slate-300 font-semibold">
+                    Snap or Browse File
                   </span>
                 </div>
               )}
@@ -251,6 +300,16 @@ export const CrowdsourcedFieldReportCard: React.FC<CrowdsourcedFieldReportCardPr
           </div>
         </div>
       </div>
+
+      {/* Live Device Camera Viewfinder Modal */}
+      <CameraCaptureModal
+        isOpen={isLiveCameraOpen}
+        onClose={() => setIsLiveCameraOpen(false)}
+        onPhotoCaptured={handleCameraPhoto}
+        locationName={locationName}
+        latitude={27.1742}
+        longitude={88.5283}
+      />
     </div>
   );
 };

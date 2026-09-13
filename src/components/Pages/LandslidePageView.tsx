@@ -15,7 +15,9 @@ import {
   ChevronUp,
   Info,
   Layers,
-  Sparkles
+  Sparkles,
+  Pause,
+  Play
 } from 'lucide-react';
 
 interface LandslidePageViewProps {
@@ -30,6 +32,8 @@ interface LandslidePageViewProps {
   simulatedDisplacement: number;
   onSimulatedDisplacementChange: (val: number) => void;
   onResetSimulation: () => void;
+  isLiveStreamActive?: boolean;
+  onToggleLiveStream?: () => void;
 }
 
 export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
@@ -44,10 +48,41 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
   simulatedDisplacement,
   onSimulatedDisplacementChange,
   onResetSimulation,
+  isLiveStreamActive = true,
+  onToggleLiveStream,
 }) => {
   const [showPerturbationBench, setShowPerturbationBench] = useState<boolean>(true);
-  const activeAlertNodes = sensingNodes.filter((n) => n.riskLevel === 'emergency');
-  const warningNodes = sensingNodes.filter((n) => n.riskLevel === 'warning');
+  
+  // Local pause state and frozen telemetry snapshot
+  const [isLocallyPaused, setIsLocallyPaused] = useState<boolean>(false);
+  const [frozenNodes, setFrozenNodes] = useState<SensingNodeDevice[] | null>(null);
+  const [frozenTimestamp, setFrozenTimestamp] = useState<string>('');
+
+  const isPaused = isLocallyPaused || !isLiveStreamActive;
+
+  const handleTogglePause = () => {
+    if (isPaused) {
+      // Resume updates
+      setIsLocallyPaused(false);
+      setFrozenNodes(null);
+      setFrozenTimestamp('');
+      if (onToggleLiveStream && !isLiveStreamActive) {
+        onToggleLiveStream();
+      }
+    } else {
+      // Freeze updates
+      setIsLocallyPaused(true);
+      setFrozenNodes([...sensingNodes]);
+      setFrozenTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      if (onToggleLiveStream && isLiveStreamActive) {
+        onToggleLiveStream();
+      }
+    }
+  };
+
+  const currentDisplayedNodes = isPaused && frozenNodes ? frozenNodes : sensingNodes;
+  const activeAlertNodes = currentDisplayedNodes.filter((n) => n.riskLevel === 'emergency');
+  const warningNodes = currentDisplayedNodes.filter((n) => n.riskLevel === 'warning');
 
   return (
     <div className="space-y-6 w-full max-w-[1720px] mx-auto pb-10">
@@ -63,6 +98,19 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-500/30">
                   GEOTECHNICAL CORE v4.1
                 </span>
+
+                {/* Live Stream / Frozen Status Capsule */}
+                {isPaused ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                    FROZEN FOR INSPECTION ({frozenTimestamp || 'ACTIVE'})
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wide bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 shadow-sm whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping opacity-75" />
+                    LIVE TELEMETRY STREAM
+                  </span>
+                )}
                 
                 {/* Dynamic Status Capsule */}
                 {activeAlertNodes.length > 0 ? (
@@ -93,6 +141,34 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {/* DEDICATED PAUSE / RESUME LIVE UPDATES BUTTON */}
+            <button
+              id="btn-pause-live-updates"
+              onClick={handleTogglePause}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95 whitespace-nowrap ${
+                isPaused
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-emerald-950/50 ring-2 ring-emerald-400/40'
+                  : 'bg-[#0e224e] hover:bg-[#142e68] text-amber-300 border border-amber-500/40 hover:border-amber-400'
+              }`}
+              title={
+                isPaused
+                  ? 'Click to resume real-time sensor updates'
+                  : 'Click to freeze sensor grid to inspect data points without changing'
+              }
+            >
+              {isPaused ? (
+                <>
+                  <Play className="w-4 h-4 text-white fill-white" />
+                  <span>Resume Live Updates</span>
+                </>
+              ) : (
+                <>
+                  <Pause className="w-4 h-4 text-amber-400" />
+                  <span>Pause Live Updates</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={() => setShowPerturbationBench(!showPerturbationBench)}
               className="px-3.5 py-2 rounded-xl bg-[#0e224e] hover:bg-[#142e68] text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
@@ -112,6 +188,37 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Inspection Freeze Banner Alert */}
+      {isPaused && (
+        <div className="rounded-xl bg-amber-950/40 border border-amber-500/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/30 shrink-0">
+              <Pause className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="font-bold text-white flex items-center gap-2">
+                <span>Inspection Mode Active — Live Updates Paused</span>
+                {frozenTimestamp && (
+                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-amber-900/60 border border-amber-400/30 text-amber-300">
+                    Snapshotted at {frozenTimestamp}
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-300 text-[11px] mt-0.5">
+                All sensor readings, pore-water pressure metrics, and inclinometer tilt degrees are locked so you can inspect individual node telemetry without values shifting.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleTogglePause}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow cursor-pointer transition-colors shrink-0 self-start sm:self-auto"
+          >
+            <Play className="w-3.5 h-3.5 fill-white" />
+            <span>Unfreeze Grid</span>
+          </button>
+        </div>
+      )}
 
       {/* Geotechnical Perturbation Bench (Collapsible & Spacious) */}
       {showPerturbationBench && (
@@ -194,7 +301,7 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
       {/* Full Telemetry Grid Container: Generous Padding & Beautiful Contrast */}
       <div className="rounded-2xl bg-[#091533] border border-[#162e66] p-5 sm:p-6 shadow-2xl">
         <HybridSensingGrid
-          nodes={sensingNodes}
+          nodes={currentDisplayedNodes}
           onToggleNodeMode={onToggleNodeMode}
           onUpdateNodeTelemetry={onUpdateNodeTelemetry}
           onSelectNodeForInspection={(node) => {
@@ -207,3 +314,4 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
     </div>
   );
 };
+
