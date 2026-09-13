@@ -5,15 +5,24 @@ import {
   Camera,
   Radio,
   TrendingUp,
-  ShieldCheck,
+  SlidersHorizontal,
   ChevronRight,
-  Activity,
-  AlertTriangle
+  ShieldCheck
 } from 'lucide-react';
 import { BhuLanguage } from '../../types/bhuShakti';
 import { TRANSLATIONS } from '../../utils/translations';
 
-export type BhuNavSection = 'live_map' | 'sensing_grid' | 'citizen_reports' | 'sms_hub' | 'risk_forecasts';
+export type BhuNavSection =
+  | 'live_map'
+  | 'sensing_grid'
+  | 'citizen_reports'
+  | 'sms_hub'
+  | 'risk_forecasts'
+  | 'simulation_bench'
+  // Legacy values retained so the existing top-level views continue to work.
+  | 'risk_matrix'
+  | 'historical_logs'
+  | 'overview';
 
 interface BhuShaktiSidebarProps {
   currentSection: BhuNavSection;
@@ -34,6 +43,8 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
 }) => {
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
+  // These are the ONLY six module navigation buttons.
+  // The four top-level application views remain in App.tsx above the dashboard.
   const navItems: {
     id: BhuNavSection;
     label: string;
@@ -54,11 +65,9 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
       badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
     },
     {
-      id: 'citizen_reports',
-      label: t.navCitizenReports,
-      icon: Camera,
-      badge: pendingReportsCount > 0 ? `${pendingReportsCount} New` : undefined,
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+      id: 'risk_forecasts',
+      label: t.navRiskForecasts,
+      icon: TrendingUp,
     },
     {
       id: 'sms_hub',
@@ -68,9 +77,16 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
     },
     {
-      id: 'risk_forecasts',
-      label: t.navRiskForecasts,
-      icon: TrendingUp,
+      id: 'citizen_reports',
+      label: t.navCitizenReports,
+      icon: Camera,
+      badge: pendingReportsCount > 0 ? `${pendingReportsCount} New` : undefined,
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+    },
+    {
+      id: 'simulation_bench',
+      label: 'Simulation Bench',
+      icon: SlidersHorizontal,
     },
   ];
 
@@ -80,7 +96,6 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
       className="w-full lg:w-64 shrink-0 bg-slate-900/90 border-b lg:border-b-0 lg:border-r border-slate-800 p-3 lg:p-4 flex flex-col justify-between"
     >
       <div>
-        {/* Section title */}
         <div className="hidden lg:flex items-center justify-between px-2 mb-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           <span>Operations Command</span>
           <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono">
@@ -89,7 +104,6 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
           </span>
         </div>
 
-        {/* Nav Links */}
         <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -137,7 +151,6 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
         </nav>
       </div>
 
-      {/* Geotechnical Quick Info Footer in Sidebar */}
       <div className="hidden lg:block mt-6 pt-4 border-t border-slate-800/80">
         <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
           <div className="flex items-center gap-2 text-slate-300 font-bold mb-1.5">
