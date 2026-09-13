@@ -5,9 +5,22 @@ import App from './App.tsx';
 import './index.css';
 import './leaflet-fixes.css';
 
-// Ensure L is globally available for Leaflet plugins
+// Ensure L is globally available for Leaflet plugins and expose the active map
+// so small production compatibility actions can work without coupling App.tsx
+// to Leaflet internals.
 if (typeof window !== 'undefined') {
   (window as any).L = L;
+
+  const originalMapFactory = (L as any).__bhushaktiOriginalMapFactory || L.map;
+  if (!(L as any).__bhushaktiMapFactoryPatched) {
+    (L as any).__bhushaktiOriginalMapFactory = originalMapFactory;
+    (L as any).map = function (...args: any[]) {
+      const map = originalMapFactory.apply(this, args);
+      (window as any).__bhushaktiMap = map;
+      return map;
+    };
+    (L as any).__bhushaktiMapFactoryPatched = true;
+  }
 
   // Protect against zero-dimension canvas getImageData crashes (e.g. in leaflet.heat or dynamic layouts)
   if (typeof CanvasRenderingContext2D !== 'undefined') {
@@ -25,6 +38,137 @@ if (typeof window !== 'undefined') {
       return originalGetImageData.call(this, sx, sy, sw, sh, ...rest);
     };
   }
+
+  // -------------------------------------------------------------------------
+  // Production map compatibility bridge
+  // -------------------------------------------------------------------------
+  // The existing map component already owns its normal React controls. These
+  // listeners only provide two missing browser-side actions without changing
+  // the existing dashboard design:
+  //   1) Current Location -> browser geolocation
+  //   2) Flood -> a clearly visualized scenario overlay
+  // The flood overlay is a DEMO visualization, not a live flood forecast.
+  let floodLayer: L.LayerGroup | null = null;
+  let locationLayer: L.LayerGroup | null = null;
+
+  const getMap = () => (window as any).__bhushaktiMap as L.Map | undefined;
+
+  const ensureFloodLayer = (map: L.Map) => {
+    if (!floodLayer) {
+      floodLayer = L.layerGroup();
+
+      // Indicative river/flood-prone corridor polygons for Northeast India.
+      // These are intentionally labeled as DEMO scenario areas in the popup.
+      const zones: Array<{ name: string; coords: L.LatLngExpression[] }> = [
+        {
+          name: 'Brahmaputra Flood Scenario',
+          coords: [[27.2, 89.7], [27.7, 92.2], [27.2, 95.2], [26.4, 95.0], [26.5, 91.8], [26.7, 89.9]],
+        },
+        {
+          name: 'Barak Valley Flood Scenario',
+          coords: [[24.5, 92.0], [24.9, 92.8], [24.7, 93.5], [24.0, 93.3], [23.9, 92.5]],
+        },
+        {
+          name: 'Tripura Lowland Flood Scenario',
+          coords: [[23.7, 91.1], [24.2, 91.5], [24.0, 92.1], [23.2, 92.2], [22.9, 91.5]],
+        },
+      ];
+
+      zones.forEach((zone) => {
+        const polygon = L.polygon(zone.coords, {
+          color: '#22d3ee',
+          weight: 2,
+          fillColor: '#06b6d4',
+          fillOpacity: 0.18,
+          dashArray: '7, 5',
+        });
+        polygon.bindPopup(`
+          <div style="font-family:system-ui;color:#0f172a;font-size:12px;min-width:180px">
+            <strong>${zone.name}</strong>
+            <div style="margin-top:4px;color:#475569">BhuShakti flood-risk scenario visualization.</div>
+            <div style="margin-top:4px;color:#0891b2;font-weight:700">DEMO • not a live flood forecast</div>
+          </div>
+        `);
+        floodLayer!.addLayer(polygon);
+      });
+    }
+
+    floodLayer.addTo(map);
+  };
+
+  const removeFloodLayer = (map: L.Map) => {
+    if (floodLayer && map.hasLayer(floodLayer)) {
+      map.removeLayer(floodLayer);
+    }
+  };
+
+  const showBrowserLocation = () => {
+    const map = getMap();
+    if (!map || !navigator.geolocation) {
+      window.alert('Browser location is not available on this device.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = Math.max(position.coords.accuracy || 50, 25);
+
+        if (!locationLayer) locationLayer = L.layerGroup().addTo(map);
+        locationLayer.clearLayers();
+
+        const marker = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: '#22d3ee',
+          weight: 3,
+          fillColor: '#06b6d4',
+          fillOpacity: 0.9,
+        });
+        marker.bindPopup('<strong>Your current browser location</strong>').openPopup();
+
+        const accuracyCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: '#22d3ee',
+          weight: 1,
+          fillColor: '#06b6d4',
+          fillOpacity: 0.08,
+        });
+
+        locationLayer.addLayer(accuracyCircle);
+        locationLayer.addLayer(marker);
+        map.flyTo([lat, lng], 12, { duration: 1.2 });
+      },
+      (error) => {
+        console.warn('[BhuShakti] Browser geolocation failed:', error);
+        window.alert('Location permission was denied or the browser could not determine your location.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    const button = target?.closest('button');
+    if (!button) return;
+
+    const label = button.textContent?.replace(/\s+/g, ' ').trim() || '';
+    const map = getMap();
+    if (!map) return;
+
+    if (label.includes('Current Location')) {
+      window.setTimeout(showBrowserLocation, 0);
+    }
+
+    if (label === 'Flood') {
+      // Let React update its visual button state first, then mirror it here.
+      window.setTimeout(() => {
+        const active = button.className.includes('bg-cyan-600');
+        if (active) ensureFloodLayer(map);
+        else removeFloodLayer(map);
+      }, 0);
+    }
+  }, true);
 }
 
 createRoot(document.getElementById('root')!).render(
