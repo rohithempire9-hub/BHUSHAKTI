@@ -163,16 +163,29 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
   onSimulatedDisplacementChange = () => {},
   onResetSimulation = () => {},
 }) => {
-  // Map sidebar section to its dedicated module page.
+  // Map sidebar section to initial page
   const sectionToPage = (section: BhuNavSection): BentoPageId => {
     switch (section) {
-      case 'live_map': return 'card-1';
-      case 'sensing_grid': return 'card-2';
-      case 'risk_forecasts': return 'card-3';
-      case 'sms_hub': return 'card-4';
-      case 'citizen_reports': return 'card-5';
-      case 'simulation_bench': return 'card-6';
-      default: return 'card-1';
+      case 'dashboard':
+      case 'risk_map':
+        return 'card-1';
+      case 'landslide':
+      case 'disaster_3d':
+        return 'card-2';
+      case 'flood':
+      case 'weather':
+      case 'analytics':
+      case 'ai_insights':
+        return 'card-3';
+      case 'alerts':
+        return 'card-4';
+      case 'field_reports':
+        return 'card-5';
+      case 'historical':
+      case 'settings':
+        return 'card-6';
+      default:
+        return 'card-1';
     }
   };
 
@@ -181,12 +194,12 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
   const [mapFilterStatus, setMapFilterStatus] = useState<any>('all');
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
 
-  // Keep activePage synced if the user switches sidebar items.
+  // Keep activePage synced if the user switches sidebar items
   useEffect(() => {
     setActivePage(sectionToPage(currentSection));
   }, [currentSection]);
 
-  // Compute overall risk status derived from judge sliders.
+  // Compute overall risk status derived from judge sliders
   const isCritical = simulatedRainfall > 75 || simulatedDisplacement > 4.5;
   const isWarning = !isCritical && (simulatedRainfall > 40 || simulatedDisplacement > 2.0);
   const simulatedRiskLevel: 'safe' | 'warning' | 'critical' = isCritical
@@ -195,9 +208,108 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
     ? 'warning'
     : 'safe';
 
+  // Navigation helpers
+  const currentPageIndex = PAGE_DEFINITIONS.findIndex((p) => p.id === activePage);
+  const currentDef = PAGE_DEFINITIONS[currentPageIndex] || PAGE_DEFINITIONS[0];
+
+  const handlePrevPage = () => {
+    if (currentPageIndex > 0) {
+      setActivePage(PAGE_DEFINITIONS[currentPageIndex - 1].id);
+    } else {
+      setActivePage(PAGE_DEFINITIONS[PAGE_DEFINITIONS.length - 1].id);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPageIndex < PAGE_DEFINITIONS.length - 1) {
+      setActivePage(PAGE_DEFINITIONS[currentPageIndex + 1].id);
+    } else {
+      setActivePage(PAGE_DEFINITIONS[0].id);
+    }
+  };
+
   return (
     <div className="min-h-full flex flex-col bg-[#0a0f1d] text-slate-100">
-      {/* The six-module navigation is intentionally handled only by the left sidebar. */}
+      {/* 1. TOP DEDICATED PAGE TAB NAVIGATION BAR */}
+      <div className="sticky top-0 z-30 bg-[#0f172a]/95 backdrop-blur-md border-b border-slate-700/80 px-4 sm:px-6 py-3 shadow-xl">
+        <div className="max-w-[1720px] mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Title & Page Indicator */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold">
+                Dashboard Module Navigation
+              </div>
+              <div className="text-sm font-black text-white flex items-center gap-2">
+                <span>{activePage === 'all' ? 'All Modules (Overview Grid)' : currentDef.title}</span>
+                {activePage !== 'all' && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    Page {currentDef.pageNumber} of 6
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Page Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-thin">
+            {PAGE_DEFINITIONS.map((def) => {
+              const Icon = def.icon;
+              const isActive = activePage === def.id;
+
+              return (
+                <button
+                  key={def.id}
+                  onClick={() => setActivePage(def.id)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-sm ${
+                    isActive
+                      ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/40 border border-indigo-400/60 scale-[1.03]'
+                      : 'bg-[#1a253b] text-slate-200 hover:text-white hover:bg-[#273859] border border-slate-600/70 hover:border-slate-500'
+                  }`}
+                  title={def.title}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : def.iconColor}`} />
+                  <span>{def.shortTitle}</span>
+                </button>
+              );
+            })}
+
+            {/* Overview / All Cards Tab */}
+            <button
+              onClick={() => setActivePage('all')}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-sm ${
+                activePage === 'all'
+                  ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/40 border border-cyan-300/70 scale-[1.03]'
+                  : 'bg-[#1a253b] text-slate-200 hover:text-white hover:bg-[#273859] border border-slate-600/70 hover:border-slate-500'
+              }`}
+              title="View all 6 cards in unified grid"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-cyan-300" />
+              <span>All Cards</span>
+            </button>
+          </div>
+
+          {/* Quick Prev / Next Arrow Controls */}
+          <div className="hidden xl:flex items-center gap-2 shrink-0">
+            <button
+              onClick={handlePrevPage}
+              className="p-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] text-slate-100 border border-slate-600 shadow-md transition-colors cursor-pointer"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNextPage}
+              className="p-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] text-slate-100 border border-slate-600 shadow-md transition-colors cursor-pointer"
+              title="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. MAIN CONTENT VIEWPORT */}
       <div className="flex-1 p-4 sm:p-6 max-w-[1720px] mx-auto w-full">
         {/* =========================================================================
             DEDICATED PAGE 1: GIS SPATIAL MAP TRACKER
@@ -234,6 +346,13 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                   <Camera className="w-3.5 h-3.5" />
                   <span>Inspect Photo Evidence ({evidenceList.length})</span>
                 </button>
+                <button
+                  onClick={handleNextPage}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <span>Next: Sensing Grid</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
@@ -257,7 +376,7 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
 
         {/* =========================================================================
             DEDICATED PAGE 2: HYBRID SENSING NODE MANAGER
-            ========================================================================= */
+            ========================================================================= */}
         {activePage === 'card-2' && (
           <div className="space-y-4">
             {/* Page Header Bar */}
@@ -290,6 +409,13 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                   <Radio className="w-3.5 h-3.5" />
                   <span>Broadcast Cluster SOS</span>
                 </button>
+                <button
+                  onClick={handleNextPage}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <span>Next: Analytics</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
@@ -316,7 +442,7 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
 
         {/* =========================================================================
             DEDICATED PAGE 3: DUAL-AXIS RAINFALL & SATURATION ANALYTICS
-            ========================================================================= */
+            ========================================================================= */}
         {activePage === 'card-3' && (
           <div className="space-y-4">
             {/* Page Header Bar */}
@@ -349,6 +475,13 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                   <span>Adjust Test Sliders</span>
                 </button>
+                <button
+                  onClick={handleNextPage}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <span>Next: SMS Gateway</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
@@ -364,7 +497,7 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
 
         {/* =========================================================================
             DEDICATED PAGE 4: EMERGENCY SMS & CELL BROADCAST GATEWAY
-            ========================================================================= */
+            ========================================================================= */}
         {activePage === 'card-4' && (
           <div className="space-y-4">
             {/* Page Header Bar */}
@@ -396,6 +529,13 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                 >
                   <Radio className="w-3.5 h-3.5" />
                   <span>Simulate Mass SOS Alert</span>
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <span>Next: Citizen Reports</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -437,6 +577,16 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                   </p>
                 </div>
               </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleNextPage}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl border border-slate-700 text-xs flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <span>Next: Testing Bench</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Dedicated Citizen Reporting Portal */}
@@ -453,7 +603,7 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
 
         {/* =========================================================================
             DEDICATED PAGE 6: SCENARIO TESTING & SIMULATION BENCH
-            ========================================================================= */
+            ========================================================================= */}
         {activePage === 'card-6' && (
           <div className="space-y-4 max-w-4xl mx-auto">
             {/* Page Header Bar */}

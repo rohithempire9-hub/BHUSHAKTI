@@ -1,1 +1,55 @@
 @import "tailwindcss";
+
+/* Deep Blue Ocean Theme Core Variables and Global Styling */
+:root {
+  --ocean-bg-darkest: #050b1a;
+  --ocean-bg-deep: #08122d;
+  --ocean-bg-card: #0c1a3e;
+  --ocean-bg-card-hover: #102352;
+  --ocean-border: #172d66;
+  --ocean-border-glow: #244696;
+}
+
+body {
+  background-color: #060d22;
+  color: #f1f5f9;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Deep Ocean Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #060d22;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #19326e;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #25499f;
+}
+
+/* Prevent text overflow and word wrapping defects */
+.text-truncate-safe {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-ocean {
+  background: linear-gradient(180deg, #0d1b40 0%, #09132e 100%);
+  border: 1px solid #19326e;
+}
+
+.card-ocean-glow {
+  background: linear-gradient(180deg, #0f204c 0%, #0a1636 100%);
+  border: 1px solid #25499f;
+  box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.08);
+}

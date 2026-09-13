@@ -1,24 +1,23 @@
 import React, { useState } from 'react';
 import {
-  Radio,
-  Wifi,
+  Search,
+  CloudRain,
+  Bell,
   Globe,
-  Sun,
-  Moon,
-  ShieldAlert,
+  User,
   ChevronDown,
-  Layers,
-  Sparkles
+  X
 } from 'lucide-react';
 import { BhuLanguage } from '../../types/bhuShakti';
-import { TRANSLATIONS } from '../../utils/translations';
+import { BhuNavSection } from './BhuShaktiSidebar';
+import { BhuShaktiLogo } from './BhuShaktiLogo';
 
 interface BhuShaktiHeaderProps {
   currentLanguage: BhuLanguage;
   onLanguageChange: (lang: BhuLanguage) => void;
-  isDarkMode: boolean;
-  onToggleTheme: () => void;
-  onTriggerMassSos: () => void;
+  onNavigate: (section: BhuNavSection) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
   activeAlertsCount: number;
 }
 
@@ -33,78 +32,122 @@ const LANGUAGE_OPTIONS: { code: BhuLanguage; label: string; native: string }[] =
 export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
   currentLanguage,
   onLanguageChange,
-  isDarkMode,
-  onToggleTheme,
-  onTriggerMassSos,
+  onNavigate,
+  searchQuery,
+  onSearchChange,
   activeAlertsCount,
 }) => {
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
-  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
-
   const currentLangObj = LANGUAGE_OPTIONS.find((l) => l.code === currentLanguage) || LANGUAGE_OPTIONS[0];
 
   return (
     <header
       id="bhushakti-main-header"
-      className="sticky top-0 z-40 w-full border-b backdrop-blur-xl transition-colors duration-200 bg-[#0f172a]/95 border-slate-800 text-slate-100 shadow-xl"
+      className="sticky top-0 z-40 w-full bg-[#060e22]/95 border-b border-[#142654] backdrop-blur-xl transition-colors shadow-xl"
     >
-      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Left side: Clean minimalistic typography with platform name "BhuShakti" and a slow, pulsing status dot */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center">
-            {/* Slow pulsing status dot */}
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping absolute opacity-70 duration-1000" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" />
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-black tracking-tight text-white font-sans">
-                BhuShakti
-              </span>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                GIS & IoT Command
-              </span>
+      <div className="max-w-[1720px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-6">
+        {/* Left: Brand + System Operational Status - Authoritative Outer Title */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div
+            className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => onNavigate('dashboard')}
+            title="Return to Primary Dashboard"
+          >
+            <BhuShaktiLogo size="md" className="group-hover:scale-105 transition-transform" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base sm:text-lg font-black tracking-wide text-white font-sans">
+                  BhuShakti AI
+                </span>
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40">
+                  v3.2 NER
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                </span>
+                <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase font-mono truncate">
+                  16 NER SENSOR STATIONS ONLINE
+                </span>
+              </div>
             </div>
-            <p className="hidden md:block text-[11px] text-slate-400 font-medium truncate max-w-lg">
-              AI-Based Early Warning and Landslide Risk Monitoring System for the North Eastern Region (NER)
-            </p>
           </div>
         </div>
 
-        {/* Right side: Network Status: Offline-Sync Active badge and Global Language Selector dropdown */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5">
-          {/* Distinct badge: Network Status: Offline-Sync Active */}
-          <div
-            id="network-status-badge"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs shadow-inner"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-400 font-medium hidden sm:inline">Network Status:</span>
-            <span className="font-bold text-emerald-400">Offline-Sync Active</span>
+        {/* Center: Search location... search bar as seen in screenshot */}
+        <div className="flex-1 max-w-xl mx-2 sm:mx-4">
+          <div className="relative w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              id="header-location-search"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search location (e.g. Tawang, Gangtok, Dima Hasao)..."
+              className="w-full pl-9.5 pr-8 py-2 rounded-xl bg-[#0b183b] border border-[#1b3470] text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 shadow-inner transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
+        </div>
 
-          {/* Global Language Selector dropdown (English, Assamese, Khasi, Mizo, Manipuri) */}
+        {/* Right side pill buttons: Weather, Alerts, English, Admin */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Weather Button */}
+          <button
+            id="header-weather-btn"
+            onClick={() => onNavigate('weather')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0c1a3e] hover:bg-[#112456] border border-[#1c3672] text-slate-200 hover:text-cyan-300 text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
+            title="Open Live Weather Hub"
+          >
+            <CloudRain className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden md:inline">Weather</span>
+          </button>
+
+          {/* Alerts Button */}
+          <button
+            id="header-alerts-btn"
+            onClick={() => onNavigate('alerts')}
+            className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0c1a3e] hover:bg-[#112456] border border-[#1c3672] text-slate-200 hover:text-rose-300 text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
+            title="View Active Alerts & SOS"
+          >
+            <Bell className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden md:inline">Alerts</span>
+            {activeAlertsCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-[10px] font-mono font-bold text-white shadow-sm">
+                {activeAlertsCount}
+              </span>
+            )}
+          </button>
+
+          {/* Language Selector Dropdown */}
           <div className="relative">
             <button
-              id="lang-selector-btn"
+              id="header-language-btn"
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold transition-all shadow-sm cursor-pointer"
-              title={t.selectLanguage}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0c1a3e] hover:bg-[#112456] border border-[#1c3672] text-slate-200 text-xs font-semibold transition-all shadow-sm cursor-pointer"
             >
               <Globe className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">{currentLangObj.native}</span>
+              <span className="hidden sm:inline">{currentLangObj.label}</span>
               <span className="sm:hidden uppercase">{currentLangObj.code}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
             {langDropdownOpen && (
               <div
-                id="lang-dropdown-menu"
-                className="absolute right-0 mt-2 w-52 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                id="header-lang-menu"
+                className="absolute right-0 mt-2 w-48 rounded-xl bg-[#091533] border border-[#1d3876] shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
               >
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1">
-                  {t.selectLanguage} (NER Regional)
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-[#182d5e] mb-1">
+                  Language Selector
                 </div>
                 {LANGUAGE_OPTIONS.map((lang) => (
                   <button
@@ -115,43 +158,27 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
                       currentLanguage === lang.code
-                        ? 'bg-emerald-500/20 text-emerald-300 font-bold'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-cyan-500/20 text-cyan-300 font-bold'
+                        : 'text-slate-300 hover:bg-[#112454] hover:text-white'
                     }`}
                   >
                     <span>{lang.native}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">({lang.label})</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{lang.label}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Theme Toggle Button */}
+          {/* Admin Button */}
           <button
-            id="theme-toggle-btn"
-            onClick={onToggleTheme}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-amber-400 transition-colors shadow-sm cursor-pointer"
-            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Slate Mode'}
+            id="header-admin-btn"
+            onClick={() => onNavigate('settings')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0c1a3e] hover:bg-[#112456] border border-[#1c3672] text-slate-200 hover:text-white text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
+            title="System Administration & Settings"
           >
-            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-300" />}
-          </button>
-
-          {/* Simulate Mass SOS Alert Header Button */}
-          <button
-            id="header-mass-sos-btn"
-            onClick={onTriggerMassSos}
-            className="relative flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs shadow-lg shadow-rose-950/60 border border-rose-400/40 transition-all transform active:scale-95 cursor-pointer"
-            title="Simulate Mass SOS Alert"
-          >
-            <ShieldAlert className="w-4 h-4 text-amber-200" />
-            <span className="hidden sm:inline whitespace-nowrap">{t.simulateMassSos}</span>
-            <span className="sm:hidden">SOS</span>
-            {activeAlertsCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[10px] font-mono text-amber-300 border border-amber-300/30">
-                {activeAlertsCount}
-              </span>
-            )}
+            <User className="w-3.5 h-3.5 text-cyan-300" />
+            <span className="hidden sm:inline">Admin</span>
           </button>
         </div>
       </div>
