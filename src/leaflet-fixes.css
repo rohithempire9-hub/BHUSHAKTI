@@ -1,0 +1,29 @@
+/*
+ * BhuShakti Leaflet production fixes.
+ * Keep Leaflet CSS inside the Vite bundle instead of depending on a CDN stylesheet.
+ */
+@import 'leaflet/dist/leaflet.css';
+
+/* Leaflet needs a definite rendered height. */
+#landslide-map-wrapper {
+  height: 520px !important;
+  min-height: 520px !important;
+}
+
+#landslide-map-wrapper .leaflet-container {
+  width: 100%;
+  height: 100% !important;
+  min-height: 520px;
+  background: #080e22;
+}
+
+#landslide-map-wrapper .leaflet-tile-pane {
+  z-index: 200;
+}
+
+#landslide-map-wrapper .leaflet-marker-pane,
+#landslide-map-wrapper .leaflet-overlay-pane,
+#landslide-map-wrapper .leaflet-shadow-pane,
+#landslide-map-wrapper .leaflet-popup-pane {
+  z-index: 400;
+}
