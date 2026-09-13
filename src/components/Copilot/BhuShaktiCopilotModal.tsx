@@ -80,7 +80,7 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
       <div className="w-full max-w-3xl h-[85vh] rounded-2xl bg-[#091533] border border-[#1e3c7a] shadow-2xl flex flex-col overflow-hidden">
         {/* MODAL HEADER */}
         <div className="p-4 bg-gradient-to-r from-[#0c1c45] to-[#071330] border-b border-[#18326a] flex items-center justify-between">

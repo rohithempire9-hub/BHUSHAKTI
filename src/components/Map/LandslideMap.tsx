@@ -1018,62 +1018,83 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   return (
     <div
       id="landslide-map-wrapper"
-      className="relative w-full h-full min-h-[350px] rounded-2xl overflow-hidden border border-indigo-500/20 shadow-inner bg-[#080e22]"
+      className="relative isolate z-0 w-full h-full min-h-[350px] rounded-2xl overflow-hidden border border-indigo-500/20 shadow-inner bg-[#080e22]"
     >
       {/* Map Canvas Element */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* Top Floating Bar: Controls & Filters */}
-      <div className="absolute top-2.5 left-2.5 right-2.5 z-[400] flex flex-wrap items-start justify-between gap-2 pointer-events-none">
-        {/* Left Side: Search Bar & Floating Select Place Dropdown */}
-        <div className="flex items-center gap-1.5 pointer-events-auto flex-wrap max-w-full">
-          {/* Search Input */}
-          <div className="flex items-center bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-xl w-40 sm:w-48">
-            <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
-            <input
-              id="map-search-input"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search station..."
-              className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full min-w-0"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="text-xs text-slate-400 hover:text-white ml-1 px-1 cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Compact Select Place */}
-          <div className="bg-[#0b1433]/95 backdrop-blur-md border border-indigo-500/40 rounded-xl px-2.5 py-1 shadow-xl flex items-center gap-1.5">
-            <span className="text-[9px] font-mono font-black text-cyan-400 uppercase tracking-wider shrink-0 hidden sm:inline">
-              PLACE:
-            </span>
-            <select
-              value={selectedStation?.id || ''}
-              onChange={(e) => {
-                const found = stations.find((s) => s.id === e.target.value);
-                if (found) onSelectStation(found);
-              }}
-              className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer max-w-[140px] truncate"
+      {/* Top-Left: Search Bar & Floating Select Place Dropdown */}
+      <div className="absolute top-3 left-3 z-10 pointer-events-none flex items-center gap-1.5 flex-wrap max-w-[calc(100%-160px)]">
+        {/* Search Input */}
+        <div className="flex items-center bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl px-2.5 py-1.5 shadow-xl w-36 sm:w-44 pointer-events-auto">
+          <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
+          <input
+            id="map-search-input"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search station..."
+            className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full min-w-0"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="text-xs text-slate-400 hover:text-white ml-1 px-1 cursor-pointer"
             >
-              {stations.map((st) => (
-                <option key={st.id} value={st.id} className="bg-slate-900 text-white">
-                  {st.name} ({st.region.split(',')[0]})
-                </option>
-              ))}
-            </select>
-          </div>
+              ✕
+            </button>
+          )}
         </div>
 
-        {/* Top-Right Floating Controls (Pills matching screenshot) */}
-        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5">
+        {/* Compact Select Place */}
+        <div className="bg-[#0b1433]/95 backdrop-blur-md border border-indigo-500/40 rounded-xl px-2.5 py-1 shadow-xl flex items-center gap-1.5 pointer-events-auto">
+          <span className="text-[9px] font-mono font-black text-cyan-400 uppercase tracking-wider shrink-0 hidden sm:inline">
+            PLACE:
+          </span>
+          <select
+            value={selectedStation?.id || ''}
+            onChange={(e) => {
+              const found = stations.find((s) => s.id === e.target.value);
+              if (found) onSelectStation(found);
+            }}
+            className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[150px] truncate"
+          >
+            {stations.map((st) => (
+              <option key={st.id} value={st.id} className="bg-slate-900 text-white">
+                {st.name} ({st.region.split(',')[0]})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Right Side: Vertically Aligned Inside Map Controls */}
+      <div className="absolute top-3 right-3 bottom-12 z-10 pointer-events-none flex flex-col items-end">
+        <div className="pointer-events-auto flex flex-col items-end gap-1.5 max-h-full overflow-y-auto pr-0.5 no-scrollbar py-0.5">
+          {/* Zoom Controls */}
+          <div className="flex flex-col bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl overflow-hidden shadow-xl">
+            <button
+              type="button"
+              onClick={() => mapInstanceRef.current?.zoomIn()}
+              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <div className="h-[1px] bg-slate-800" />
+            <button
+              type="button"
+              onClick={() => mapInstanceRef.current?.zoomOut()}
+              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Current Location Button */}
           <button
+            type="button"
             onClick={() => {
               if (
                 selectedStation &&
@@ -1092,107 +1113,139 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                 }
               }
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#0b1433]/90 backdrop-blur-md border border-slate-700/80 hover:border-slate-500 text-xs font-bold text-slate-300 hover:text-white transition-all shadow-xl cursor-pointer"
+            className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 hover:border-cyan-400/60 text-xs font-bold text-slate-200 hover:text-white transition-all shadow-xl cursor-pointer w-36 active:scale-95"
+            title="Fly to selected station location"
           >
-            <LocateFixed className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Current Location</span>
+            <div className="flex items-center gap-1.5">
+              <LocateFixed className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="truncate">Current Loc</span>
+            </div>
           </button>
 
-          {/* Satellite Layer Toggle */}
-          <button
-            onClick={() => setMapLayer('satellite')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
-              mapLayer === 'satellite'
-                ? 'bg-indigo-600 text-white border-indigo-400 shadow-indigo-900/50'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Satellite</span>
-          </button>
-
-          {/* Terrain Layer Toggle */}
-          <button
-            onClick={() => setMapLayer('topo')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
-              mapLayer === 'topo'
-                ? 'bg-indigo-600 text-white border-indigo-400 shadow-indigo-900/50'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Terrain</span>
-          </button>
+          {/* Basemap Segmented Toggle (Satellite / Terrain) */}
+          <div className="flex flex-col bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl p-0.5 shadow-xl w-36">
+            <button
+              type="button"
+              onClick={() => setMapLayer('satellite')}
+              className={`flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                mapLayer === 'satellite'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 shrink-0 text-cyan-300" />
+                <span>Satellite</span>
+              </div>
+              {mapLayer === 'satellite' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-300" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapLayer('topo')}
+              className={`flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                mapLayer === 'topo'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 shrink-0 text-amber-300" />
+                <span>Terrain</span>
+              </div>
+              {mapLayer === 'topo' && <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />}
+            </button>
+          </div>
 
           {/* Flood Risk Toggle */}
           <button
+            type="button"
             onClick={() => setShowFloodLayer(!showFloodLayer)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
               showFloodLayer
-                ? 'bg-cyan-600 text-white border-cyan-400'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+                ? 'bg-cyan-600 text-white border-cyan-400 shadow-cyan-900/50'
+                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
             }`}
           >
-            <Waves className="w-3.5 h-3.5 text-cyan-300" />
-            <span>Flood</span>
+            <div className="flex items-center gap-1.5">
+              <Waves className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+              <span>Flood</span>
+            </div>
+            <span className={`w-2 h-2 rounded-full ${showFloodLayer ? 'bg-cyan-200 animate-pulse' : 'bg-slate-600'}`} />
           </button>
 
           {/* Landslide Heatmap Toggle */}
           <button
+            type="button"
             onClick={() => setShowHeatMap(!showHeatMap)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
               showHeatMap
-                ? 'bg-amber-600 text-white border-amber-400'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+                ? 'bg-amber-600 text-white border-amber-400 shadow-amber-900/50'
+                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
             }`}
           >
-            <Flame className="w-3.5 h-3.5 text-amber-300" />
-            <span>Landslide</span>
+            <div className="flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <span>Landslide</span>
+            </div>
+            <span className={`w-2 h-2 rounded-full ${showHeatMap ? 'bg-amber-200 animate-pulse' : 'bg-slate-600'}`} />
           </button>
 
           {/* Safe Escape Route Toggle */}
           <button
+            type="button"
             onClick={() => setShowEscapeRoute(!showEscapeRoute)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
               showEscapeRoute
                 ? 'bg-emerald-600 text-white border-emerald-400 shadow-emerald-950'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
             }`}
           >
-            <Navigation className="w-3.5 h-3.5 text-emerald-300" />
-            <span>Safe Route</span>
+            <div className="flex items-center gap-1.5">
+              <Navigation className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+              <span>Safe Route</span>
+            </div>
+            <span className={`w-2 h-2 rounded-full ${showEscapeRoute ? 'bg-emerald-200 animate-pulse' : 'bg-slate-600'}`} />
           </button>
 
           {/* NH Highway Corridors Toggle */}
           <button
+            type="button"
             onClick={() => setShowHighways(!showHighways)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
               showHighways
                 ? 'bg-amber-600 text-white border-amber-400 shadow-amber-950/40'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
             }`}
             title="Toggle simulated topographic heatmaps for NH-10, NH-27, and NH-29"
           >
-            <span>🛣️</span>
-            <span>NH Corridors</span>
+            <div className="flex items-center gap-1.5">
+              <span>🛣️</span>
+              <span className="truncate">NH Corridors</span>
+            </div>
+            <span className={`w-2 h-2 rounded-full ${showHighways ? 'bg-amber-200 animate-pulse' : 'bg-slate-600'}`} />
           </button>
 
           {/* Remote Village Pins Toggle */}
           <button
+            type="button"
             onClick={() => setShowVillages(!showVillages)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
               showVillages
                 ? 'bg-teal-600 text-white border-teal-400 shadow-teal-950/40'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
             }`}
             title="Toggle interactive pins for remote NER villages"
           >
-            <span>🏡</span>
-            <span>Remote Villages</span>
+            <div className="flex items-center gap-1.5">
+              <span>🏡</span>
+              <span className="truncate">Villages</span>
+            </div>
+            <span className={`w-2 h-2 rounded-full ${showVillages ? 'bg-teal-200 animate-pulse' : 'bg-slate-600'}`} />
           </button>
 
           {/* Photo Evidence Layer & Modal Toggle */}
           <button
+            type="button"
             onClick={() => {
               if (onOpenEvidenceModal) {
                 onOpenEvidenceModal();
@@ -1200,40 +1253,27 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                 setShowEvidencePins(!showEvidencePins);
               }
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all shadow-xl cursor-pointer border ${
+            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
               showEvidencePins
                 ? 'bg-gradient-to-r from-rose-600 to-amber-600 text-white border-rose-400 shadow-rose-950/40'
-                : 'bg-[#0b1433]/90 backdrop-blur-md border-slate-700/80 text-slate-400 hover:text-white'
+                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
             }`}
             title="Field Disaster Photo Evidence & AI Identification"
           >
-            <Camera className="w-3.5 h-3.5 text-rose-300" />
-            <span>Photo Evidence ({evidenceList.length})</span>
+            <div className="flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5 text-rose-300 shrink-0" />
+              <span className="truncate">Evidence</span>
+            </div>
+            <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-[10px] text-white font-mono font-bold">
+              {evidenceList.length}
+            </span>
           </button>
-
-          {/* Zoom Controls */}
-          <div className="flex items-center bg-[#0b1433]/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-0.5 shadow-xl">
-            <button
-              onClick={() => mapInstanceRef.current?.zoomIn()}
-              className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => mapInstanceRef.current?.zoomOut()}
-              className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Floating Bottom Left Tag (matching screenshot) */}
-      <div className="absolute bottom-3 left-4 z-[400] pointer-events-none flex items-center gap-2 text-[11px] bg-[#0b1433]/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800 text-slate-300 shadow-xl">
-        <Globe className="w-3.5 h-3.5 text-cyan-400" />
+      {/* Floating Bottom Left Tag */}
+      <div className="absolute bottom-3 left-3 z-10 pointer-events-none flex items-center gap-2 text-[10px] sm:text-[11px] bg-[#0b1433]/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800 text-slate-300 shadow-xl">
+        <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
         <span>Esri World Imagery • 11 Sept 2026, 10:16 am DEMO</span>
       </div>
     </div>

@@ -419,7 +419,7 @@ export const LandslideMemoryView: React.FC<LandslideMemoryViewProps> = ({
 
       {/* 5. HISTORICAL EVENT DETAIL MODAL */}
       {showMatchModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-[#091533] border border-[#1e3c7a] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#18326a]">
               <div>

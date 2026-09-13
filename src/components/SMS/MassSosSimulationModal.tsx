@@ -73,7 +73,7 @@ export const MassSosSimulationModal: React.FC<MassSosSimulationModalProps> = ({
   return (
     <div
       id="mass-sos-simulation-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div
         id="mass-sos-simulation-modal-content"
