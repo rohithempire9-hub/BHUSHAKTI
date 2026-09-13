@@ -42,6 +42,7 @@ interface BhuShaktiBentoDashboardProps {
   stations: LandslideStation[];
   selectedStation: LandslideStation | null;
   onSelectStation: (station: LandslideStation) => void;
+  onInspectStation?: (station: LandslideStation) => void;
   sensingNodes: SensingNodeDevice[];
   onToggleNodeMode: (nodeId: string) => void;
   onUpdateNodeTelemetry: (nodeId: string, updates: Partial<SensingNodeDevice>) => void;
@@ -142,6 +143,7 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
   stations,
   selectedStation,
   onSelectStation,
+  onInspectStation,
   sensingNodes,
   onToggleNodeMode,
   onUpdateNodeTelemetry,
@@ -245,10 +247,10 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                 <button
                   key={def.id}
                   onClick={() => setActivePage(def.id)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-sm ${
                     isActive
-                      ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/35 border border-indigo-400/50 scale-[1.02]'
-                      : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700/70'
+                      ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/40 border border-indigo-400/60 scale-[1.03]'
+                      : 'bg-[#1a253b] text-slate-200 hover:text-white hover:bg-[#273859] border border-slate-600/70 hover:border-slate-500'
                   }`}
                   title={def.title}
                 >
@@ -261,10 +263,10 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
             {/* Overview / All Cards Tab */}
             <button
               onClick={() => setActivePage('all')}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer shadow-sm ${
                 activePage === 'all'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/35 border border-cyan-300/60 scale-[1.02]'
-                  : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700/70'
+                  ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/40 border border-cyan-300/70 scale-[1.03]'
+                  : 'bg-[#1a253b] text-slate-200 hover:text-white hover:bg-[#273859] border border-slate-600/70 hover:border-slate-500'
               }`}
               title="View all 6 cards in unified grid"
             >
@@ -277,14 +279,14 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
           <div className="hidden xl:flex items-center gap-2 shrink-0">
             <button
               onClick={handlePrevPage}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] text-slate-100 border border-slate-600 shadow-md transition-colors cursor-pointer"
               title="Previous Page"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={handleNextPage}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+              className="p-2 rounded-xl bg-[#1e293b] hover:bg-[#334155] text-slate-100 border border-slate-600 shadow-md transition-colors cursor-pointer"
               title="Next Page"
             >
               <ChevronRight className="w-4 h-4" />
@@ -409,6 +411,15 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
                 nodes={sensingNodes}
                 onToggleNodeMode={onToggleNodeMode}
                 onUpdateNodeTelemetry={onUpdateNodeTelemetry}
+                onSelectNodeForInspection={(node) => {
+                  const match = stations.find((s) => s.id === node.id || s.name.toLowerCase().includes(node.locationName.toLowerCase()));
+                  if (match) {
+                    onSelectStation(match);
+                    if (onInspectStation) onInspectStation(match);
+                  } else if (selectedStation && onInspectStation) {
+                    onInspectStation(selectedStation);
+                  }
+                }}
                 onTriggerSosForNode={() => onSimulateMassSos()}
               />
             </div>

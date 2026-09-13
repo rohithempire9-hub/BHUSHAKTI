@@ -152,9 +152,10 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                   setSelectedPlaceBId(safe.id);
                 }
               }}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white border border-indigo-400/40 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
             >
-              Compare: Critical vs. Safe Baseline
+              <Split className="w-3.5 h-3.5" />
+              <span>Compare: Critical vs. Safe Baseline</span>
             </button>
           </div>
         </div>

@@ -6,6 +6,17 @@ import {
   RiskStatus,
   DisasterEvidenceReport
 } from './types/landslide';
+import {
+  SensingNodeDevice,
+  RegisteredDeviceProfile,
+  CitizenCrowdsourceReport,
+  BhuLanguage
+} from './types/bhuShakti';
+import {
+  INITIAL_SENSING_NODES,
+  INITIAL_REGISTERED_DEVICES,
+  INITIAL_CITIZEN_REPORTS
+} from './data/bhuShaktiData';
 
 import {
   initializeStations,
@@ -17,6 +28,12 @@ import {
   subscribeToStations,
   isFirebaseAvailable
 } from './services/firebase';
+
+import { BhuShaktiHeader } from './components/Navigation/BhuShaktiHeader';
+import { BhuShaktiSidebar, BhuNavSection } from './components/Navigation/BhuShaktiSidebar';
+import { CriticalHazardBanner } from './components/Dashboard/CriticalHazardBanner';
+import { BhuShaktiBentoDashboard } from './components/Dashboard/BhuShaktiBentoDashboard';
+import { MassSosSimulationModal } from './components/SMS/MassSosSimulationModal';
 
 import { LandslideMap } from './components/Map/LandslideMap';
 import { PlaceRiskMatrix } from './components/RiskAnalysis/PlaceRiskMatrix';
@@ -41,12 +58,18 @@ import {
   History,
   Camera,
   Play,
-  Pause
+  Pause,
+  LayoutGrid,
+  Table,
+  Layers,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 const REFRESH_INTERVAL_MS = 5000;
 
 export default function App() {
+  // Core Domain State
   const [stations, setStations] = useState<LandslideStation[]>([]);
   const [subscribers, setSubscribers] = useState<SmsSubscriber[]>([]);
   const [alertDispatches, setAlertDispatches] = useState<SmsAlertRecord[]>([]);
@@ -55,6 +78,21 @@ export default function App() {
   const [selectedStation, setSelectedStation] =
     useState<LandslideStation | null>(null);
 
+  // BhuShakti IoT & Citizen Crowdsourced Portal State
+  const [sensingNodes, setSensingNodes] = useState<SensingNodeDevice[]>(INITIAL_SENSING_NODES);
+  const [registeredDevices, setRegisteredDevices] = useState<RegisteredDeviceProfile[]>(INITIAL_REGISTERED_DEVICES);
+  const [citizenReports, setCitizenReports] = useState<CitizenCrowdsourceReport[]>(INITIAL_CITIZEN_REPORTS);
+
+  // Layout & Navigation State
+  const [currentLanguage, setCurrentLanguage] = useState<BhuLanguage>('en');
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [currentNavSection, setCurrentNavSection] = useState<BhuNavSection>('live_map');
+  const [mainViewMode, setMainViewMode] = useState<
+    'bento' | 'risk_matrix' | 'regional_overview' | 'telemetry_grid'
+  >('bento');
+
+  // Modals State
+  const [massSosModalOpen, setMassSosModalOpen] = useState(false);
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [disastersModalOpen, setDisastersModalOpen] = useState(false);
@@ -62,43 +100,26 @@ export default function App() {
 
   const [prefilledSmsMessage, setPrefilledSmsMessage] =
     useState<string | null>(null);
+  const [dismissedCriticalBanner, setDismissedCriticalBanner] = useState(false);
 
-  const [isSyncingWeather, setIsSyncingWeather] = useState(false);
-
-  const [activeViewTab, setActiveViewTab] = useState<
-    'map' | 'risk_matrix' | 'telemetry_grid'
-  >('map');
-
-  const [mapFilterStatus, setMapFilterStatus] =
-    useState<RiskStatus | 'all'>('all');
-
-  const [searchQuery, setSearchQuery] = useState('');
-
-  /*
-   * IMPORTANT:
-   * The browser no longer generates fake/random sensor readings.
-   *
-   * server.ts is now the autonomous sensor simulator:
-   *
-   * Virtual/Physical Sensor
-   *        ↓
-   * /api/sensors/telemetry
-   *        ↓
-   * Risk Engine
-   *        ↓
-   * Firestore
-   *        ↓
-   * This App polls Firestore every 5 seconds
-   *
-   * Later, a physical ESP32/LoRa node can send telemetry to the same API.
-   */
+  // Sync state
   const [isLiveStreamActive, setIsLiveStreamActive] = useState(true);
-  const [lastSyncTime, setLastSyncTime] = useState('Waiting...');
+  const [isSyncingWeather, setIsSyncingWeather] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState('Just now');
   const [firebaseConnected, setFirebaseConnected] = useState(false);
+
+  // Judge Simulation Interactive Testing State
+  const [simulatedRainfall, setSimulatedRainfall] = useState<number>(25);
+  const [simulatedDisplacement, setSimulatedDisplacement] = useState<number>(0.8);
+
+  const handleResetSimulation = () => {
+    setSimulatedRainfall(25);
+    setSimulatedDisplacement(0.8);
+    setDismissedCriticalBanner(false);
+  };
 
   // ---------------------------------------------------------------------------
   // Keep selected zone synchronized with the latest Firestore station object.
-  // This is important because the backend continuously changes telemetry/risk.
   // ---------------------------------------------------------------------------
   const applyStations = (latestStations: LandslideStation[]) => {
     setStations(latestStations);
@@ -125,11 +146,12 @@ export default function App() {
   };
 
   // ---------------------------------------------------------------------------
-  // Initial loading
+  // Initial loading & Real-time Listeners
   // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
     let unsubscribeEvidence: (() => void) | undefined;
+    let unsubscribeStations: (() => void) | undefined;
 
     async function loadData() {
       try {
@@ -137,8 +159,7 @@ export default function App() {
 
         if (cancelled) return;
 
-        setStations(loadedStations);
-        setSelectedStation(loadedStations[0] ?? null);
+        applyStations(loadedStations);
 
         const loadedSubs = await getSubscribers();
         if (!cancelled) setSubscribers(loadedSubs);
@@ -155,6 +176,12 @@ export default function App() {
           }
         });
 
+        unsubscribeStations = subscribeToStations((liveStations) => {
+          if (!cancelled && liveStations.length > 0) {
+            applyStations(liveStations);
+          }
+        });
+
         setFirebaseConnected(isFirebaseAvailable());
       } catch (error) {
         console.error('[BhuShakti] Initial data loading failed:', error);
@@ -166,60 +193,86 @@ export default function App() {
     return () => {
       cancelled = true;
       unsubscribeEvidence?.();
+      unsubscribeStations?.();
     };
   }, []);
 
   // ---------------------------------------------------------------------------
-  // AUTONOMOUS LIVE SENSOR VIEW
-  //
-  // Do NOT use Math.random() here.
-  // The backend virtual sensor stream is responsible for generating telemetry.
-  // This only reads the latest Firestore state.
+  // Sensor micro-fluctuation telemetry ticker for IoT Nodes
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!isLiveStreamActive) return;
 
-    let cancelled = false;
+    const interval = setInterval(() => {
+      setSensingNodes((prevNodes) =>
+        prevNodes.map((node) => {
+          const moistureJitter = Number(((Math.random() - 0.49) * 0.3).toFixed(1));
+          const tiltJitter = Number(((Math.random() - 0.5) * 0.05).toFixed(2));
+          const newMoisture = Math.min(99, Math.max(25, Number((node.soilMoisturePct + moistureJitter).toFixed(1))));
+          const newTilt = Math.max(0.2, Number((node.tiltAngleDeg + tiltJitter).toFixed(1)));
+          const newRisk = newMoisture > 80 ? 'emergency' : newMoisture > 65 ? 'warning' : 'low';
+          const newSafetyFactor = Number(Math.max(0.65, (2.2 - (newMoisture / 100) * 1.5 - (newTilt / 10) * 0.5)).toFixed(2));
 
-    const refreshFromFirestore = async () => {
-      try {
-        const latestStations = await initializeStations();
+          return {
+            ...node,
+            soilMoisturePct: newMoisture,
+            tiltAngleDeg: newTilt,
+            riskLevel: newRisk,
+            safetyFactor: newSafetyFactor,
+            lastPacketReceived: 'Just now',
+          };
+        })
+      );
 
-        if (cancelled || latestStations.length === 0) return;
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, REFRESH_INTERVAL_MS);
 
-        applyStations(latestStations);
-      } catch (error) {
-        console.warn(
-          '[BhuShakti] Live Firestore station refresh failed:',
-          error
-        );
-      }
-    };
-
-    void refreshFromFirestore();
-
-    const interval = window.setInterval(
-      () => void refreshFromFirestore(),
-      REFRESH_INTERVAL_MS
-    );
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [isLiveStreamActive]);
 
-  // ---------------------------------------------------------------------------
+  // Toggle Physical ESP32 vs Virtual AI mode on a node
+  const handleToggleNodeMode = (nodeId: string) => {
+    setSensingNodes((prev) =>
+      prev.map((node) => {
+        if (node.id !== nodeId) return node;
+        const newMode = node.mode === 'physical' ? 'virtual' : 'physical';
+        return {
+          ...node,
+          mode: newMode,
+          label: `${node.nodeCode} (${newMode === 'physical' ? 'Physical ESP32' : 'Virtual AI'})`,
+        };
+      })
+    );
+  };
+
+  // Update telemetry for a node (e.g. from slider)
+  const handleUpdateNodeTelemetry = (nodeId: string, updates: Partial<SensingNodeDevice>) => {
+    setSensingNodes((prev) =>
+      prev.map((node) => (node.id === nodeId ? { ...node, ...updates } : node))
+    );
+  };
+
+  // Submit crowdsourced citizen report
+  const handleSubmitCitizenReport = (newReportData: Omit<CitizenCrowdsourceReport, 'id' | 'timestamp'>) => {
+    const newReport: CitizenCrowdsourceReport = {
+      ...newReportData,
+      id: `cit-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+    };
+    setCitizenReports((prev) => [newReport, ...prev]);
+  };
+
+  // Update status of a citizen report
+  const handleUpdateCitizenReportStatus = (reportId: string, status: CitizenCrowdsourceReport['status']) => {
+    setCitizenReports((prev) =>
+      prev.map((r) => (r.id === reportId ? { ...r, status } : r))
+    );
+  };
+
   // Station selection
-  //
-  // Every map/card/risk-matrix selection comes through this function.
-  // Therefore the selected zone becomes the direct input to the risk dashboard.
-  // ---------------------------------------------------------------------------
   const selectStation = (station: LandslideStation | null) => {
     if (!station) return;
-
     setSelectedStation(station);
-
     setStations((previous) =>
       previous.map((item) =>
         item.id === station.id ? station : item
@@ -227,15 +280,12 @@ export default function App() {
     );
   };
 
-  // ---------------------------------------------------------------------------
   // Manual telemetry update from StationDetailModal
-  // ---------------------------------------------------------------------------
   const handleUpdateStationTelemetry = async (
     stationId: string,
     simulatedChanges: Partial<LandslideStation['telemetry']>
   ) => {
     const target = stations.find((station) => station.id === stationId);
-
     if (!target) return;
 
     try {
@@ -244,33 +294,39 @@ export default function App() {
         simulatedChanges,
         target
       );
-
       setStations((previous) =>
         previous.map((station) =>
           station.id === updated.id ? updated : station
         )
       );
-
       setSelectedStation(updated);
     } catch (error) {
-      console.error(
-        '[BhuShakti] Station telemetry update failed:',
-        error
-      );
+      console.error('[BhuShakti] Station telemetry update failed:', error);
     }
   };
 
-  // ---------------------------------------------------------------------------
+  // Simulate rainstorm event on a specific station
+  const handleTriggerSimulatedRain = (stationId: string) => {
+    const target = stations.find((s) => s.id === stationId);
+    if (!target) return;
+    const currentRainRate = target.telemetry?.rainfallRateMmH || 15;
+    const currentRain24h = target.telemetry?.rainfall24hMm || 30;
+    const currentMoisture = target.telemetry?.soilMoisturePct || 50;
+    const currentPore = target.telemetry?.poreWaterPressureKpa || 35;
+    void handleUpdateStationTelemetry(stationId, {
+      rainfallRateMmH: Math.max(75, currentRainRate + 40),
+      rainfall24hMm: Math.max(90, currentRain24h + 50),
+      soilMoisturePct: Math.min(96, currentMoisture + 25),
+      poreWaterPressureKpa: currentPore + 20,
+    });
+  };
+
   // Manual live weather synchronization
-  // ---------------------------------------------------------------------------
   const handleSyncLiveWeather = async () => {
     if (isSyncingWeather || stations.length === 0) return;
-
     setIsSyncingWeather(true);
-
     try {
       const updated = await syncStationsWithRealWeather(stations);
-
       applyStations(updated);
     } catch (error) {
       console.warn('[BhuShakti] Weather sync error:', error);
@@ -279,71 +335,111 @@ export default function App() {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Risk counts
-  // ---------------------------------------------------------------------------
+  // Critical nodes evaluation for hazard banner & emergency detection
+  const isJudgeEmergency = simulatedRainfall > 75 || simulatedDisplacement > 4.5;
+  const criticalNodes = sensingNodes.filter(
+    (n) => (n.soilMoisturePct > 80 && (n.tiltAngleDeg > 2.0 || n.riskLevel === 'emergency')) || isJudgeEmergency
+  );
+
   const safeCount = stations.filter(
     (station) => station.riskAssessment?.status === 'safe'
   ).length;
-
   const moderateCount = stations.filter(
     (station) => station.riskAssessment?.status === 'moderate'
   ).length;
-
   const highCount = stations.filter(
     (station) => station.riskAssessment?.status === 'high'
   ).length;
-
   const criticalCount = stations.filter(
     (station) => station.riskAssessment?.status === 'critical'
   ).length;
-
   const totalPlaces = stations.length;
 
-  // ---------------------------------------------------------------------------
-  // Selected-zone risk inputs
-  //
-  // These values are read directly from selectedStation.telemetry.
-  // The riskAssessment shown below is the result produced for this station.
-  // ---------------------------------------------------------------------------
   const selectedTelemetry = selectedStation?.telemetry;
   const selectedRisk = selectedStation?.riskAssessment;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col selection:bg-indigo-600 selection:text-white">
+    <div
+      className={`min-h-screen font-sans antialiased transition-colors duration-200 flex flex-col ${
+        isDarkMode
+          ? 'bg-[#0a0f1d] text-slate-100 selection:bg-indigo-500 selection:text-white'
+          : 'bg-slate-100 text-slate-900 selection:bg-cyan-600 selection:text-white'
+      }`}
+    >
+      {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER */}
+      <BhuShaktiHeader
+        currentLanguage={currentLanguage}
+        onLanguageChange={setCurrentLanguage}
+        isDarkMode={isDarkMode}
+        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        onTriggerMassSos={() => setMassSosModalOpen(true)}
+        activeAlertsCount={criticalNodes.length + criticalCount}
+      />
 
-      {/* ------------------------------------------------------------------ */}
-      {/* HEADER                                                             */}
-      {/* ------------------------------------------------------------------ */}
-      <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md sticky top-0 z-[500] px-4 lg:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* View Switcher Sub-Header Bar */}
+      <div className="border-b border-slate-700/80 bg-[#0b1329] px-4 sm:px-6 py-2.5 shadow-md sticky top-[60px] z-40">
+        <div className="max-w-[1720px] mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Main View Tabs */}
+          <div className="flex items-center gap-1.5 p-1 bg-[#10192e] rounded-xl border border-slate-700/80 shadow-inner">
+            <button
+              id="tab-bento-view"
+              onClick={() => setMainViewMode('bento')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer shadow-sm ${
+                mainViewMode === 'bento'
+                  ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/35 border border-indigo-400/50 scale-[1.02]'
+                  : 'bg-[#182338] text-slate-200 hover:text-white hover:bg-[#253554] border border-slate-700/80'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Multi-Page Command Center</span>
+            </button>
 
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-rose-600 flex items-center justify-center shadow-lg shadow-indigo-900/40 border border-indigo-400/30">
-              <Activity className="w-5 h-5 text-white animate-pulse" />
-            </div>
+            <button
+              id="tab-risk-matrix"
+              onClick={() => setMainViewMode('risk_matrix')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer shadow-sm ${
+                mainViewMode === 'risk_matrix'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/35 border border-emerald-400/50 scale-[1.02]'
+                  : 'bg-[#182338] text-slate-200 hover:text-white hover:bg-[#253554] border border-slate-700/80'
+              }`}
+            >
+              <Table className="w-3.5 h-3.5 text-emerald-300" />
+              <span>16 NER Risk Matrix &amp; Simulator</span>
+            </button>
 
-            <div>
-              <h1 className="text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
-                BhuShakti
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Northeast India Geotechnical AI
-                </span>
-              </h1>
+            <button
+              id="tab-regional-overview"
+              onClick={() => setMainViewMode('regional_overview')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer shadow-sm ${
+                mainViewMode === 'regional_overview'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-600/35 border border-purple-400/50 scale-[1.02]'
+                  : 'bg-[#182338] text-slate-200 hover:text-white hover:bg-[#253554] border border-slate-700/80'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-purple-300" />
+              <span>Regional Vulnerability Hub</span>
+            </button>
 
-              <p className="text-xs text-slate-400">
-                Landslide Early Warning & Real-Time Soil Stability System Across
-                Northeast India
-              </p>
-            </div>
+            <button
+              id="tab-telemetry-grid"
+              onClick={() => setMainViewMode('telemetry_grid')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer shadow-sm ${
+                mainViewMode === 'telemetry_grid'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-600/35 border border-cyan-400/50 scale-[1.02]'
+                  : 'bg-[#182338] text-slate-200 hover:text-white hover:bg-[#253554] border border-slate-700/80'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Live Sensor Telemetry Grid</span>
+            </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-
+          {/* Quick Action Badges & Live Status */}
+          <div className="flex items-center gap-2.5">
             <button
               id="open-disasters-header-btn"
               onClick={() => setDisastersModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-amber-500/30 text-amber-300 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/30 text-amber-300 transition-colors cursor-pointer"
             >
               <History className="w-3.5 h-3.5 text-amber-400" />
               <span>Disasters Archive (12)</span>
@@ -361,592 +457,411 @@ export default function App() {
               </span>
             </button>
 
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300"
-              title="Cloud Firestore sensor storage"
-            >
-              <Database className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Cloud DB:</span>
-              <span className="text-emerald-400 font-mono font-bold">
-                {firebaseConnected ? 'Firestore Active' : 'Offline'}
-              </span>
-            </div>
-
-            <button
-              onClick={() => setIsLiveStreamActive((value) => !value)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all ${
-                isLiveStreamActive
-                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
-                  : 'bg-slate-900 border-slate-800 text-slate-400'
-              }`}
-              title="Pause/resume the dashboard's live Firestore refresh"
-            >
-              {isLiveStreamActive ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <Pause className="w-3 h-3" />
-                  Live Sensor Stream ({lastSyncTime})
-                </>
-              ) : (
-                <>
-                  <Play className="w-3 h-3" />
-                  Live View Paused
-                </>
-              )}
-            </button>
-
             <button
               id="open-sms-system-btn"
               onClick={() => setSmsModalOpen(true)}
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-rose-950/50 transition-all cursor-pointer border border-rose-400/30"
             >
-              <Radio className="w-4 h-4 animate-pulse" />
+              <Radio className="w-3.5 h-3.5 animate-pulse" />
               <span>Emergency SMS Gateway</span>
               <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
                 {subscribers.length} Registered
               </span>
             </button>
-          </div>
-        </div>
-      </header>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* MAIN                                                               */}
-      {/* ------------------------------------------------------------------ */}
-      <main className="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 space-y-6 flex-1">
-
-        {/* STATUS CARDS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-          <div
-            onClick={() => {
-              setActiveViewTab('map');
-              setMapFilterStatus('safe');
-            }}
-            className="cursor-pointer bg-slate-900/90 border border-emerald-500/40 hover:border-emerald-500 p-4 rounded-2xl shadow-xl transition-all"
-          >
-            <div className="flex items-center justify-between text-xs text-emerald-400 font-bold mb-1">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4" />
-                SAFE ZONES
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30">
-                Safe Only
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#10192e] border border-slate-700/80 text-[11px] text-slate-300 font-mono"
+              title="Cloud Firestore sensor storage"
+            >
+              <Database className="w-3 h-3 text-cyan-400" />
+              <span>Firestore:</span>
+              <span className="text-emerald-400 font-bold">
+                {firebaseConnected ? 'Synced' : 'Active'}
               </span>
             </div>
-
-            <div className="text-3xl font-extrabold text-white font-mono">
-              {safeCount}
-              <span className="text-sm font-normal text-slate-400 ml-1">
-                / {totalPlaces}
-              </span>
-            </div>
-
-            <div className="text-[11px] text-emerald-300 mt-1">
-              Low vulnerability • Factor of Safety ≥ 1.80
-            </div>
-          </div>
-
-          <div
-            onClick={() => {
-              setActiveViewTab('map');
-              setMapFilterStatus('moderate');
-            }}
-            className="cursor-pointer bg-slate-900/90 border border-amber-500/30 hover:border-amber-500/60 p-4 rounded-2xl shadow-xl transition-all"
-          >
-            <div className="flex items-center justify-between text-xs text-amber-400 font-bold mb-1">
-              <span className="flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" />
-                MODERATE ADVISORY
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300">
-                Yellow
-              </span>
-            </div>
-
-            <div className="text-3xl font-extrabold text-white font-mono">
-              {moderateCount}
-              <span className="text-sm font-normal text-slate-400 ml-1">
-                / {totalPlaces}
-              </span>
-            </div>
-
-            <div className="text-[11px] text-amber-300/80 mt-1">
-              Elevated moisture & drainage inspection
-            </div>
-          </div>
-
-          <div
-            onClick={() => {
-              setActiveViewTab('map');
-              setMapFilterStatus('high');
-            }}
-            className="cursor-pointer bg-slate-900/90 border border-orange-500/30 hover:border-orange-500/60 p-4 rounded-2xl shadow-xl transition-all"
-          >
-            <div className="flex items-center justify-between text-xs text-orange-400 font-bold mb-1">
-              <span className="flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" />
-                HIGH RISK WARNING
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-950/60 text-orange-300">
-                Orange
-              </span>
-            </div>
-
-            <div className="text-3xl font-extrabold text-white font-mono">
-              {highCount}
-              <span className="text-sm font-normal text-slate-400 ml-1">
-                / {totalPlaces}
-              </span>
-            </div>
-
-            <div className="text-[11px] text-orange-300/80 mt-1">
-              Shear strength degrading • Standby ready
-            </div>
-          </div>
-
-          <div
-            onClick={() => {
-              setActiveViewTab('map');
-              setMapFilterStatus('critical');
-            }}
-            className="cursor-pointer bg-slate-900/90 border border-rose-500/40 hover:border-rose-500 p-4 rounded-2xl shadow-xl transition-all"
-          >
-            <div className="flex items-center justify-between text-xs text-rose-400 font-bold mb-1">
-              <span className="flex items-center gap-1.5">
-                <Flame className="w-4 h-4 animate-bounce" />
-                CRITICAL EVACUATION
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/50">
-                Red Alert
-              </span>
-            </div>
-
-            <div className="text-3xl font-extrabold text-rose-400 font-mono">
-              {criticalCount}
-              <span className="text-sm font-normal text-slate-400 ml-1">
-                / {totalPlaces}
-              </span>
-            </div>
-
-            <div className="text-[11px] text-rose-300 mt-1 font-semibold">
-              FS &lt; 1.05 • Immediate automated SMS dispatch
-            </div>
-          </div>
-        </div>
-
-        {/* SELECTED ZONE INPUTS */}
-        {selectedStation && selectedTelemetry && selectedRisk && (
-          <div className="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-4 shadow-xl">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-cyan-400" />
-                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                    Risk Analysis — Selected Zone
-                  </h2>
-                </div>
-
-                <p className="text-xs text-slate-400 mt-1">
-                  Inputs are taken directly from the currently selected monitoring
-                  zone: <span className="text-cyan-300 font-semibold">{selectedStation.name}</span>
-                </p>
-              </div>
-
-              <div className="text-right">
-                <div className="text-[10px] text-slate-400 uppercase">
-                  Current Risk
-                </div>
-                <div className="text-lg font-black uppercase text-white">
-                  {selectedRisk.status}
-                  <span className="text-cyan-300 ml-2">
-                    FS {selectedRisk.safetyFactor}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mt-4">
-              <RiskInput label="Temperature" value={`${selectedTelemetry.temperatureC} °C`} />
-              <RiskInput label="Soil Moisture" value={`${selectedTelemetry.soilMoisturePct} %`} />
-              <RiskInput label="Pore Pressure" value={`${selectedTelemetry.poreWaterPressureKpa} kPa`} />
-              <RiskInput label="24h Rainfall" value={`${selectedTelemetry.rainfall24hMm} mm`} />
-              <RiskInput label="Rainfall Rate" value={`${selectedTelemetry.rainfallRateMmH} mm/h`} />
-              <RiskInput label="Vibration" value={`${selectedTelemetry.vibrationMmS} mm/s`} />
-              <RiskInput label="Displacement" value={`${selectedTelemetry.displacementMm} mm`} />
-              <RiskInput label="Tilt" value={`${selectedTelemetry.tiltAngleDeg}°`} />
-            </div>
-
-            <div className="mt-3 text-[11px] text-slate-400">
-              Geotechnical inputs used by the risk engine:
-              <span className="text-slate-200 ml-1">
-                slope {selectedStation.slopeAngleDeg}°, soil {selectedStation.soilType},
-                vegetation {selectedStation.vegetationCoverPct}%, fault distance {selectedStation.faultDistanceKm} km.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW TABS */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2 flex-wrap">
 
             <button
-              id="tab-map-view"
-              onClick={() => setActiveViewTab('map')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                activeViewTab === 'map'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/50'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              onClick={() => setIsLiveStreamActive((value) => !value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs ${
+                isLiveStreamActive
+                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400'
               }`}
+              title="Pause/resume live telemetry"
             >
-              <MapPin className="w-4 h-4" />
-              Interactive GIS Map
+              {isLiveStreamActive ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <Pause className="w-3 h-3" />
+                  Live ({lastSyncTime})
+                </>
+              ) : (
+                <>
+                  <Play className="w-3 h-3" />
+                  Paused
+                </>
+              )}
             </button>
-
-            <button
-              id="tab-risk-matrix"
-              onClick={() => setActiveViewTab('risk_matrix')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                activeViewTab === 'risk_matrix'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/50'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
-              }`}
-            >
-              <Sliders className="w-4 h-4" />
-              Place-to-Place Risk Matrix
-            </button>
-
-            <button
-              id="tab-telemetry-grid"
-              onClick={() => setActiveViewTab('telemetry_grid')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                activeViewTab === 'telemetry_grid'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/50'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
-              }`}
-            >
-              <Activity className="w-4 h-4" />
-              Live Sensor Telemetry
-            </button>
-          </div>
-
-          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-400">
-            <Info className="w-4 h-4 text-indigo-400" />
-            <span>Click a station to make it the active risk-analysis zone.</span>
           </div>
         </div>
+      </div>
 
-        {/* ---------------------------------------------------------------- */}
-        {/* MAP VIEW                                                         */}
-        {/* ---------------------------------------------------------------- */}
-        {activeViewTab === 'map' && (
-          <div className="space-y-6">
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-              <div className="lg:col-span-7 space-y-3">
-                <LandslideMap
-                  stations={stations}
-                  selectedStation={selectedStation}
-                  onSelectStation={(station) => selectStation(station)}
-                  filterStatus={mapFilterStatus}
-                  onFilterChange={setMapFilterStatus}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  evidenceList={evidenceList}
-                  onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
-                />
-              </div>
-
-              <div className="lg:col-span-5">
-                <NortheastRiskDashboard
-                  stations={stations}
-                  selectedStation={selectedStation}
-                  onSelectStation={(station) => selectStation(station)}
-                  onInspectStation={(station) => {
-                    selectStation(station);
-                    setInspectModalOpen(true);
-                  }}
-                  onOpenSmsModal={() => setSmsModalOpen(true)}
-                  onOpenDisastersModal={() => setDisastersModalOpen(true)}
-                  onSyncLiveWeather={handleSyncLiveWeather}
-                  isSyncingWeather={isSyncingWeather}
-                />
-              </div>
-            </div>
-
-            {/* MONITORED STATION CARDS */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Compass className="w-4 h-4 text-indigo-400" />
-                  Northeast India Monitored Sensor Stations
-                </h3>
-
-                <span className="text-xs text-slate-400">
-                  {stations.length} live Firestore stations
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                {stations.map((station) => {
-                  const isSafe = station.riskAssessment?.status === 'safe';
-                  const isSelected = selectedStation?.id === station.id;
-
-                  return (
-                    <div
-                      key={station.id}
-                      onClick={() => {
-                        selectStation(station);
-                        setInspectModalOpen(true);
-                      }}
-                      className={`p-3.5 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] ${
-                        isSelected
-                          ? 'border-cyan-400 bg-cyan-950/20'
-                          : isSafe
-                          ? 'bg-slate-900/80 border-emerald-500/30 hover:border-emerald-400'
-                          : station.riskAssessment?.status === 'critical'
-                          ? 'bg-slate-900/80 border-rose-500/40 hover:border-rose-400'
-                          : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2 gap-2">
-                        <span className="font-bold text-xs text-white truncate">
-                          {station.name}
-                        </span>
-
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase shrink-0 ${
-                            isSafe
-                              ? 'bg-emerald-500/20 text-emerald-300'
-                              : station.riskAssessment?.status === 'critical'
-                              ? 'bg-rose-500/20 text-rose-300'
-                              : station.riskAssessment?.status === 'high'
-                              ? 'bg-orange-500/20 text-orange-300'
-                              : 'bg-amber-500/20 text-amber-300'
-                          }`}
-                        >
-                          {isSafe ? 'SAFE' : station.riskAssessment?.status}
-                        </span>
-                      </div>
-
-                      <div className="text-[11px] text-slate-400 mb-2 truncate">
-                        {station.region}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-1.5 text-[10px] bg-slate-950/70 p-2 rounded-lg text-slate-300">
-                        <div>
-                          Temp:
-                          <strong className="text-white font-mono ml-1">
-                            {station.telemetry.temperatureC}°C
-                          </strong>
-                        </div>
-
-                        <div>
-                          Erosion:
-                          <strong className="text-white font-mono ml-1">
-                            {station.telemetry.erosionRateMmPerYr} mm/y
-                          </strong>
-                        </div>
-
-                        <div>
-                          Moisture:
-                          <strong className="text-white font-mono ml-1">
-                            {station.telemetry.soilMoisturePct}%
-                          </strong>
-                        </div>
-
-                        <div>
-                          Pore P:
-                          <strong className="text-white font-mono ml-1">
-                            {station.telemetry.poreWaterPressureKpa} kPa
-                          </strong>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-2 mt-2 border-t border-slate-800">
-                        <span>
-                          FS:
-                          <strong className="text-indigo-300 font-mono ml-1">
-                            {station.riskAssessment?.safetyFactor}
-                          </strong>
-                        </span>
-
-                        <span className="text-cyan-400 font-medium">
-                          {isSelected ? 'Selected Zone' : 'Click to inspect'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* DISASTER HISTORY BANNER */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
-                  <History className="w-5 h-5 text-amber-400" />
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-bold text-white">
-                    Northeast India Natural Disasters Historical Archive
-                  </h4>
-
-                  <p className="text-xs text-slate-400 mt-1">
-                    Historical landslide, flood, GLOF and earthquake records are
-                    available for station context.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setDisastersModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-all"
-              >
-                <History className="w-3.5 h-3.5" />
-                Explore Disaster History
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ---------------------------------------------------------------- */}
-        {/* RISK MATRIX                                                      */}
-        {/* ---------------------------------------------------------------- */}
-        {activeViewTab === 'risk_matrix' && (
-          <PlaceRiskMatrix
-            stations={stations}
-            onSelectStation={(station) => {
-              selectStation(station);
-              setInspectModalOpen(true);
+      {/* 2. CRITICAL HAZARD WARNING BANNER */}
+      {!dismissedCriticalBanner && criticalNodes.length > 0 && (
+        <div className="px-4 sm:px-6 pt-3 max-w-[1720px] mx-auto w-full">
+          <CriticalHazardBanner
+            criticalNodes={criticalNodes}
+            onTriggerMassSos={() => setMassSosModalOpen(true)}
+            onInspectNode={(_node) => {
+              setMassSosModalOpen(true);
             }}
-            onTriggerSimulatedRain={(id) => {
-              void handleUpdateStationTelemetry(id, {
-                rainfall24hMm: 110,
-                soilMoisturePct: 88,
-                poreWaterPressureKpa: 42,
-                erosionRateMmPerYr: 26.5
-              });
-            }}
+            onDismiss={() => setDismissedCriticalBanner(true)}
           />
-        )}
+        </div>
+      )}
 
-        {/* ---------------------------------------------------------------- */}
-        {/* TELEMETRY GRID                                                   */}
-        {/* ---------------------------------------------------------------- */}
-        {activeViewTab === 'telemetry_grid' && (
-          <div className="space-y-4">
+      {/* 3. MAIN DASHBOARD CONTENT AREA */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden max-w-[1720px] mx-auto w-full">
+        {/* Authoritative Sidebar */}
+        <BhuShaktiSidebar
+          currentSection={currentNavSection}
+          onSelectSection={(sec) => {
+            setCurrentNavSection(sec);
+            if (sec === 'risk_matrix') {
+              setMainViewMode('risk_matrix');
+            } else if (sec === 'historical_logs') {
+              setDisastersModalOpen(true);
+            } else {
+              setMainViewMode('bento');
+            }
+          }}
+          currentLanguage={currentLanguage}
+          pendingReportsCount={citizenReports.filter((r) => r.status === 'Pending Review').length}
+          activeCriticalNodesCount={criticalNodes.length}
+          registeredDevicesCount={registeredDevices.length}
+        />
 
-            <div>
-              <h3 className="text-base font-bold text-white">
-                Real-Time Geological Sensor Telemetry
-              </h3>
+        {/* Dynamic Center Viewport */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          {/* Main View: Multi-Page Bento Command Center */}
+          {mainViewMode === 'bento' && (
+            <BhuShaktiBentoDashboard
+              stations={stations}
+              selectedStation={selectedStation}
+              onSelectStation={(st) => selectStation(st)}
+              onInspectStation={(st) => {
+                selectStation(st);
+                setInspectModalOpen(true);
+              }}
+              sensingNodes={sensingNodes}
+              onToggleNodeMode={handleToggleNodeMode}
+              onUpdateNodeTelemetry={handleUpdateNodeTelemetry}
+              registeredDevices={registeredDevices}
+              citizenReports={citizenReports}
+              onSubmitCitizenReport={handleSubmitCitizenReport}
+              onUpdateCitizenReportStatus={handleUpdateCitizenReportStatus}
+              currentLanguage={currentLanguage}
+              onSimulateMassSos={() => setMassSosModalOpen(true)}
+              currentSection={currentNavSection}
+              onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
+              evidenceList={evidenceList}
+              simulatedRainfall={simulatedRainfall}
+              onSimulatedRainfallChange={setSimulatedRainfall}
+              simulatedDisplacement={simulatedDisplacement}
+              onSimulatedDisplacementChange={setSimulatedDisplacement}
+              onResetSimulation={handleResetSimulation}
+              onReturnToBento={() => setCurrentNavSection('overview')}
+            />
+          )}
 
-              <p className="text-xs text-slate-400 mt-1">
-                Values below are read from the latest Firestore station state.
-                The backend risk engine recalculates risk when telemetry changes.
-              </p>
-            </div>
+          {/* Main View: 16 NER Risk Matrix & Simulator */}
+          {mainViewMode === 'risk_matrix' && (
+            <PlaceRiskMatrix
+              stations={stations}
+              selectedStation={selectedStation}
+              onSelectStation={(station) => {
+                selectStation(station);
+                setInspectModalOpen(true);
+              }}
+              onTriggerSimulatedRain={handleTriggerSimulatedRain}
+              onOpenInspectModal={() => setInspectModalOpen(true)}
+              onOpenSmsModal={() => setSmsModalOpen(true)}
+            />
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {stations.map((station) => {
-                const isSafe = station.riskAssessment?.status === 'safe';
-                const isSelected = selectedStation?.id === station.id;
+          {/* Main View: Regional Vulnerability Hub */}
+          {mainViewMode === 'regional_overview' && (
+            <NortheastRiskDashboard
+              stations={stations}
+              selectedStation={selectedStation}
+              onSelectStation={(station) => selectStation(station)}
+              onInspectStation={(station) => {
+                selectStation(station);
+                setInspectModalOpen(true);
+              }}
+              onOpenSmsModal={() => setSmsModalOpen(true)}
+              onOpenDisastersModal={() => setDisastersModalOpen(true)}
+              onSyncLiveWeather={handleSyncLiveWeather}
+              isSyncingWeather={isSyncingWeather}
+            />
+          )}
 
-                return (
-                  <div
-                    key={station.id}
-                    onClick={() => {
-                      selectStation(station);
-                      setInspectModalOpen(true);
-                    }}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all bg-slate-900/80 ${
-                      isSelected
-                        ? 'border-cyan-400'
-                        : isSafe
-                        ? 'border-emerald-500/30 hover:border-emerald-500'
-                        : station.riskAssessment?.status === 'critical'
-                        ? 'border-rose-500/40 hover:border-rose-500'
-                        : 'border-slate-800 hover:border-slate-600'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2 gap-2">
-                      <div>
-                        <h4 className="text-sm font-bold text-white truncate">
-                          {station.name}
-                        </h4>
+          {/* Main View: Live Sensor Telemetry Grid */}
+          {mainViewMode === 'telemetry_grid' && (
+            <div className="space-y-6">
+              {/* STATUS CARDS */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div
+                  onClick={() => setMainViewMode('risk_matrix')}
+                  className="cursor-pointer bg-[#101a30] border border-emerald-500/40 hover:border-emerald-500 p-4 rounded-2xl shadow-xl transition-all"
+                >
+                  <div className="flex items-center justify-between text-xs text-emerald-400 font-bold mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4" />
+                      SAFE ZONES
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/30">
+                      Safe Only
+                    </span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-white font-mono">
+                    {safeCount}
+                    <span className="text-sm font-normal text-slate-400 ml-1">
+                      / {totalPlaces}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-emerald-300 mt-1">
+                    Low vulnerability • Factor of Safety ≥ 1.80
+                  </div>
+                </div>
 
-                        <p className="text-[11px] text-slate-400">
-                          {station.region}, {station.country}
-                        </p>
+                <div
+                  onClick={() => setMainViewMode('risk_matrix')}
+                  className="cursor-pointer bg-[#101a30] border border-amber-500/30 hover:border-amber-500/60 p-4 rounded-2xl shadow-xl transition-all"
+                >
+                  <div className="flex items-center justify-between text-xs text-amber-400 font-bold mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4" />
+                      MODERATE ADVISORY
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300">
+                      Yellow
+                    </span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-white font-mono">
+                    {moderateCount}
+                    <span className="text-sm font-normal text-slate-400 ml-1">
+                      / {totalPlaces}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-amber-300/80 mt-1">
+                    Elevated moisture & drainage inspection
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setMainViewMode('risk_matrix')}
+                  className="cursor-pointer bg-[#101a30] border border-orange-500/30 hover:border-orange-500/60 p-4 rounded-2xl shadow-xl transition-all"
+                >
+                  <div className="flex items-center justify-between text-xs text-orange-400 font-bold mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4" />
+                      HIGH RISK WARNING
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-950/60 text-orange-300">
+                      Orange
+                    </span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-white font-mono">
+                    {highCount}
+                    <span className="text-sm font-normal text-slate-400 ml-1">
+                      / {totalPlaces}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-orange-300/80 mt-1">
+                    Shear strength degrading • Standby ready
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setMainViewMode('risk_matrix')}
+                  className="cursor-pointer bg-[#101a30] border border-rose-500/40 hover:border-rose-500 p-4 rounded-2xl shadow-xl transition-all"
+                >
+                  <div className="flex items-center justify-between text-xs text-rose-400 font-bold mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <Flame className="w-4 h-4 animate-bounce" />
+                      CRITICAL EVACUATION
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-500/50">
+                      Red Alert
+                    </span>
+                  </div>
+                  <div className="text-3xl font-extrabold text-rose-400 font-mono">
+                    {criticalCount}
+                    <span className="text-sm font-normal text-slate-400 ml-1">
+                      / {totalPlaces}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-rose-300 mt-1 font-semibold">
+                    FS &lt; 1.05 • Immediate automated SMS dispatch
+                  </div>
+                </div>
+              </div>
+
+              {/* SELECTED ZONE INPUTS */}
+              {selectedStation && selectedTelemetry && selectedRisk && (
+                <div className="bg-[#101a30] border border-cyan-500/30 rounded-2xl p-5 shadow-2xl">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-cyan-400" />
+                        <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                          Risk Analysis — Selected Zone
+                        </h2>
                       </div>
-
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-extrabold uppercase border shrink-0 ${
-                          isSafe
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                            : station.riskAssessment?.status === 'critical'
-                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/50'
-                            : station.riskAssessment?.status === 'high'
-                            ? 'bg-orange-500/20 text-orange-300 border-orange-500/50'
-                            : 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                        }`}
-                      >
-                        {isSafe
-                          ? 'SAFE'
-                          : `${station.riskAssessment?.status} (${station.riskAssessment?.riskScore}%)`}
-                      </span>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Inputs are taken directly from the currently selected monitoring zone:{' '}
+                        <span className="text-cyan-300 font-semibold">{selectedStation.name}</span>
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs my-3 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80">
-                      <TelemetryItem
-                        label="Temperature"
-                        value={`${station.telemetry.temperatureC}°C`}
-                      />
-
-                      <TelemetryItem
-                        label="Soil Moisture"
-                        value={`${station.telemetry.soilMoisturePct}%`}
-                      />
-
-                      <TelemetryItem
-                        label="Pore Pressure"
-                        value={`${station.telemetry.poreWaterPressureKpa} kPa`}
-                      />
-
-                      <TelemetryItem
-                        label="24h Rain"
-                        value={`${station.telemetry.rainfall24hMm} mm`}
-                      />
-
-                      <TelemetryItem
-                        label="Vibration"
-                        value={`${station.telemetry.vibrationMmS} mm/s`}
-                      />
-
-                      <TelemetryItem
-                        label="Displacement"
-                        value={`${station.telemetry.displacementMm} mm`}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
-                      <span>Slope: {station.slopeAngleDeg}°</span>
-
-                      <span className="font-mono font-bold text-indigo-300">
-                        FS: {station.riskAssessment?.safetyFactor}
-                      </span>
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-400 uppercase">
+                        Current Risk
+                      </div>
+                      <div className="text-lg font-black uppercase text-white">
+                        {selectedRisk.status}
+                        <span className="text-cyan-300 ml-2 font-mono">
+                          FS {selectedRisk.safetyFactor}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mt-4">
+                    <RiskInput label="Temperature" value={`${selectedTelemetry.temperatureC} °C`} />
+                    <RiskInput label="Soil Moisture" value={`${selectedTelemetry.soilMoisturePct} %`} />
+                    <RiskInput label="Pore Pressure" value={`${selectedTelemetry.poreWaterPressureKpa} kPa`} />
+                    <RiskInput label="24h Rainfall" value={`${selectedTelemetry.rainfall24hMm} mm`} />
+                    <RiskInput label="Rainfall Rate" value={`${selectedTelemetry.rainfallRateMmH} mm/h`} />
+                    <RiskInput label="Vibration" value={`${selectedTelemetry.vibrationMmS} mm/s`} />
+                    <RiskInput label="Displacement" value={`${selectedTelemetry.displacementMm} mm`} />
+                    <RiskInput label="Tilt" value={`${selectedTelemetry.tiltAngleDeg}°`} />
+                  </div>
+
+                  <div className="mt-3 text-[11px] text-slate-400">
+                    Geotechnical parameters:{' '}
+                    <span className="text-slate-200 ml-1">
+                      slope {selectedStation.slopeAngleDeg}°, soil {selectedStation.soilType},
+                      vegetation {selectedStation.vegetationCoverPct}%, fault distance {selectedStation.faultDistanceKm} km.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Station Grid */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-cyan-400" />
+                    All {stations.length} Northeast India Monitored Sensor Stations
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    Click any station card to inspect telemetry &amp; geotechnical details
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {stations.map((station) => {
+                    const isSafe = station.riskAssessment?.status === 'safe';
+                    const isSelected = selectedStation?.id === station.id;
+
+                    return (
+                      <div
+                        key={station.id}
+                        onClick={() => {
+                          selectStation(station);
+                          setInspectModalOpen(true);
+                        }}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all bg-[#101a30] hover:scale-[1.01] ${
+                          isSelected
+                            ? 'border-cyan-400 ring-2 ring-cyan-500/30 shadow-lg shadow-cyan-950/50'
+                            : isSafe
+                            ? 'border-emerald-500/30 hover:border-emerald-500'
+                            : station.riskAssessment?.status === 'critical'
+                            ? 'border-rose-500/40 hover:border-rose-500'
+                            : 'border-slate-800 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2 gap-2">
+                          <div>
+                            <h4 className="text-sm font-bold text-white truncate">
+                              {station.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-400">
+                              {station.region}, {station.country}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-extrabold uppercase border shrink-0 ${
+                              isSafe
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                                : station.riskAssessment?.status === 'critical'
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/50'
+                                : station.riskAssessment?.status === 'high'
+                                ? 'bg-orange-500/20 text-orange-300 border-orange-500/50'
+                                : 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                            }`}
+                          >
+                            {isSafe
+                              ? 'SAFE'
+                              : `${station.riskAssessment?.status} (${station.riskAssessment?.riskScore}%)`}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs my-3 bg-[#080d1a] p-2.5 rounded-xl border border-slate-800/80">
+                          <TelemetryItem
+                            label="Temperature"
+                            value={`${station.telemetry.temperatureC}°C`}
+                          />
+                          <TelemetryItem
+                            label="Soil Moisture"
+                            value={`${station.telemetry.soilMoisturePct}%`}
+                          />
+                          <TelemetryItem
+                            label="Pore Pressure"
+                            value={`${station.telemetry.poreWaterPressureKpa} kPa`}
+                          />
+                          <TelemetryItem
+                            label="24h Rain"
+                            value={`${station.telemetry.rainfall24hMm} mm`}
+                          />
+                          <TelemetryItem
+                            label="Vibration"
+                            value={`${station.telemetry.vibrationMmS} mm/s`}
+                          />
+                          <TelemetryItem
+                            label="Displacement"
+                            value={`${station.telemetry.displacementMm} mm`}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+                          <span>Slope: {station.slopeAngleDeg}°</span>
+                          <span className="font-mono font-bold text-indigo-300">
+                            FS: {station.riskAssessment?.safetyFactor}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-      </main>
+          )}
+        </main>
+      </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* MODALS                                                             */}
@@ -987,12 +902,10 @@ export default function App() {
             const found = stations.find(
               (station) => station.id === stationId
             );
-
             if (found) {
               selectStation(found);
             }
           }
-
           setPrefilledSmsMessage(alertMsg);
           setEvidenceModalOpen(false);
           setSmsModalOpen(true);
@@ -1013,6 +926,13 @@ export default function App() {
         initialStation={selectedStation}
         initialMessage={prefilledSmsMessage}
       />
+
+      <MassSosSimulationModal
+        isOpen={massSosModalOpen}
+        onClose={() => setMassSosModalOpen(false)}
+        registeredDevices={registeredDevices}
+        currentLanguage={currentLanguage}
+      />
     </div>
   );
 }
@@ -1025,7 +945,7 @@ function RiskInput({
   value: string;
 }) {
   return (
-    <div className="bg-slate-950/80 border border-slate-800 rounded-lg px-2.5 py-2">
+    <div className="bg-[#080d1a] border border-slate-800 rounded-lg px-2.5 py-2">
       <div className="text-[9px] uppercase tracking-wide text-slate-500">
         {label}
       </div>
@@ -1050,3 +970,4 @@ function TelemetryItem({
     </div>
   );
 }
+
