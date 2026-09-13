@@ -14,7 +14,8 @@ import {
   Settings,
   ShieldCheck,
   ChevronRight,
-  Radio
+  Radio,
+  Sliders
 } from 'lucide-react';
 import { BhuLanguage } from '../../types/bhuShakti';
 
@@ -24,6 +25,8 @@ export type BhuNavSection =
   | 'landslide'
   | 'flood'
   | 'disaster_3d'
+  | 'what_if'
+  | 'emergency_response'
   | 'weather'
   | 'analytics'
   | 'historical'
@@ -83,9 +86,25 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
     },
     {
       id: 'disaster_3d',
-      label: '3D Disaster View',
+      label: '3D Digital Twin',
       icon: Globe,
       iconColor: 'text-indigo-400',
+    },
+    {
+      id: 'what_if',
+      label: 'What-If Simulator',
+      icon: Sliders,
+      iconColor: 'text-fuchsia-400',
+      badge: 'Interactive',
+      badgeColor: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40',
+    },
+    {
+      id: 'emergency_response',
+      label: 'Emergency Response',
+      icon: ShieldCheck,
+      iconColor: 'text-rose-400',
+      badge: 'Priority P1',
+      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
     },
     {
       id: 'weather',

@@ -54,6 +54,15 @@ import { NaturalDisastersModal } from './components/Disasters/NaturalDisastersMo
 import { DisasterEvidenceModal } from './components/Evidence/DisasterEvidenceModal';
 import { syncStationsWithRealWeather } from './services/realWeatherService';
 
+// Central SIH Intelligence Modules
+import { LandslideMemoryView } from './components/Memory/LandslideMemoryView';
+import { DigitalTwin3DView } from './components/DigitalTwin/DigitalTwin3DView';
+import { WhatIfSimulatorView } from './components/Simulator/WhatIfSimulatorView';
+import { EmergencyResponseView } from './components/Emergency/EmergencyResponseView';
+import { PostDisasterForensicView } from './components/Reports/PostDisasterForensicView';
+import { BhuShaktiCopilotModal } from './components/Copilot/BhuShaktiCopilotModal';
+import { SihDemoBar, DemoScenarioId } from './components/Demo/SihDemoBar';
+
 import {
   Activity,
   ShieldCheck,
@@ -109,6 +118,12 @@ export default function App() {
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [disastersModalOpen, setDisastersModalOpen] = useState(false);
   const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
+  const [copilotModalOpen, setCopilotModalOpen] = useState(false);
+
+  // Central SIH Evaluation Scenario State
+  const [activeDemoScenario, setActiveDemoScenario] = useState<DemoScenarioId>('none');
+  const [landslideSubTab, setLandslideSubTab] = useState<'memory' | 'sensors'>('memory');
+  const [historicalSubTab, setHistoricalSubTab] = useState<'forensic' | 'archive'>('forensic');
 
   const [prefilledSmsMessage, setPrefilledSmsMessage] =
     useState<string | null>(null);
@@ -128,6 +143,29 @@ export default function App() {
     setSimulatedRainfall(25);
     setSimulatedDisplacement(0.8);
     setDismissedCriticalBanner(false);
+    setActiveDemoScenario('none');
+  };
+
+  const handleSelectDemoScenario = (scenario: DemoScenarioId) => {
+    setActiveDemoScenario(scenario);
+    if (scenario === 'tawang_escalation') {
+      const tawangStation = stations.find((s) => s.id === 'tawang-pass-01') || stations[0];
+      if (tawangStation) setSelectedStation(tawangStation);
+      setSimulatedRainfall(155);
+      setSimulatedDisplacement(7.2);
+      setCurrentNavSection('landslide');
+      setLandslideSubTab('memory');
+    } else if (scenario === 'assam_flood') {
+      const assamStation = stations.find((s) => s.region.includes('Assam') || s.id === 'dima-hasao-03') || stations[1];
+      if (assamStation) setSelectedStation(assamStation);
+      setCurrentNavSection('flood');
+    } else if (scenario === 'multi_cascade') {
+      setCurrentNavSection('emergency_response');
+    } else if (scenario === 'offline_outage') {
+      setCurrentNavSection('alerts');
+    } else if (scenario === 'evidence_conflict') {
+      setCurrentNavSection('emergency_response');
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -268,7 +306,7 @@ export default function App() {
   const handleSubmitCitizenReport = (newReportData: Omit<CitizenCrowdsourceReport, 'id' | 'timestamp'>) => {
     const newReport: CitizenCrowdsourceReport = {
       ...newReportData,
-      id: `cit-${Date.now()}`,
+      id: `cit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: new Date().toISOString(),
     };
     setCitizenReports((prev) => [newReport, ...prev]);
@@ -386,6 +424,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#060c1e] text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-600 selection:text-white">
+      {/* 0. CENTRAL SIH EVALUATION DEMO BAR */}
+      <SihDemoBar
+        activeScenario={activeDemoScenario}
+        onSelectScenario={handleSelectDemoScenario}
+        onOpenCopilot={() => setCopilotModalOpen(true)}
+      />
+
       {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER (NO REPEATED BUTTONS) */}
       <BhuShaktiHeader
         currentLanguage={currentLanguage}
@@ -496,24 +541,59 @@ export default function App() {
             </div>
           )}
 
-          {/* VIEW 3: LANDSLIDE (PINN TELEMETRY & SENSORS) */}
+          {/* VIEW 3: LANDSLIDE (SLOPE MEMORY ENGINE & PINN SENSORS) */}
           {currentNavSection === 'landslide' && (
-            <LandslidePageView
-              sensingNodes={sensingNodes}
-              onToggleNodeMode={handleToggleNodeMode}
-              onUpdateNodeTelemetry={handleUpdateNodeTelemetry}
-              stations={stations}
-              onSelectStation={(st) => {
-                selectStation(st);
-                setInspectModalOpen(true);
-              }}
-              onTriggerMassSos={() => setMassSosModalOpen(true)}
-              simulatedRainfall={simulatedRainfall}
-              onSimulatedRainfallChange={setSimulatedRainfall}
-              simulatedDisplacement={simulatedDisplacement}
-              onSimulatedDisplacementChange={setSimulatedDisplacement}
-              onResetSimulation={handleResetSimulation}
-            />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-1.5 bg-[#081534] border border-[#142d63] rounded-xl w-fit">
+                <button
+                  onClick={() => setLandslideSubTab('memory')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    landslideSubTab === 'memory'
+                      ? 'bg-cyan-500 text-black shadow-md'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Slope Memory &amp; AI Fingerprint
+                </button>
+                <button
+                  onClick={() => setLandslideSubTab('sensors')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    landslideSubTab === 'sensors'
+                      ? 'bg-cyan-500 text-black shadow-md'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Live Sensor Mesh &amp; Inclinometers
+                </button>
+              </div>
+
+              {landslideSubTab === 'memory' ? (
+                <LandslideMemoryView
+                  stations={stations}
+                  selectedStation={selectedStation}
+                  onSelectStation={(st) => selectStation(st)}
+                  onOpenSmsModal={() => setMassSosModalOpen(true)}
+                  onOpenSimulator={() => setCurrentNavSection('what_if')}
+                />
+              ) : (
+                <LandslidePageView
+                  sensingNodes={sensingNodes}
+                  onToggleNodeMode={handleToggleNodeMode}
+                  onUpdateNodeTelemetry={handleUpdateNodeTelemetry}
+                  stations={stations}
+                  onSelectStation={(st) => {
+                    selectStation(st);
+                    setInspectModalOpen(true);
+                  }}
+                  onTriggerMassSos={() => setMassSosModalOpen(true)}
+                  simulatedRainfall={simulatedRainfall}
+                  onSimulatedRainfallChange={setSimulatedRainfall}
+                  simulatedDisplacement={simulatedDisplacement}
+                  onSimulatedDisplacementChange={setSimulatedDisplacement}
+                  onResetSimulation={handleResetSimulation}
+                />
+              )}
+            </div>
           )}
 
           {/* VIEW 4: FLOOD (RIVER BASIN & INUNDATION ENGINE) */}
@@ -526,16 +606,19 @@ export default function App() {
             />
           )}
 
-          {/* VIEW 5: 3D DISASTER VIEW (3D GEOTECHNICAL SIMULATION BENCH) */}
+          {/* VIEW 5: 3D DIGITAL TWIN (DISASTER KINEMATICS & TERRAIN PARTICLES) */}
           {currentNavSection === 'disaster_3d' && (
-            <Disaster3DPageView
-              simulatedRainfall={simulatedRainfall}
-              onSimulatedRainfallChange={setSimulatedRainfall}
-              simulatedDisplacement={simulatedDisplacement}
-              onSimulatedDisplacementChange={setSimulatedDisplacement}
-              onResetSimulation={handleResetSimulation}
-              onTriggerMassSos={() => setMassSosModalOpen(true)}
-            />
+            <DigitalTwin3DView />
+          )}
+
+          {/* VIEW 5B: WHAT-IF SCENARIO & INTERVENTION SIMULATOR */}
+          {currentNavSection === 'what_if' && (
+            <WhatIfSimulatorView />
+          )}
+
+          {/* VIEW 5C: EMERGENCY RESPONSE & RESOURCE OPTIMIZER */}
+          {currentNavSection === 'emergency_response' && (
+            <EmergencyResponseView onOpenSmsModal={() => setMassSosModalOpen(true)} />
           )}
 
           {/* VIEW 6: WEATHER (NORTHEAST WEATHER HUB & LIVE RADAR) */}
@@ -582,8 +665,39 @@ export default function App() {
             </div>
           )}
 
-          {/* VIEW 8: HISTORICAL (12 NORTHEAST DISASTERS ARCHIVE) */}
-          {currentNavSection === 'historical' && <HistoricalPageView />}
+          {/* VIEW 8: HISTORICAL & POST-DISASTER FORENSIC AUDIT */}
+          {currentNavSection === 'historical' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-1.5 bg-[#081534] border border-[#142d63] rounded-xl w-fit">
+                <button
+                  onClick={() => setHistoricalSubTab('forensic')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    historicalSubTab === 'forensic'
+                      ? 'bg-cyan-500 text-black shadow-md'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  Post-Disaster Forensic Audit Reports
+                </button>
+                <button
+                  onClick={() => setHistoricalSubTab('archive')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    historicalSubTab === 'archive'
+                      ? 'bg-cyan-500 text-black shadow-md'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  12 Historical Disaster Archives
+                </button>
+              </div>
+
+              {historicalSubTab === 'forensic' ? (
+                <PostDisasterForensicView />
+              ) : (
+                <HistoricalPageView />
+              )}
+            </div>
+          )}
 
           {/* VIEW 9: FIELD REPORTS (CROWDSOURCED GEOPORTAL & PHOTO EVIDENCE) */}
           {currentNavSection === 'field_reports' && (
@@ -710,6 +824,28 @@ export default function App() {
         registeredDevices={registeredDevices}
         currentLanguage={currentLanguage}
       />
+
+      {/* BHUSAKTHI COPILOT AI MODAL */}
+      <BhuShaktiCopilotModal
+        isOpen={copilotModalOpen}
+        onClose={() => setCopilotModalOpen(false)}
+        stations={stations}
+        selectedStation={selectedStation}
+        onNavigateSection={(sec) => setCurrentNavSection(sec)}
+      />
+
+      {/* FLOATING ACTION BUTTON TO OPEN BHUSAKTHI COPILOT FROM ANY SCREEN */}
+      <button
+        id="floating-copilot-trigger"
+        onClick={() => setCopilotModalOpen(true)}
+        className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs shadow-2xl shadow-cyan-500/40 border border-cyan-400/50 flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+      >
+        <Sparkles className="w-4 h-4 text-cyan-200 animate-spin-slow" />
+        <span className="tracking-wide font-sans">BHUSAKTHI COPILOT</span>
+        <span className="px-1.5 py-0.2 rounded-full bg-black/40 text-[9px] font-mono border border-white/20">
+          AI
+        </span>
+      </button>
     </div>
   );
 }

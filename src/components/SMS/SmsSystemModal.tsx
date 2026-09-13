@@ -200,7 +200,7 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
     });
 
     const dispatchRecord: SmsAlertRecord = {
-      id: 'disp-' + Date.now(),
+      id: `disp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       timestamp: new Date().toISOString(),
       stationId: targetStation.id,
       stationName: targetStation.name,
@@ -236,7 +236,7 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
     setIsSubmitting(true);
     const fullPhone = newPhone.startsWith('+') ? newPhone : `${newCountryCode} ${newPhone.trim()}`;
     const newSub: SmsSubscriber = {
-      id: 'sub-' + Date.now(),
+      id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       fullName: newName.trim(),
       phoneNumber: fullPhone,
       countryCode: newCountryCode,

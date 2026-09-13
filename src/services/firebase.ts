@@ -205,7 +205,7 @@ export async function getSubscribers(): Promise<SmsSubscriber[]> {
 export async function registerSubscriber(sub: Omit<SmsSubscriber, 'id' | 'registeredAt'>): Promise<SmsSubscriber> {
   const newSub: SmsSubscriber = {
     ...sub,
-    id: 'sub-' + Date.now(),
+    id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     registeredAt: new Date().toISOString()
   };
 
@@ -311,7 +311,7 @@ export async function submitDisasterEvidence(
 ): Promise<DisasterEvidenceReport> {
   const newReport: DisasterEvidenceReport = {
     ...evidence,
-    id: 'ev-' + Date.now(),
+    id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     timestamp: new Date().toISOString(),
   };
 
