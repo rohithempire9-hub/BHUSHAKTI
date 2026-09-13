@@ -72,7 +72,7 @@ export async function initializeStations(): Promise<LandslideStation[]> {
     } else {
       const stations: LandslideStation[] = [];
       snapshot.forEach((d) => {
-        if (d.id.startsWith('st-ne-')) {
+        if (d.id.startsWith('st-ne-') || d.id === 'tawang-pass-01') {
           const raw = d.data() as LandslideStation;
           const defaultStation = INITIAL_STATIONS.find((s) => s.id === d.id);
           const baseStation = defaultStation || INITIAL_STATIONS[0];
@@ -419,7 +419,7 @@ export function subscribeToStations(
         const liveStations: LandslideStation[] = [];
 
         snapshot.forEach((d) => {
-          if (!d.id.startsWith('st-ne-')) return;
+          if (!d.id.startsWith('st-ne-') && d.id !== 'tawang-pass-01') return;
 
           const raw = d.data() as LandslideStation;
           const base = INITIAL_STATIONS.find((s) => s.id === d.id);

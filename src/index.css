@@ -23,6 +23,14 @@ body {
   height: 6px;
 }
 
+/* Leaflet custom marker reset - removes default white box and border */
+.custom-clean-place-icon,
+.custom-landslide-marker,
+.custom-village-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
 ::-webkit-scrollbar-track {
   background: #060d22;
 }

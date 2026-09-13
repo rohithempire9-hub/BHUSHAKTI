@@ -26,17 +26,50 @@ import {
   Waves,
   Radio,
   CheckCircle2,
-  Camera
+  Camera,
+  Maximize
 } from 'lucide-react';
 import { DisasterEvidenceReport } from '../../types/landslide';
 import { HIGHWAY_RISK_SEGMENTS, REMOTE_VILLAGE_PINS } from '../../data/bhuShaktiData';
+
+/**
+ * Returns a concise, recognizable, edible place name for map pins and UI selectors.
+ */
+export function getCleanPlaceName(station: { id?: string; name?: string; region?: string }): string {
+  if (!station || !station.name) return 'Station';
+  const raw = station.name.trim();
+  const id = station.id || '';
+  if (id === 'st-ne-agartala' || raw.toLowerCase().startsWith('agartala')) return 'Agartala';
+  if (raw.toLowerCase().includes('tupul') || raw.toLowerCase().includes('noney')) return 'Noney Tupul';
+  if (raw.toLowerCase().includes('gangtok') || raw.toLowerCase().includes('burtuk')) return 'Gangtok';
+  if (raw.toLowerCase().includes('chungthang') || raw.toLowerCase().includes('lhonak')) return 'Chungthang';
+  if (raw.toLowerCase().includes('dima hasao') || raw.toLowerCase().includes('haflong')) return 'Dima Hasao';
+  if (raw.toLowerCase().includes('aizawl') || raw.toLowerCase().includes('melthum')) return 'Aizawl';
+  if (raw.toLowerCase().includes('kohima') || raw.toLowerCase().includes('peducha')) return 'Kohima';
+  if (raw.toLowerCase().includes('rathong')) return 'Rathong Glacier';
+  if (raw.toLowerCase().includes('khangri')) return 'Khangri Karpo';
+  if (raw.toLowerCase().includes('wayanad')) return 'Wayanad';
+  if (raw.toLowerCase().includes('bhalukpong')) return 'Bhalukpong';
+  if (raw.toLowerCase().includes('chamoli')) return 'Chamoli';
+  if (raw.toLowerCase().includes('umiam') || raw.toLowerCase().includes('barapani')) return 'Umiam';
+  if (raw.toLowerCase().includes('tura')) return 'Tura';
+  if (raw.toLowerCase().includes('baramura')) return 'Baramura';
+  if (raw.toLowerCase().includes('mokokchung')) return 'Mokokchung';
+  if (raw.toLowerCase().includes('majuli')) return 'Majuli';
+  if (raw.toLowerCase().includes('tawang')) return 'Tawang';
+  if (raw.toLowerCase().includes('cherrapunji') || raw.toLowerCase().includes('sohra')) return 'Cherrapunji';
+  if (raw.toLowerCase().includes('kurseong') || raw.toLowerCase().includes('mirik')) return 'Kurseong';
+
+  const clean = raw.split(/[-–/]/)[0].trim();
+  return clean.length > 18 ? clean.substring(0, 16) + '…' : clean;
+}
 
 interface LandslideMapProps {
   stations: LandslideStation[];
   selectedStation: LandslideStation | null;
   onSelectStation: (station: LandslideStation) => void;
-  filterStatus: RiskStatus | 'all';
-  onFilterChange: (status: RiskStatus | 'all') => void;
+  filterStatus: RiskStatus | 'all' | string;
+  onFilterChange: (status: any) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenEscapeModal?: () => void;
@@ -310,7 +343,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     }).addTo(map);
   }, [mapLayer]);
 
-  // Filter stations based on search and status with strict coordinate validation
+  // Filter stations based on search and status with strict coordinate validation and case-insensitive matching
+  const normalizedFilter = (filterStatus || 'all').toString().trim().toLowerCase();
   const filteredStations = stations.filter((st) => {
     if (
       !st ||
@@ -323,11 +357,36 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     ) {
       return false;
     }
-    const matchesStatus = filterStatus === 'all' ? true : st.riskAssessment?.status === filterStatus;
+
+    const stStatus = (st.riskAssessment?.status || 'moderate').toString().toLowerCase();
+    let matchesStatus = true;
+    if (normalizedFilter === 'all' || normalizedFilter === 'all_stations' || normalizedFilter === '' || normalizedFilter === '*') {
+      matchesStatus = true;
+    } else if (normalizedFilter === 'safe' || normalizedFilter === 'safe_only') {
+      matchesStatus = stStatus === 'safe';
+    } else if (normalizedFilter === 'critical') {
+      matchesStatus = stStatus === 'critical';
+    } else if (normalizedFilter === 'high') {
+      matchesStatus = stStatus === 'high';
+    } else if (normalizedFilter === 'moderate') {
+      matchesStatus = stStatus === 'moderate';
+    } else if (normalizedFilter === 'at_risk' || normalizedFilter === 'warning' || normalizedFilter === 'alert') {
+      matchesStatus = stStatus === 'critical' || stStatus === 'high' || stStatus === 'moderate';
+    } else {
+      matchesStatus = stStatus === normalizedFilter;
+    }
+
+    const query = (searchQuery || '').trim().toLowerCase();
+    if (!query) return matchesStatus;
+
+    const cleanName = getCleanPlaceName(st).toLowerCase();
     const matchesSearch =
-      (st.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (st.region || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (st.country || '').toLowerCase().includes(searchQuery.toLowerCase());
+      cleanName.includes(query) ||
+      (st.name || '').toLowerCase().includes(query) ||
+      (st.region || '').toLowerCase().includes(query) ||
+      (st.country || '').toLowerCase().includes(query) ||
+      (st.id || '').toLowerCase().includes(query);
+
     return matchesStatus && matchesSearch;
   });
 
@@ -502,82 +561,90 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       // Safe Zone requirement: "if it is a safe zone then show safe only"
       const isSafe = status === 'safe';
 
-      // 2A. Marker Pin
+      // 2A. Edible & Good-Looking Clean Place Name Tag Marker
       if (showStationPins) {
+        const placeName = getCleanPlaceName(station);
         const iconHtml = `
-          <div class="relative flex items-center justify-center cursor-pointer group">
-            ${
-              status === 'critical'
-                ? `<div class="absolute -inset-2 rounded-full bg-rose-600/40 animate-ping"></div>`
-                : ''
-            }
-            ${
+          <div class="custom-place-tag group cursor-pointer" style="transform: translate(-50%, -100%);">
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shadow-xl transition-all duration-200 ${
               isSelected
-                ? `<div class="absolute -inset-3 rounded-full border-2 border-cyan-400 animate-pulse"></div>`
-                : ''
-            }
-            <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 transform group-hover:scale-125 ${
-              isSafe
-                ? 'bg-emerald-600 border-2 border-emerald-300 text-white shadow-emerald-900/50'
+                ? 'bg-[#081b36] text-white border-2 border-cyan-400 ring-2 ring-cyan-400/50 shadow-cyan-500/50 scale-105 z-50'
+                : isSafe
+                ? 'bg-[#06151c]/95 hover:bg-[#0b2432] text-slate-100 border border-emerald-500/60 hover:border-emerald-400 hover:scale-105 shadow-black/80'
                 : status === 'critical'
-                ? 'bg-rose-600 border-2 border-rose-300 text-white shadow-rose-900/80 animate-bounce'
+                ? 'bg-[#20080d]/95 hover:bg-[#340f16] text-white border border-rose-500/80 hover:border-rose-400 hover:scale-105 shadow-black/80'
                 : status === 'high'
-                ? 'bg-orange-500 border-2 border-orange-200 text-white shadow-orange-900/60'
-                : 'bg-amber-500 border-2 border-amber-200 text-white shadow-amber-900/60'
+                ? 'bg-[#1f1005]/95 hover:bg-[#331a08] text-slate-100 border border-orange-500/70 hover:border-orange-400 hover:scale-105 shadow-black/80'
+                : 'bg-[#1b1505]/95 hover:bg-[#2b2208] text-slate-100 border border-amber-500/60 hover:border-amber-400 hover:scale-105 shadow-black/80'
             }">
-              <span class="text-[10px] font-extrabold tracking-tighter">
-                ${isSafe ? '✓' : (station.riskAssessment?.riskScore ?? 50) + '%'}
+              <span class="w-2 h-2 rounded-full shrink-0 ${
+                isSafe
+                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]'
+                  : status === 'critical'
+                  ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.95)]'
+                  : status === 'high'
+                  ? 'bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.9)]'
+                  : 'bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.8)]'
+              }"></span>
+              
+              <span class="font-bold tracking-tight text-[11px] leading-tight select-none ${
+                isSelected ? 'text-cyan-300' : 'text-slate-100'
+              }">
+                ${placeName}
               </span>
             </div>
-
-            <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.5 rounded text-[10px] font-bold shadow-md ${
-              isSafe
-                ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50'
+            <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] ${
+              isSelected
+                ? 'border-t-cyan-400'
+                : isSafe
+                ? 'border-t-emerald-500'
                 : status === 'critical'
-                ? 'bg-rose-950 text-rose-200 border border-rose-500'
+                ? 'border-t-rose-500'
                 : status === 'high'
-                ? 'bg-amber-950 text-orange-200 border border-orange-500'
-                : 'bg-yellow-950 text-yellow-200 border border-yellow-500'
-            }">
-              ${isSafe ? 'SAFE' : station.name.split(' ')[0]}
-            </div>
+                ? 'border-t-orange-500'
+                : 'border-t-amber-500'
+            } mx-auto -mt-[0.5px]"></div>
           </div>
         `;
 
         try {
           const customIcon = L.divIcon({
             html: iconHtml,
-            className: 'custom-landslide-marker',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
+            className: 'custom-clean-place-icon',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
           });
 
           const marker = L.marker([station.latitude, station.longitude], {
             icon: customIcon,
+            zIndexOffset: isSelected ? 1000 : isSafe ? 10 : status === 'critical' ? 50 : 20,
           });
 
           // Interactive Popup
           const popupHtml = `
-            <div class="text-slate-900 font-sans p-1 min-w-[220px]">
-              <div class="flex items-center justify-between pb-1 mb-1 border-b border-slate-200">
-                <span class="font-bold text-xs truncate">${station.name}</span>
-                <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
-                  isSafe ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+            <div class="text-slate-900 font-sans p-1.5 min-w-[220px]">
+              <div class="flex items-center justify-between gap-1.5 pb-1.5 mb-1.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${color};"></span>
+                  <span class="font-bold text-xs truncate text-slate-900">${station.name}</span>
+                </div>
+                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                  isSafe ? 'bg-emerald-100 text-emerald-800' : status === 'critical' ? 'bg-rose-100 text-rose-800' : status === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800'
                 }">${isSafe ? 'SAFE' : badgeLabel}</span>
               </div>
               <div class="text-[11px] text-slate-600 mb-2">${station.region}, ${station.country}</div>
               
-              <div class="grid grid-cols-2 gap-1 text-[11px] mb-2 bg-slate-50 p-1.5 rounded">
-                <div><strong>Temp:</strong> ${station.telemetry?.temperatureC ?? 24}°C</div>
-                <div><strong>Moisture:</strong> ${station.telemetry?.soilMoisturePct ?? 50}%</div>
-                <div><strong>Erosion:</strong> ${station.telemetry?.erosionRateMmPerYr ?? 10} mm/y</div>
-                <div><strong>Pore Press:</strong> ${station.telemetry?.poreWaterPressureKpa ?? 15} kPa</div>
-                <div><strong>FS:</strong> ${station.riskAssessment?.safetyFactor ?? 1.5}</div>
-                <div><strong>Rain 24h:</strong> ${station.telemetry?.rainfall24hMm ?? 0} mm</div>
+              <div class="grid grid-cols-2 gap-1.5 text-[11px] mb-2.5 bg-slate-100/90 p-2 rounded-lg">
+                <div><span class="text-slate-500">Risk Score:</span> <strong class="${isSafe ? 'text-emerald-700' : 'text-rose-700'}">${station.riskAssessment?.riskScore ?? 50}%</strong></div>
+                <div><span class="text-slate-500">Safety (FS):</span> <strong>${station.riskAssessment?.safetyFactor ?? 1.5}</strong></div>
+                <div><span class="text-slate-500">Rain 24h:</span> <strong>${station.telemetry?.rainfall24hMm ?? 0} mm</strong></div>
+                <div><span class="text-slate-500">Moisture:</span> <strong>${station.telemetry?.soilMoisturePct ?? 50}%</strong></div>
+                <div><span class="text-slate-500">Pore Press:</span> <strong>${station.telemetry?.poreWaterPressureKpa ?? 15} kPa</strong></div>
+                <div><span class="text-slate-500">Elevation:</span> <strong>${station.elevationM ?? 1000} m</strong></div>
               </div>
 
-              <button id="inspect-btn-${station.id}" class="w-full text-center py-1.5 text-xs font-semibold rounded bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">
-                Inspect Full Station Telemetry
+              <button id="inspect-btn-${station.id}" class="w-full text-center py-1.5 text-xs font-bold rounded-lg bg-slate-900 hover:bg-slate-800 text-white cursor-pointer transition-colors shadow-sm">
+                Select &amp; View Telemetry
               </button>
             </div>
           `;
@@ -971,6 +1038,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     });
   }, [showVillages]);
 
+  const initialFitRef = useRef<boolean>(false);
+
   // Pan to selected station with strict coordinate check
   useEffect(() => {
     if (
@@ -984,7 +1053,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       mapInstanceRef.current
     ) {
       try {
-        mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 9, {
+        mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 10, {
           duration: 1.2,
         });
       } catch (err) {
@@ -1009,11 +1078,22 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     if (validCoords.length === 0) return;
     try {
       const bounds = L.latLngBounds(validCoords);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] });
+      mapInstanceRef.current.fitBounds(bounds, { padding: [45, 45] });
     } catch (err) {
       console.warn('[Leaflet] fitBounds error:', err);
     }
   };
+
+  // Initial fit to show all places clearly on load
+  useEffect(() => {
+    if (!initialFitRef.current && stations.length > 0 && mapInstanceRef.current) {
+      initialFitRef.current = true;
+      const timer = setTimeout(() => {
+        fitAllStations();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [stations]);
 
   return (
     <div
@@ -1033,7 +1113,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search station..."
+            placeholder="Search place..."
             className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full min-w-0"
           />
           {searchQuery && (
@@ -1046,7 +1126,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           )}
         </div>
 
-        {/* Compact Select Place */}
+        {/* Compact Select Place with Clean Names */}
         <div className="bg-[#0b1433]/95 backdrop-blur-md border border-indigo-500/40 rounded-xl px-2.5 py-1 shadow-xl flex items-center gap-1.5 pointer-events-auto">
           <span className="text-[9px] font-mono font-black text-cyan-400 uppercase tracking-wider shrink-0 hidden sm:inline">
             PLACE:
@@ -1055,15 +1135,28 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             value={selectedStation?.id || ''}
             onChange={(e) => {
               const found = stations.find((s) => s.id === e.target.value);
-              if (found) onSelectStation(found);
+              if (found) {
+                onSelectStation(found);
+                if (
+                  mapInstanceRef.current &&
+                  typeof found.latitude === 'number' &&
+                  typeof found.longitude === 'number'
+                ) {
+                  mapInstanceRef.current.flyTo([found.latitude, found.longitude], 10, { duration: 1.2 });
+                }
+              }
             }}
-            className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[150px] truncate"
+            className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[170px] truncate"
           >
-            {stations.map((st) => (
-              <option key={st.id} value={st.id} className="bg-slate-900 text-white">
-                {st.name} ({st.region.split(',')[0]})
-              </option>
-            ))}
+            {stations.map((st) => {
+              const clean = getCleanPlaceName(st);
+              const region = st.region ? st.region.split(',')[0].replace(/District/i, '').trim() : '';
+              return (
+                <option key={st.id} value={st.id} className="bg-slate-900 text-white">
+                  {clean} {region ? `(${region})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -1091,6 +1184,22 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Fit All Monitored Places Button */}
+          <button
+            type="button"
+            onClick={fitAllStations}
+            className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 hover:border-cyan-400/60 text-xs font-bold text-slate-200 hover:text-white transition-all shadow-xl cursor-pointer w-36 active:scale-95"
+            title="View all 20 monitored landslide places"
+          >
+            <div className="flex items-center gap-1.5">
+              <Maximize className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="truncate">Fit All ({stations.length})</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold px-1 rounded bg-indigo-500/20 text-indigo-300">
+              ALL
+            </span>
+          </button>
 
           {/* Current Location Button */}
           <button
