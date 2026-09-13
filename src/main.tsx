@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import L from 'leaflet';
 import App from './App.tsx';
 import './index.css';
+import './leaflet-fixes.css';
 
 // Ensure L is globally available for Leaflet plugins
 if (typeof window !== 'undefined') {
