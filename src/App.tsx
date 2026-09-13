@@ -62,6 +62,7 @@ import { EmergencyResponseView } from './components/Emergency/EmergencyResponseV
 import { PostDisasterForensicView } from './components/Reports/PostDisasterForensicView';
 import { BhuShaktiCopilotModal } from './components/Copilot/BhuShaktiCopilotModal';
 import { SihDemoBar, DemoScenarioId } from './components/Demo/SihDemoBar';
+import { DisasterIntelligenceSuite } from './components/Disasters/DisasterIntelligenceSuite';
 
 import {
   Activity,
@@ -429,6 +430,7 @@ export default function App() {
         activeScenario={activeDemoScenario}
         onSelectScenario={handleSelectDemoScenario}
         onOpenCopilot={() => setCopilotModalOpen(true)}
+        onOpenWarRoom={() => setCurrentNavSection('war_room')}
       />
 
       {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER (NO REPEATED BUTTONS) */}
@@ -604,6 +606,11 @@ export default function App() {
               onSelectStation={(st) => selectStation(st)}
               onTriggerMassSos={() => setMassSosModalOpen(true)}
             />
+          )}
+
+          {/* VIEW 4B: DISASTER INTELLIGENCE & WAR ROOM (DNA, TIME MACHINE, DOMINO, PRIORITY SCORE) */}
+          {currentNavSection === 'war_room' && (
+            <DisasterIntelligenceSuite />
           )}
 
           {/* VIEW 5: 3D DIGITAL TWIN (DISASTER KINEMATICS & TERRAIN PARTICLES) */}

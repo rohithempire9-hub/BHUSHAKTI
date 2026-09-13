@@ -23,12 +23,14 @@ interface SihDemoBarProps {
   activeScenario: DemoScenarioId;
   onSelectScenario: (scenario: DemoScenarioId) => void;
   onOpenCopilot: () => void;
+  onOpenWarRoom?: () => void;
 }
 
 export const SihDemoBar: React.FC<SihDemoBarProps> = ({
   activeScenario,
   onSelectScenario,
   onOpenCopilot,
+  onOpenWarRoom,
 }) => {
   return (
     <div className="bg-[#060e22] border-b border-[#142857] px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs">
@@ -118,12 +120,23 @@ export const SihDemoBar: React.FC<SihDemoBarProps> = ({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-500/40">
+        <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-500/40">
           DEMO / SIMULATED DATA
         </span>
+
+        {onOpenWarRoom && (
+          <button
+            onClick={onOpenWarRoom}
+            className="px-3 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-sm cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Disaster War Room</span>
+          </button>
+        )}
+
         <button
           onClick={onOpenCopilot}
-          className="px-3 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-sm cursor-pointer transition-all flex items-center gap-1.5 active:scale-95"
+          className="px-3 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-sm cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
         >
           <Sparkles className="w-3.5 h-3.5 text-white" />
           <span>Ask Copilot</span>

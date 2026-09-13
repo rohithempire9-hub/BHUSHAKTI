@@ -238,13 +238,13 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                   </div>
                   {/* Safe zone requirement: show SAFE ONLY */}
                   {placeA.riskAssessment.status === 'safe' ? (
-                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border-2 border-emerald-500/60 flex items-center gap-1.5 shadow-sm">
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border-2 border-emerald-500/60 flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                       SAFE
                     </span>
                   ) : (
                     <span
-                      className={`px-3 py-1.5 rounded-full text-xs font-black uppercase flex items-center gap-1.5 border-2 ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-black uppercase flex items-center gap-1.5 border-2 whitespace-nowrap shrink-0 ${
                         placeA.riskAssessment.status === 'critical'
                           ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-rose-950/50'
                           : placeA.riskAssessment.status === 'high'
@@ -252,7 +252,7 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                           : 'bg-amber-500/20 text-amber-300 border-amber-500/60'
                       }`}
                     >
-                      <AlertTriangle className="w-4 h-4" />
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
                       {placeA.riskAssessment.status} ({placeA.riskAssessment.riskScore}%)
                     </span>
                   )}
@@ -392,13 +392,13 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                   </div>
                   {/* Safe zone requirement: show SAFE ONLY */}
                   {placeB.riskAssessment.status === 'safe' ? (
-                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border-2 border-emerald-500/60 flex items-center gap-1.5 shadow-sm">
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border-2 border-emerald-500/60 flex items-center gap-1.5 shadow-sm whitespace-nowrap shrink-0">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                       SAFE
                     </span>
                   ) : (
                     <span
-                      className={`px-3 py-1.5 rounded-full text-xs font-black uppercase flex items-center gap-1.5 border-2 ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-black uppercase flex items-center gap-1.5 border-2 whitespace-nowrap shrink-0 ${
                         placeB.riskAssessment.status === 'critical'
                           ? 'bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-rose-950/50'
                           : placeB.riskAssessment.status === 'high'
@@ -406,7 +406,7 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                           : 'bg-amber-500/20 text-amber-300 border-amber-500/60'
                       }`}
                     >
-                      <AlertTriangle className="w-4 h-4" />
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
                       {placeB.riskAssessment.status} ({placeB.riskAssessment.riskScore}%)
                     </span>
                   )}
@@ -661,13 +661,13 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                     {/* Strict Safe Zone Rule: If safe, show "SAFE" ONLY */}
                     <td className="py-3 px-3">
                       {isSafe ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                          <ShieldCheck className="w-3.5 h-3.5" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 whitespace-nowrap shrink-0">
+                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                           SAFE
                         </span>
                       ) : (
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-extrabold uppercase border ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-extrabold uppercase border whitespace-nowrap shrink-0 ${
                             station.riskAssessment.status === 'critical'
                               ? 'bg-rose-500/20 text-rose-300 border-rose-500/50'
                               : station.riskAssessment.status === 'high'
@@ -675,7 +675,7 @@ export const PlaceRiskMatrix: React.FC<PlaceRiskMatrixProps> = ({
                               : 'bg-amber-500/20 text-amber-300 border-amber-500/50'
                           }`}
                         >
-                          <AlertTriangle className="w-3 h-3" />
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
                           {station.riskAssessment.status} ({station.riskAssessment.riskScore}%)
                         </span>
                       )}

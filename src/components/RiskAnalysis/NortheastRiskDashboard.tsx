@@ -446,7 +446,7 @@ export const NortheastRiskDashboard: React.FC<NortheastRiskDashboardProps> = ({
                   FS {st.riskAssessment.safetyFactor} | {st.telemetry.poreWaterPressureKpa} kPa
                 </span>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase whitespace-nowrap shrink-0 ${
                     st.riskAssessment.status === 'critical'
                       ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                       : 'bg-orange-500/20 text-orange-300 border border-orange-500/40'

@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Radio,
-  Sliders
+  Sliders,
+  Brain
 } from 'lucide-react';
 import { BhuLanguage } from '../../types/bhuShakti';
 
@@ -24,6 +25,7 @@ export type BhuNavSection =
   | 'risk_map'
   | 'landslide'
   | 'flood'
+  | 'war_room'
   | 'disaster_3d'
   | 'what_if'
   | 'emergency_response'
@@ -83,6 +85,14 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
       label: 'Flood',
       icon: Waves,
       iconColor: 'text-cyan-300',
+    },
+    {
+      id: 'war_room',
+      label: 'Disaster Intelligence',
+      icon: Brain,
+      iconColor: 'text-cyan-400',
+      badge: 'War Room',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
     },
     {
       id: 'disaster_3d',
