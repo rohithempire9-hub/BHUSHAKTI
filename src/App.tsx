@@ -726,6 +726,9 @@ export default function App() {
               <SmsEarlyWarningHub
                 registeredDevices={registeredDevices}
                 currentLanguage={currentLanguage}
+                stations={stations}
+                subscribers={subscribers}
+                initialStation={selectedStation}
                 onSimulateMassSos={() => setMassSosModalOpen(true)}
                 onDispatchIndividualAlert={(device) => {
                   setPrefilledSmsMessage(

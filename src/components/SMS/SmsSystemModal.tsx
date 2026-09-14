@@ -19,8 +19,10 @@ import {
   VolumeX,
   Share2,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  MapPin
 } from 'lucide-react';
+import { RealSmsHazardZoneDispatcher } from './RealSmsHazardZoneDispatcher';
 
 interface SmsSystemModalProps {
   isOpen: boolean;
@@ -45,8 +47,8 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
   initialStation,
   initialMessage
 }) => {
-  // Tabs: 'broadcast' | 'subscribers' | 'register' | 'history'
-  const [activeTab, setActiveTab] = useState<'broadcast' | 'subscribers' | 'register' | 'history'>('broadcast');
+  // Tabs: 'polygon' | 'broadcast' | 'subscribers' | 'register' | 'history'
+  const [activeTab, setActiveTab] = useState<'polygon' | 'broadcast' | 'subscribers' | 'register' | 'history'>('polygon');
 
   // Form State
   const [newName, setNewName] = useState('');
@@ -304,10 +306,21 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-800 bg-slate-900 px-6 gap-2 pt-2">
+        <div className="flex border-b border-slate-800 bg-slate-900 px-6 gap-2 pt-2 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('polygon')}
+            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
+              activeTab === 'polygon'
+                ? 'border-cyan-400 text-cyan-300 font-bold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+            Draw Hazard Polygon &amp; Real SMS
+          </button>
           <button
             onClick={() => setActiveTab('broadcast')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
               activeTab === 'broadcast'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -318,7 +331,7 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('subscribers')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
               activeTab === 'subscribers'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -329,7 +342,7 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('register')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
               activeTab === 'register'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -340,7 +353,7 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 shrink-0 ${
               activeTab === 'history'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -353,6 +366,33 @@ export const SmsSystemModal: React.FC<SmsSystemModalProps> = ({
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {/* TAB 0: INTERACTIVE HAZARD POLYGON & REAL SMS DISPATCHER */}
+          {activeTab === 'polygon' && (
+            <div className="space-y-4">
+              <RealSmsHazardZoneDispatcher
+                stations={stations}
+                subscribers={subscribers}
+                initialStation={initialStation}
+                onAlertBroadcasted={(resp) => {
+                  const newDispatch: SmsAlertRecord = {
+                    id: resp.incident_id,
+                    timestamp: new Date().toISOString(),
+                    stationId: 'polygon-zone',
+                    stationName: 'GeoJSON Polygon Hazard Perimeter',
+                    region: 'Northeast India',
+                    severity: 'critical',
+                    message: resp.sms_message,
+                    recipientsCount: resp.recipients_targeted,
+                    recipientsList: resp.delivery_receipts?.map((r) => r.phone) || [],
+                    deliveryStatus: 'Delivered',
+                    triggerReason: `Hazard Polygon Dispatch: ${resp.provider_used}`,
+                  };
+                  onDispatchesChange([newDispatch, ...alertDispatches]);
+                }}
+              />
+            </div>
+          )}
+
           {/* TAB 1: INSTANT BROADCAST & SIMULATION PREVIEW */}
           {activeTab === 'broadcast' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

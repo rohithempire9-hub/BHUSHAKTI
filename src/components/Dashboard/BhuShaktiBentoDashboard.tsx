@@ -545,6 +545,8 @@ export const BhuShaktiBentoDashboard: React.FC<BhuShaktiBentoDashboardProps> = (
               <SmsEarlyWarningHub
                 registeredDevices={registeredDevices}
                 currentLanguage={currentLanguage}
+                stations={stations}
+                initialStation={selectedStation}
                 onSimulateMassSos={onSimulateMassSos}
               />
             </div>

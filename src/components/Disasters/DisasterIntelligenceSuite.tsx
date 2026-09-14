@@ -23,7 +23,8 @@ import {
   MapPin,
   HelpCircle,
   BarChart3,
-  Network
+  Network,
+  FileText
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -39,11 +40,47 @@ import {
   PolarRadiusAxis,
   Radar
 } from 'recharts';
+import { First10MinutesPlannerView } from './WarRoom/First10MinutesPlannerView';
+import { EvidenceContradictionFusionView } from './WarRoom/EvidenceContradictionFusionView';
+import { ChainBreakerRoiView } from './WarRoom/ChainBreakerRoiView';
+import { RiskHalfLifeView } from './WarRoom/RiskHalfLifeView';
+import { VulnerablePopulationSatelliteView } from './WarRoom/VulnerablePopulationSatelliteView';
+import { RainfallSlopeIndexView } from './WarRoom/RainfallSlopeIndexView';
+import { DecisionBoardNoAlertView } from './WarRoom/DecisionBoardNoAlertView';
+import { CounterfactualResponseScoreView } from './WarRoom/CounterfactualResponseScoreView';
+import { EvidenceTimelineMemoryView } from './WarRoom/EvidenceTimelineMemoryView';
+import { FieldVerificationTrustAuditView } from './WarRoom/FieldVerificationTrustAuditView';
+import { AiCommanderBriefView } from './WarRoom/AiCommanderBriefView';
+import { JudgeChallengeDisasterModeView } from './WarRoom/JudgeChallengeDisasterModeView';
+import { CommandCenterWallDisplay } from './WarRoom/CommandCenterWallDisplay';
+import { SihDemoCentralFlowDrawer } from './WarRoom/SihDemoCentralFlowDrawer';
+
+export type ExtendedIntelligenceTab =
+  | 'dna'
+  | 'timemachine'
+  | 'domino'
+  | 'priority'
+  | 'costofdelay'
+  | 'drill'
+  | 'first10min'
+  | 'contradiction'
+  | 'chainbreaker'
+  | 'halflife'
+  | 'vulnerable'
+  | 'rainfallslope'
+  | 'decisionboard'
+  | 'counterfactual'
+  | 'timeline'
+  | 'fieldaudit'
+  | 'commander'
+  | 'judgechallenge'
+  | 'sihflow';
 
 export const DisasterIntelligenceSuite: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<
-    'dna' | 'timemachine' | 'domino' | 'priority' | 'costofdelay' | 'drill'
-  >('dna');
+  const [activeTab, setActiveTab] = useState<ExtendedIntelligenceTab>('sihflow');
+  const [activeCategory, setActiveCategory] = useState<'WAR_ROOM' | 'CORE_ANALYTICS'>('WAR_ROOM');
+  const [showWallDisplay, setShowWallDisplay] = useState<boolean>(false);
+  const [isDisasterModeActive, setIsDisasterModeActive] = useState<boolean>(false);
 
   // Time Machine State
   const [rainfallProjection, setRainfallProjection] = useState<number>(20); // +20% default
@@ -269,79 +306,302 @@ export const DisasterIntelligenceSuite: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. SUB-NAVIGATION TABS */}
-      <div className="flex items-center gap-1.5 p-1.5 bg-[#061026] border border-[#142956] rounded-2xl text-xs overflow-x-auto scrollbar-none">
-        <button
-          onClick={() => setActiveTab('dna')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'dna'
-              ? 'bg-cyan-500 text-black shadow-md'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Brain className="w-4 h-4" />
-          <span>1. Disaster DNA Fingerprint</span>
-        </button>
+      {/* FULLSCREEN NATIONAL COMMAND CENTER WALL DISPLAY OVERLAY */}
+      {showWallDisplay && (
+        <CommandCenterWallDisplay onClose={() => setShowWallDisplay(false)} />
+      )}
 
-        <button
-          onClick={() => setActiveTab('timemachine')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'timemachine'
-              ? 'bg-cyan-500 text-black shadow-md'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>2. Disaster Time Machine</span>
-        </button>
+      {/* 2. CATEGORY SWITCHER & SUB-NAVIGATION TABS */}
+      <div className="space-y-2">
+        {/* Category Header Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#050e24] border border-[#142854] rounded-2xl">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                setActiveCategory('WAR_ROOM');
+                if (['dna', 'timemachine', 'domino', 'priority', 'costofdelay', 'drill'].includes(activeTab)) {
+                  setActiveTab('sihflow');
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeCategory === 'WAR_ROOM'
+                  ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>WAR ROOM & DECISION INTELLIGENCE</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-cyan-950 text-cyan-300 font-mono">
+                SIH 2024+
+              </span>
+            </button>
 
-        <button
-          onClick={() => setActiveTab('domino')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'domino'
-              ? 'bg-cyan-500 text-black shadow-md'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <GitBranch className="w-4 h-4" />
-          <span>3. Disaster Domino Effect</span>
-        </button>
+            <button
+              onClick={() => {
+                setActiveCategory('CORE_ANALYTICS');
+                if (!['dna', 'timemachine', 'domino', 'priority', 'costofdelay', 'drill'].includes(activeTab)) {
+                  setActiveTab('dna');
+                }
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeCategory === 'CORE_ANALYTICS'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>CORE PREDICTIVE MODELS</span>
+            </button>
+          </div>
 
-        <button
-          onClick={() => setActiveTab('priority')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'priority'
-              ? 'bg-cyan-500 text-black shadow-md'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <ShieldAlert className="w-4 h-4" />
-          <span>4. AI Priority Score Matrix</span>
-        </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowWallDisplay(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-rose-900 to-purple-900 hover:from-rose-800 hover:to-purple-800 text-rose-200 border border-rose-500/40 shadow-lg cursor-pointer flex items-center gap-1.5"
+            >
+              <Activity className="w-3.5 h-3.5 animate-pulse" />
+              <span>Full Screen War Room Wall Display</span>
+            </button>
+          </div>
+        </div>
 
-        <button
-          onClick={() => setActiveTab('costofdelay')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'costofdelay'
-              ? 'bg-cyan-500 text-black shadow-md'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-          }`}
-        >
-          <DollarSign className="w-4 h-4" />
-          <span>5. Cost of Delay &amp; Economy</span>
-        </button>
+        {/* Tab Row: War Room Modules */}
+        {activeCategory === 'WAR_ROOM' && (
+          <div className="flex items-center gap-1.5 p-1.5 bg-[#061026] border border-[#142956] rounded-2xl text-xs overflow-x-auto scrollbar-none">
+            <button
+              onClick={() => setActiveTab('sihflow')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'sihflow'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-amber-300 hover:text-white hover:bg-amber-950/40'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>★ SIH 38-Step Demo Flow</span>
+            </button>
 
-        <button
-          onClick={() => setActiveTab('drill')}
-          className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'drill'
-              ? 'bg-amber-500 text-black shadow-md'
-              : 'text-amber-300 hover:text-white hover:bg-amber-950/40'
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          <span>6. "What Would You Do?" Judge Drill</span>
-        </button>
+            <button
+              onClick={() => setActiveTab('first10min')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'first10min'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>1. First 10 Min Planner</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('contradiction')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'contradiction'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>2. Contradiction &amp; Fusion</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('chainbreaker')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'chainbreaker'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              <span>3. Chain Breaker &amp; ROI</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('halflife')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'halflife'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>4. Half-Life &amp; Trajectory</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('vulnerable')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'vulnerable'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>5. Population &amp; Satellite</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('rainfallslope')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'rainfallslope'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Waves className="w-3.5 h-3.5" />
+              <span>6. Rainfall &amp; Slope FS</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('decisionboard')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'decisionboard'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>7. Decision Board</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('counterfactual')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'counterfactual'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Award className="w-3.5 h-3.5" />
+              <span>8. Counterfactual AI</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('timeline')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'timeline'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>9. Evidence Timeline</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('fieldaudit')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'fieldaudit'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>10. Field Trust &amp; Audit</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('commander')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'commander'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" />
+              <span>11. AI Commander &amp; Brief</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('judgechallenge')}
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'judgechallenge'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'text-rose-300 hover:text-white hover:bg-rose-950/40'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              <span>12. Judge Challenge &amp; Disaster Mode</span>
+            </button>
+          </div>
+        )}
+
+        {/* Tab Row: Core Analytics */}
+        {activeCategory === 'CORE_ANALYTICS' && (
+          <div className="flex items-center gap-1.5 p-1.5 bg-[#061026] border border-[#142956] rounded-2xl text-xs overflow-x-auto scrollbar-none">
+            <button
+              onClick={() => setActiveTab('dna')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'dna'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Brain className="w-4 h-4" />
+              <span>1. Disaster DNA Fingerprint</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('timemachine')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'timemachine'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>2. Disaster Time Machine</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('domino')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'domino'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <GitBranch className="w-4 h-4" />
+              <span>3. Disaster Domino Effect</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('priority')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'priority'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>4. AI Priority Score Matrix</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('costofdelay')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'costofdelay'
+                  ? 'bg-cyan-500 text-black shadow-md'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <DollarSign className="w-4 h-4" />
+              <span>5. Cost of Delay &amp; Economy</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('drill')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'drill'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-amber-300 hover:text-white hover:bg-amber-950/40'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>6. "What Would You Do?" Judge Drill</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 3. TAB CONTENT PANELS */}
@@ -1168,6 +1428,52 @@ export const DisasterIntelligenceSuite: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* EXTENDED WAR ROOM PANELS */}
+      {activeTab === 'sihflow' && (
+        <SihDemoCentralFlowDrawer
+          onSelectStepTab={(tabKey) => {
+            if (tabKey as ExtendedIntelligenceTab) {
+              setActiveTab(tabKey as ExtendedIntelligenceTab);
+            }
+          }}
+          onTriggerScenario={(scenId) => {
+            if (scenId.includes('cloudburst')) {
+              setIsDisasterModeActive(true);
+              setActiveTab('judgechallenge');
+            }
+          }}
+        />
+      )}
+
+      {activeTab === 'first10min' && <First10MinutesPlannerView />}
+
+      {activeTab === 'contradiction' && <EvidenceContradictionFusionView />}
+
+      {activeTab === 'chainbreaker' && <ChainBreakerRoiView />}
+
+      {activeTab === 'halflife' && <RiskHalfLifeView />}
+
+      {activeTab === 'vulnerable' && <VulnerablePopulationSatelliteView />}
+
+      {activeTab === 'rainfallslope' && <RainfallSlopeIndexView />}
+
+      {activeTab === 'decisionboard' && <DecisionBoardNoAlertView />}
+
+      {activeTab === 'counterfactual' && <CounterfactualResponseScoreView />}
+
+      {activeTab === 'timeline' && <EvidenceTimelineMemoryView />}
+
+      {activeTab === 'fieldaudit' && <FieldVerificationTrustAuditView />}
+
+      {activeTab === 'commander' && <AiCommanderBriefView />}
+
+      {activeTab === 'judgechallenge' && (
+        <JudgeChallengeDisasterModeView
+          isDisasterModeActive={isDisasterModeActive}
+          onActivateDisasterMode={setIsDisasterModeActive}
+        />
       )}
     </div>
   );

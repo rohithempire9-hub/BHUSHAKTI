@@ -22,6 +22,53 @@ if (typeof window !== 'undefined') {
     (L as any).__bhushaktiMapFactoryPatched = true;
   }
 
+  // Universal Leaflet LatLng resilience: Prevent any "Invalid LatLng object: (NaN, NaN)" crash
+  if (!(L as any).__bhushaktiLatLngPatched && L.LatLng) {
+    const OriginalLatLng = L.LatLng;
+    (L as any).__bhushaktiOriginalLatLng = OriginalLatLng;
+
+    const SafeLatLng: any = function (this: any, lat: any, lng: any, alt?: any) {
+      let safeLat = typeof lat === 'number' ? lat : Number(lat);
+      let safeLng = typeof lng === 'number' ? lng : Number(lng);
+
+      if (isNaN(safeLat) || !isFinite(safeLat) || isNaN(safeLng) || !isFinite(safeLng)) {
+        // Fall back to central Northeast India regional coordinate
+        safeLat = 26.1584;
+        safeLng = 92.9376;
+      }
+
+      const instance = Object.create(OriginalLatLng.prototype);
+      OriginalLatLng.call(instance, safeLat, safeLng, alt);
+      return instance;
+    };
+    SafeLatLng.prototype = OriginalLatLng.prototype;
+    (L as any).LatLng = SafeLatLng;
+
+    const originalToLatLng = (L as any).latLng;
+    (L as any).latLng = function (a: any, b?: any, c?: any) {
+      try {
+        if (Array.isArray(a)) {
+          const lat = Number(a[0]);
+          const lng = Number(a[1]);
+          if (isNaN(lat) || !isFinite(lat) || isNaN(lng) || !isFinite(lng)) {
+            return new SafeLatLng(26.1584, 92.9376);
+          }
+        } else if (a && typeof a === 'object' && ('lat' in a || 'latitude' in a)) {
+          const lat = Number(a.lat ?? a.latitude);
+          const lng = Number(a.lng ?? a.lon ?? a.longitude);
+          if (isNaN(lat) || !isFinite(lat) || isNaN(lng) || !isFinite(lng)) {
+            return new SafeLatLng(26.1584, 92.9376);
+          }
+        }
+        return originalToLatLng.apply(this, arguments as any);
+      } catch {
+        return new SafeLatLng(26.1584, 92.9376);
+      }
+    };
+
+    (L as any).__bhushaktiLatLngPatched = true;
+  }
+
   // Protect against zero-dimension canvas getImageData crashes (e.g. in leaflet.heat or dynamic layouts)
   if (typeof CanvasRenderingContext2D !== 'undefined') {
     const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
@@ -111,8 +158,12 @@ if (typeof window !== 'undefined') {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+        const lat = Number(position.coords.latitude);
+        const lng = Number(position.coords.longitude);
+        if (isNaN(lat) || !isFinite(lat) || isNaN(lng) || !isFinite(lng)) {
+          console.warn('[BhuShakti] Browser geolocation returned invalid coordinates:', position);
+          return;
+        }
         const accuracy = Math.max(position.coords.accuracy || 50, 25);
 
         if (!locationLayer) locationLayer = L.layerGroup().addTo(map);

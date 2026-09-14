@@ -907,8 +907,21 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       const strokeColor = isEmergency ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
 
       try {
+        const validCoords = hw.coordinates.filter(
+          (c) =>
+            Array.isArray(c) &&
+            c.length >= 2 &&
+            typeof c[0] === 'number' &&
+            !isNaN(c[0]) &&
+            isFinite(c[0]) &&
+            typeof c[1] === 'number' &&
+            !isNaN(c[1]) &&
+            isFinite(c[1])
+        );
+        if (validCoords.length < 2) return;
+
         // Outer glow buffer representing simulated topographic risk zone
-        const bufferPolyline = L.polyline(hw.coordinates, {
+        const bufferPolyline = L.polyline(validCoords, {
           color: strokeColor,
           weight: 12,
           opacity: 0.25,
@@ -918,7 +931,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         highwayGroup.addLayer(bufferPolyline);
 
         // Core road line
-        const corePolyline = L.polyline(hw.coordinates, {
+        const corePolyline = L.polyline(validCoords, {
           color: strokeColor,
           weight: 5,
           opacity: 0.95,
@@ -933,6 +946,16 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
         // Render critical points on the highway
         hw.criticalPoints.forEach((cp) => {
+          if (
+            typeof cp.lat !== 'number' ||
+            isNaN(cp.lat) ||
+            !isFinite(cp.lat) ||
+            typeof cp.lng !== 'number' ||
+            isNaN(cp.lng) ||
+            !isFinite(cp.lng)
+          ) {
+            return;
+          }
           const cpStatus =
             simulatedRiskLevel === 'critical'
               ? 'emergency'
@@ -982,6 +1005,16 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     if (!showVillages) return;
 
     REMOTE_VILLAGE_PINS.forEach((vil) => {
+      if (
+        typeof vil.latitude !== 'number' ||
+        isNaN(vil.latitude) ||
+        !isFinite(vil.latitude) ||
+        typeof vil.longitude !== 'number' ||
+        isNaN(vil.longitude) ||
+        !isFinite(vil.longitude)
+      ) {
+        return;
+      }
       const isEmergency = vil.riskStatus === 'emergency';
       const isWarning = vil.riskStatus === 'warning';
       const color = isEmergency ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
@@ -1140,7 +1173,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                 if (
                   mapInstanceRef.current &&
                   typeof found.latitude === 'number' &&
-                  typeof found.longitude === 'number'
+                  !isNaN(found.latitude) &&
+                  isFinite(found.latitude) &&
+                  typeof found.longitude === 'number' &&
+                  !isNaN(found.longitude) &&
+                  isFinite(found.longitude)
                 ) {
                   mapInstanceRef.current.flyTo([found.latitude, found.longitude], 10, { duration: 1.2 });
                 }
