@@ -125,6 +125,9 @@ export default function App() {
   const [activeDemoScenario, setActiveDemoScenario] = useState<DemoScenarioId>('none');
   const [landslideSubTab, setLandslideSubTab] = useState<'memory' | 'sensors'>('memory');
   const [historicalSubTab, setHistoricalSubTab] = useState<'forensic' | 'archive'>('forensic');
+  const [warRoomInitialTab, setWarRoomInitialTab] = useState<
+    'chainbreaker' | 'contradiction' | 'sihflow' | 'dna' | 'timemachine' | 'domino' | 'priority' | 'costofdelay' | 'drill' | 'commander' | 'judgechallenge'
+  >('sihflow');
 
   const [prefilledSmsMessage, setPrefilledSmsMessage] =
     useState<string | null>(null);
@@ -145,6 +148,7 @@ export default function App() {
     setSimulatedDisplacement(0.8);
     setDismissedCriticalBanner(false);
     setActiveDemoScenario('none');
+    setWarRoomInitialTab('sihflow');
   };
 
   const handleSelectDemoScenario = (scenario: DemoScenarioId) => {
@@ -161,11 +165,15 @@ export default function App() {
       if (assamStation) setSelectedStation(assamStation);
       setCurrentNavSection('flood');
     } else if (scenario === 'multi_cascade') {
+      const tawangStation = stations.find((s) => s.id === 'tawang-pass-01') || stations[0];
+      if (tawangStation) setSelectedStation(tawangStation);
       setCurrentNavSection('emergency_response');
     } else if (scenario === 'offline_outage') {
       setCurrentNavSection('alerts');
     } else if (scenario === 'evidence_conflict') {
-      setCurrentNavSection('emergency_response');
+      const tawangStation = stations.find((s) => s.id === 'tawang-pass-01') || stations[0];
+      if (tawangStation) setSelectedStation(tawangStation);
+      setEvidenceModalOpen(true);
     }
   };
 
@@ -612,7 +620,12 @@ export default function App() {
 
           {/* VIEW 4B: DISASTER INTELLIGENCE & WAR ROOM (DNA, TIME MACHINE, DOMINO, PRIORITY SCORE) */}
           {currentNavSection === 'war_room' && (
-            <DisasterIntelligenceSuite />
+            <DisasterIntelligenceSuite
+              initialTab={warRoomInitialTab}
+              activeScenario={activeDemoScenario}
+              onSelectScenario={handleSelectDemoScenario}
+              onOpenSmsModal={() => setMassSosModalOpen(true)}
+            />
           )}
 
           {/* VIEW 5: 3D DIGITAL TWIN (DISASTER KINEMATICS & TERRAIN PARTICLES) */}
@@ -627,7 +640,14 @@ export default function App() {
 
           {/* VIEW 5C: EMERGENCY RESPONSE & RESOURCE OPTIMIZER */}
           {currentNavSection === 'emergency_response' && (
-            <EmergencyResponseView onOpenSmsModal={() => setMassSosModalOpen(true)} />
+            <EmergencyResponseView
+              onOpenSmsModal={() => setMassSosModalOpen(true)}
+              activeScenario={activeDemoScenario}
+              onNavigateToWarRoom={(tab) => {
+                setCurrentNavSection('war_room');
+                setWarRoomInitialTab(tab as any);
+              }}
+            />
           )}
 
           {/* VIEW 6: WEATHER (NORTHEAST WEATHER HUB & LIVE RADAR) */}

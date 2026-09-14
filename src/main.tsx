@@ -27,14 +27,22 @@ if (typeof window !== 'undefined') {
     const OriginalLatLng = L.LatLng;
     (L as any).__bhushaktiOriginalLatLng = OriginalLatLng;
 
+    const DEFAULT_LAT = 26.1584;
+    const DEFAULT_LNG = 92.9376;
+
     const SafeLatLng: any = function (this: any, lat: any, lng: any, alt?: any) {
       let safeLat = typeof lat === 'number' ? lat : Number(lat);
       let safeLng = typeof lng === 'number' ? lng : Number(lng);
 
       if (isNaN(safeLat) || !isFinite(safeLat) || isNaN(safeLng) || !isFinite(safeLng)) {
         // Fall back to central Northeast India regional coordinate
-        safeLat = 26.1584;
-        safeLng = 92.9376;
+        safeLat = DEFAULT_LAT;
+        safeLng = DEFAULT_LNG;
+      }
+
+      if (this instanceof SafeLatLng || this instanceof OriginalLatLng) {
+        OriginalLatLng.call(this, safeLat, safeLng, alt);
+        return this;
       }
 
       const instance = Object.create(OriginalLatLng.prototype);
@@ -47,24 +55,141 @@ if (typeof window !== 'undefined') {
     const originalToLatLng = (L as any).latLng;
     (L as any).latLng = function (a: any, b?: any, c?: any) {
       try {
+        if (a instanceof OriginalLatLng || a instanceof SafeLatLng) {
+          if (isNaN(a.lat) || !isFinite(a.lat) || isNaN(a.lng) || !isFinite(a.lng)) {
+            return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
+          }
+          return a;
+        }
         if (Array.isArray(a)) {
           const lat = Number(a[0]);
           const lng = Number(a[1]);
           if (isNaN(lat) || !isFinite(lat) || isNaN(lng) || !isFinite(lng)) {
-            return new SafeLatLng(26.1584, 92.9376);
+            return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
           }
-        } else if (a && typeof a === 'object' && ('lat' in a || 'latitude' in a)) {
+          return new SafeLatLng(lat, lng, a[2]);
+        }
+        if (a && typeof a === 'object' && ('lat' in a || 'latitude' in a)) {
           const lat = Number(a.lat ?? a.latitude);
           const lng = Number(a.lng ?? a.lon ?? a.longitude);
           if (isNaN(lat) || !isFinite(lat) || isNaN(lng) || !isFinite(lng)) {
-            return new SafeLatLng(26.1584, 92.9376);
+            return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
           }
+          return new SafeLatLng(lat, lng, a.alt);
         }
-        return originalToLatLng.apply(this, arguments as any);
+        if (a === undefined || a === null) {
+          return null;
+        }
+        // When called with 2 numerical or primitive arguments (lat, lng)
+        const latNum = Number(a);
+        const lngNum = Number(b);
+        if (isNaN(latNum) || !isFinite(latNum) || isNaN(lngNum) || !isFinite(lngNum)) {
+          return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
+        }
+        return new SafeLatLng(latNum, lngNum, c);
       } catch {
-        return new SafeLatLng(26.1584, 92.9376);
+        return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
       }
     };
+
+    // Protect Map prototype against 0-dimension or NaN calculation crashes
+    if (L.Map && L.Map.prototype) {
+      const origGetBoundsZoom = L.Map.prototype.getBoundsZoom;
+      L.Map.prototype.getBoundsZoom = function (bounds: any, inside?: boolean, padding?: any) {
+        try {
+          const size = this.getSize();
+          if (!size || size.x <= 0 || size.y <= 0) {
+            return this._zoom || 7;
+          }
+          const z = origGetBoundsZoom.call(this, bounds, inside, padding);
+          if (typeof z !== 'number' || isNaN(z) || !isFinite(z)) {
+            return this._zoom || 7;
+          }
+          return z;
+        } catch {
+          return this._zoom || 7;
+        }
+      };
+
+      const origGetBoundsCenterZoom = (L.Map.prototype as any)._getBoundsCenterZoom;
+      if (origGetBoundsCenterZoom) {
+        (L.Map.prototype as any)._getBoundsCenterZoom = function (bounds: any, options: any) {
+          try {
+            const res = origGetBoundsCenterZoom.call(this, bounds, options);
+            if (!res || !res.center || isNaN(res.center.lat) || isNaN(res.center.lng) || isNaN(res.zoom)) {
+              return {
+                center: new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG),
+                zoom: 7,
+              };
+            }
+            return res;
+          } catch {
+            return {
+              center: new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG),
+              zoom: 7,
+            };
+          }
+        };
+      }
+
+      const origSetView = L.Map.prototype.setView;
+      L.Map.prototype.setView = function (center: any, zoom?: any, options?: any) {
+        try {
+          const safeCenter = (L as any).latLng(center);
+          const safeZoom = typeof zoom === 'number' && !isNaN(zoom) && isFinite(zoom) ? zoom : (this._zoom || 7);
+          return origSetView.call(this, safeCenter, safeZoom, options);
+        } catch (e) {
+          console.warn('[Leaflet Map.setView resilience caught]:', e);
+          return this;
+        }
+      };
+
+      const origPanTo = L.Map.prototype.panTo;
+      if (origPanTo) {
+        L.Map.prototype.panTo = function (center: any, options?: any) {
+          try {
+            const safeCenter = (L as any).latLng(center);
+            return origPanTo.call(this, safeCenter, options);
+          } catch (e) {
+            console.warn('[Leaflet Map.panTo resilience caught]:', e);
+            return this;
+          }
+        };
+      }
+
+      const origFlyTo = L.Map.prototype.flyTo;
+      if (origFlyTo) {
+        L.Map.prototype.flyTo = function (center: any, zoom?: any, options?: any) {
+          try {
+            const safeCenter = (L as any).latLng(center);
+            const safeZoom = typeof zoom === 'number' && !isNaN(zoom) && isFinite(zoom) ? zoom : (this._zoom || 7);
+            return origFlyTo.call(this, safeCenter, safeZoom, options);
+          } catch (e) {
+            console.warn('[Leaflet Map.flyTo resilience caught]:', e);
+            return this;
+          }
+        };
+      }
+    }
+
+    // Protect SphericalMercator projection against NaN pixel unprojection
+    if (L.Projection && (L.Projection as any).SphericalMercator) {
+      const origSphericalUnproject = (L.Projection as any).SphericalMercator.unproject;
+      (L.Projection as any).SphericalMercator.unproject = function (point: any) {
+        if (!point || isNaN(point.x) || isNaN(point.y) || !isFinite(point.x) || !isFinite(point.y)) {
+          return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
+        }
+        try {
+          const latlng = origSphericalUnproject.call(this, point);
+          if (!latlng || isNaN(latlng.lat) || isNaN(latlng.lng) || !isFinite(latlng.lat) || !isFinite(latlng.lng)) {
+            return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
+          }
+          return latlng;
+        } catch {
+          return new SafeLatLng(DEFAULT_LAT, DEFAULT_LNG);
+        }
+      };
+    }
 
     (L as any).__bhushaktiLatLngPatched = true;
   }
@@ -152,7 +277,7 @@ if (typeof window !== 'undefined') {
   const showBrowserLocation = () => {
     const map = getMap();
     if (!map || !navigator.geolocation) {
-      window.alert('Browser location is not available on this device.');
+      console.warn('[BhuShakti] Browser location is not available on this device.');
       return;
     }
 
@@ -188,11 +313,15 @@ if (typeof window !== 'undefined') {
 
         locationLayer.addLayer(accuracyCircle);
         locationLayer.addLayer(marker);
-        map.flyTo([lat, lng], 12, { duration: 1.2 });
+        try {
+          map.invalidateSize();
+          map.flyTo([lat, lng], 12, { duration: 1.2 });
+        } catch (err) {
+          console.warn('[BhuShakti] flyTo browser location failed:', err);
+        }
       },
       (error) => {
-        console.warn('[BhuShakti] Browser geolocation failed:', error);
-        window.alert('Location permission was denied or the browser could not determine your location.');
+        console.warn('[BhuShakti] Browser geolocation permission denied or unavailable:', error);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );

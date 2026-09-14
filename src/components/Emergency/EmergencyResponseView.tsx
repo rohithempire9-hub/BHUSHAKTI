@@ -27,16 +27,56 @@ import {
   FileText
 } from 'lucide-react';
 
+export type EmergencySubTab = 'incident_command' | 'multi_cascade' | 'evidence_conflict';
+
 interface EmergencyResponseViewProps {
   onOpenSmsModal?: () => void;
+  activeScenario?: string;
+  initialSubTab?: EmergencySubTab;
+  onNavigateToWarRoom?: (tab: 'chainbreaker' | 'contradiction' | string) => void;
 }
 
 export const EmergencyResponseView: React.FC<EmergencyResponseViewProps> = ({
   onOpenSmsModal,
+  activeScenario,
+  initialSubTab,
+  onNavigateToWarRoom
 }) => {
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>('ZONE-TAW-01');
   const [missionChecklist, setMissionChecklist] = useState(RESCUE_MISSION_PLAN_TAWANG);
   const [resources, setResources] = useState(EMERGENCY_RESOURCES);
+
+  // Sub-tab selection state
+  const [activeSubTab, setActiveSubTab] = useState<EmergencySubTab>(() => {
+    if (initialSubTab) return initialSubTab;
+    if (activeScenario === 'multi_cascade') return 'multi_cascade';
+    if (activeScenario === 'evidence_conflict') return 'evidence_conflict';
+    return 'incident_command';
+  });
+
+  // Cascade interactive scenario state
+  const [selectedChainId, setSelectedChainId] = useState<string>(MULTI_HAZARD_CHAINS[0]?.id || 'cascade-chain-tawang-01');
+  const [activeInterventions, setActiveInterventions] = useState<Record<string, boolean>>({
+    'interv-0': true,
+    'interv-1': false,
+    'interv-2': false,
+  });
+
+  // Evidence conflict interactive state
+  const [selectedConflictId, setSelectedConflictId] = useState<string>(EVIDENCE_CONFLICT_RECORDS[0]?.id || 'conflict-01');
+  const [conflictResolutions, setConflictResolutions] = useState<Record<string, { status: string; override: boolean; notes: string }>>({
+    'conflict-01': { status: 'ARBITRATED', override: true, notes: 'Field Patrol ground observation accepted over stale satellite pass' },
+    'conflict-02': { status: 'PENDING', override: false, notes: 'Awaiting high-res UAV lidar pass' },
+  });
+
+  // Sync subtab when activeScenario changes
+  React.useEffect(() => {
+    if (activeScenario === 'multi_cascade') {
+      setActiveSubTab('multi_cascade');
+    } else if (activeScenario === 'evidence_conflict') {
+      setActiveSubTab('evidence_conflict');
+    }
+  }, [activeScenario]);
 
   const toggleChecklistStep = (stepNum: number) => {
     setMissionChecklist((prev) =>
@@ -65,6 +105,20 @@ export const EmergencyResponseView: React.FC<EmergencyResponseViewProps> = ({
       })
     );
   };
+
+  const selectedChain = MULTI_HAZARD_CHAINS.find((c) => c.id === selectedChainId) || MULTI_HAZARD_CHAINS[0];
+  const selectedConflict = EVIDENCE_CONFLICT_RECORDS.find((c) => c.id === selectedConflictId) || EVIDENCE_CONFLICT_RECORDS[0];
+
+  const toggleIntervention = (key: string) => {
+    setActiveInterventions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const currentInterventionsCount = Object.values(activeInterventions).filter(Boolean).length;
+  const simulatedRoiValue = (currentInterventionsCount * 4.2).toFixed(1);
+  const simulatedRiskReduction = Math.min(88, 35 + currentInterventionsCount * 18);
 
   return (
     <div className="space-y-6 max-w-[1720px] mx-auto pb-12">
@@ -100,8 +154,73 @@ export const EmergencyResponseView: React.FC<EmergencyResponseViewProps> = ({
         </div>
       </div>
 
-      {/* 2. DUAL COLUMN: AI RESPONSE PRIORITY (LEFT) + RESCUE MISSION PLANNER (RIGHT) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* 2. WORKFLOW & SCENARIO SUB-TAB BAR */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-[#081534] border border-[#162e66] shadow-xl">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setActiveSubTab('incident_command')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeSubTab === 'incident_command'
+                ? 'bg-cyan-500 text-black shadow-lg'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>1. Incident Command &amp; Fleet Allocation</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('multi_cascade')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeSubTab === 'multi_cascade'
+                ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-lg'
+                : 'text-amber-300 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>2. Multi-Hazard Cascade Chains</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-black/40 text-amber-200">
+              Scenario 3
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('evidence_conflict')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeSubTab === 'evidence_conflict'
+                ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg'
+                : 'text-purple-300 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>3. Evidence Conflict Resolution</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-black/40 text-purple-200">
+              Scenario 5
+            </span>
+          </button>
+        </div>
+
+        {onNavigateToWarRoom && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-400 text-[11px] hidden sm:inline">Advanced Decision Analytics:</span>
+            <button
+              onClick={() => onNavigateToWarRoom(activeSubTab === 'evidence_conflict' ? 'contradiction' : 'chainbreaker')}
+              className="px-3 py-1.5 rounded-lg bg-[#112450] hover:bg-[#183474] text-cyan-300 border border-cyan-500/40 text-[11px] font-mono font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <span>Open Dedicated War Room Engine</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* SUB-VIEW 1: INCIDENT COMMAND & RESOURCE OPTIMIZER */}
+      {/* ------------------------------------------------------------- */}
+      {activeSubTab === 'incident_command' && (
+        <div className="space-y-6">
+          {/* 2. DUAL COLUMN: AI RESPONSE PRIORITY (LEFT) + RESCUE MISSION PLANNER (RIGHT) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: INCIDENT RESPONSE PRIORITIZATION (6 cols) */}
         <div className="lg:col-span-6 flex flex-col gap-6">
           <div className="rounded-2xl bg-[#091533] border border-[#162e66] p-5 shadow-2xl space-y-4">
@@ -403,6 +522,441 @@ export const EmergencyResponseView: React.FC<EmergencyResponseViewProps> = ({
           </div>
         </div>
       </div>
+    </div>
+  )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* SUB-VIEW 2: MULTI-HAZARD CASCADE CHAINS (SCENARIO 3) */}
+      {/* ------------------------------------------------------------- */}
+      {activeSubTab === 'multi_cascade' && (
+        <div className="space-y-6">
+          {/* SCENARIO HEADER & CORRIDOR SELECTOR */}
+          <div className="rounded-2xl bg-gradient-to-r from-[#170e28] via-[#0e1c45] to-[#081534] border border-amber-500/50 p-6 shadow-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-500/40">
+                    EVALUATION SCENARIO 3: MULTI-HAZARD CASCADE
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-500/40">
+                    CHAIN BREAKER &amp; INTERVENTION ENGINE
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black text-white tracking-tight">
+                  {selectedChain.title}
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-3xl">
+                  {selectedChain.actionDirective}
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex items-center gap-2 bg-[#050e24] p-1.5 rounded-xl border border-slate-700">
+                  {MULTI_HAZARD_CHAINS.map((chain) => (
+                    <button
+                      key={chain.id}
+                      onClick={() => setSelectedChainId(chain.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        selectedChainId === chain.id
+                          ? 'bg-amber-500 text-black shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {chain.id.includes('tupul') ? 'Noney Tupul River' : 'Tawang Sela Lifeline'}
+                    </button>
+                  ))}
+                </div>
+
+                {onNavigateToWarRoom && (
+                  <button
+                    onClick={() => onNavigateToWarRoom('chainbreaker')}
+                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>Launch War Room Suite</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* IMPACT KPI METRICS */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-800">
+              <div className="p-3 rounded-xl bg-[#06122d] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Critical Lifeline:</span>
+                <span className="text-sm font-bold text-white font-mono">NH-13 Sela Strategic Pass</span>
+                <span className="text-[10px] text-amber-300 block mt-0.5">Primary Military Logistics Arterial</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#06122d] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Isolation Risk:</span>
+                <span className="text-sm font-bold text-rose-400 font-mono">{selectedChain.isolationRiskPct}% Risk</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">50,000+ Civilians &amp; Border Garrison</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#06122d] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Sequential Stages:</span>
+                <span className="text-sm font-bold text-cyan-300 font-mono">
+                  {selectedChain.nodes.length} Progressive Cascade Nodes
+                </span>
+                <span className="text-[10px] text-emerald-400 block mt-0.5">
+                  {(selectedChain.nodes.reduce((acc, n) => acc + n.probabilityPct, 0) / selectedChain.nodes.length).toFixed(0)}% Avg Node Probability
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#06122d] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Intervention Savings:</span>
+                <span className="text-sm font-bold text-emerald-400 font-mono">₹{simulatedRoiValue} Cr Net Protected</span>
+                <span className="text-[10px] text-emerald-300 block mt-0.5">-{simulatedRiskReduction}% Casualty Probability</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 5-STAGE SEQUENTIAL CASCADE TIMELINE */}
+          <div className="rounded-2xl bg-[#081533] border border-[#162d64] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <GitBranch className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-black text-white uppercase tracking-wider">
+                  Domino Sequence Trajectory (Trigger &rarr; River Dam &rarr; Flash Surge &rarr; Lifeline Severance)
+                </h3>
+              </div>
+              <span className="text-xs font-mono text-amber-400">Initial Trigger: {selectedChain.triggerEvent}</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {selectedChain.nodes.map((node, index) => (
+                <div
+                  key={node.id}
+                  className="p-4 rounded-xl bg-[#061026] border border-slate-800 flex flex-col justify-between space-y-3 hover:border-amber-500/50 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-500/30">
+                      Stage 0{index + 1}
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-rose-400">
+                      {node.probabilityPct}% Prob
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-white leading-snug">{node.title}</h4>
+                    <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">{node.description}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/80 text-[10px] font-mono text-cyan-300">
+                    Locations: {node.affectedLocations.join(', ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* INTERACTION MATRIX: CHAIN BREAKER INTERVENTIONS */}
+          <div className="rounded-2xl bg-[#09173a] border border-[#1b3674] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-black text-white uppercase tracking-wider">
+                  Tactical Chain-Breaker Interventions (Put Scenario into Your Hands)
+                </h3>
+              </div>
+              <span className="text-xs font-mono text-emerald-400">
+                {currentInterventionsCount} of 3 Interventions Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                {
+                  id: 'interv-0',
+                  title: 'Pre-position Heavy Earthmovers at Sela North Portal',
+                  agency: 'BRO Project Vartak (Tawang)',
+                  impact: 'Halts 60% road block duration, cuts reopening from 72h to 6h',
+                  cost: '₹14 Lakhs',
+                  roi: '₹18.4 Cr Infrastructure & Convoy Saved',
+                },
+                {
+                  id: 'interv-1',
+                  title: 'Controlled Siphon Sluice at Debris Embankment',
+                  agency: 'SDRF Riverine Unit & CWPRS',
+                  impact: 'Prevents catastrophic lake outburst flash flood downstream',
+                  cost: '₹22 Lakhs',
+                  roi: '₹45 Cr Downstream Settlements Preserved',
+                },
+                {
+                  id: 'interv-2',
+                  title: 'Radio & Cell Broadcast Pre-Emptive Convoy Rerouting',
+                  agency: 'District Disaster Management Authority (DDMA)',
+                  impact: 'Diverts 140 military & civil transports to Dirang bypass route',
+                  cost: '₹2 Lakhs',
+                  roi: 'Zero Civilian Stranding & Casualty Prevention',
+                },
+              ].map((interv) => {
+                const isActive = !!activeInterventions[interv.id];
+                return (
+                  <div
+                    key={interv.id}
+                    onClick={() => toggleIntervention(interv.id)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                      isActive
+                        ? 'bg-[#0a234e] border-emerald-400 ring-2 ring-emerald-400/40 shadow-xl'
+                        : 'bg-[#061026] border-slate-800 hover:border-slate-700 opacity-80'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono text-cyan-400 font-bold">{interv.agency}</span>
+                        <span
+                          className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${
+                            isActive
+                              ? 'bg-emerald-950 text-emerald-300 border-emerald-500/50'
+                              : 'bg-slate-900 text-slate-400 border-slate-700'
+                          }`}
+                        >
+                          {isActive ? 'INTERVENTION ACTIVE' : 'CLICK TO ENGAGE'}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-bold text-white leading-snug">{interv.title}</h4>
+                      <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">{interv.impact}</p>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-slate-800 text-[10px] font-mono flex items-center justify-between">
+                      <span className="text-slate-400">Budget: {interv.cost}</span>
+                      <span className="text-emerald-400 font-bold">{interv.roi}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* SUB-VIEW 3: EVIDENCE CONFLICT RESOLUTION (SCENARIO 5) */}
+      {/* ------------------------------------------------------------- */}
+      {activeSubTab === 'evidence_conflict' && (
+        <div className="space-y-6">
+          {/* SCENARIO HEADER & SELECTOR */}
+          <div className="rounded-2xl bg-gradient-to-r from-[#200e36] via-[#101b45] to-[#081534] border border-purple-500/50 p-6 shadow-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-500/40">
+                    EVALUATION SCENARIO 5: EVIDENCE CONFLICT
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40">
+                    MULTI-SOURCE ARBITRATION &amp; CROSS-FUSION
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black text-white tracking-tight">
+                  {selectedConflict.location} Evidence Contradiction
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-3xl">
+                  {selectedConflict.conflictStatus}: {selectedConflict.satelliteObservation} vs {selectedConflict.fieldReportObservation}
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex items-center gap-2 bg-[#050e24] p-1.5 rounded-xl border border-slate-700">
+                  {EVIDENCE_CONFLICT_RECORDS.map((rec) => (
+                    <button
+                      key={rec.id}
+                      onClick={() => setSelectedConflictId(rec.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        selectedConflictId === rec.id
+                          ? 'bg-purple-500 text-white shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {rec.location.split(' ')[0]} {rec.location.split(' ')[1]}
+                    </button>
+                  ))}
+                </div>
+
+                {onNavigateToWarRoom && (
+                  <button
+                    onClick={() => onNavigateToWarRoom('contradiction')}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>Launch War Room Suite</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ADJUDICATION SUMMARY BAR */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-800">
+              <div className="p-3 rounded-xl bg-[#091129] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Dispute Status:</span>
+                <span className="text-sm font-bold text-amber-400 font-mono">
+                  {conflictResolutions[selectedConflict.id]?.status || 'PENDING'}
+                </span>
+                <span className="text-[10px] text-cyan-300 block mt-0.5">Bayesian Arbitration Active</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#091129] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">AI Resolved Action:</span>
+                <span className="text-sm font-bold text-emerald-400 font-mono">
+                  {selectedConflict.systemActionDirective}
+                </span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Fail-Safe Protocol</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#091129] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Escalation Priority:</span>
+                <span className="text-sm font-bold text-rose-400 font-mono">
+                  {selectedConflict.escalatedPriority ? 'LEVEL 4 IMMEDIATE' : 'LEVEL 2 ADVISORY'}
+                </span>
+                <span className="text-[10px] text-amber-300 block mt-0.5">Immediate Tactical Lockdown</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[#091129] border border-slate-800">
+                <span className="text-[10px] font-mono text-slate-400 block">Patrol Ground Credibility:</span>
+                <span className="text-sm font-bold text-cyan-400 font-mono">96% High-Confidence</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Physical Tension Crack Photo</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SIDE-BY-SIDE CONTRADICTION COMPARISON */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* SOURCE A: SATELLITE / REMOTE SENSING */}
+            <div className="p-6 rounded-2xl bg-[#081534] border border-[#1b3472] shadow-2xl flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-5 h-5 text-cyan-400" />
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                      Remote Sensing Stream: Satellite InSAR &amp; Optical
+                    </h3>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-950 text-blue-300 border border-blue-500/30">
+                    ORBITAL DATA
+                  </span>
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl bg-[#050e24] border border-slate-800 space-y-2">
+                  <span className="text-[10px] font-mono text-slate-400 block uppercase">Telemetry Finding</span>
+                  <p className="text-xs text-slate-200 leading-relaxed font-mono">
+                    {selectedConflict.satelliteObservation}
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-2 text-xs text-slate-300 font-mono">
+                  <div className="flex justify-between py-1 border-b border-slate-800/60">
+                    <span className="text-slate-400">Sensor Constellation:</span>
+                    <span className="text-white font-bold">Sentinel-1 InSAR + Landsat-9</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-800/60">
+                    <span className="text-slate-400">Acquisition Timestamp:</span>
+                    <span className="text-amber-300">48h Stale (Cloud Cover Obscuration)</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-800/60">
+                    <span className="text-slate-400">Reported Slope Status:</span>
+                    <span className="text-emerald-400 font-bold">Apparent Stability (&lt; 2mm/yr creep)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 text-[11px] text-amber-200 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Limitation: Sub-surface rock shear and fissures masked by thick forest canopy and radar geometric distortion.</span>
+              </div>
+            </div>
+
+            {/* SOURCE B: FIELD PATROL / GROUND TRUTH */}
+            <div className="p-6 rounded-2xl bg-[#140d2b] border border-purple-500/50 shadow-2xl flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-purple-400" />
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                      Ground Truth Stream: Field Patrol Reconnaissance
+                    </h3>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-950 text-purple-300 border border-purple-500/40">
+                    PHYSICAL RECON
+                  </span>
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl bg-[#080517] border border-purple-900/60 space-y-2">
+                  <span className="text-[10px] font-mono text-purple-300 block uppercase">Field Observer Finding</span>
+                  <p className="text-xs text-white leading-relaxed font-mono">
+                    {selectedConflict.fieldReportObservation}
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-2 text-xs text-slate-300 font-mono">
+                  <div className="flex justify-between py-1 border-b border-purple-900/40">
+                    <span className="text-slate-400">Observer Unit:</span>
+                    <span className="text-white font-bold">BRO Project Vartak Reconnaissance Team</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-purple-900/40">
+                    <span className="text-slate-400">Timestamp:</span>
+                    <span className="text-emerald-300">Live (25 minutes ago)</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-purple-900/40">
+                    <span className="text-slate-400">Observed Tension Crack:</span>
+                    <span className="text-rose-400 font-bold">45m length × 12cm aperture opening</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-[11px] text-emerald-200 flex items-center gap-2">
+                <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Validation: GPS coordinates &amp; geo-tagged photograph verified against GSI geological fault map.</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ARBITRATION DECISION & CONTROL BAR */}
+          <div className="p-6 rounded-2xl bg-[#091533] border border-[#162e66] shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider block">
+                System Action Directive &amp; Arbitration Decision
+              </span>
+              <h4 className="text-base font-bold text-white mt-1">
+                {selectedConflict.systemActionDirective}
+              </h4>
+              <p className="text-xs text-slate-300 mt-1">
+                The AI arbitration engine overrides satellite latency in favor of physical tension crack evidence to preserve lives.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <button
+                onClick={() => {
+                  setConflictResolutions((prev) => ({
+                    ...prev,
+                    [selectedConflict.id]: {
+                      status: 'ARBITRATED',
+                      override: true,
+                      notes: 'Ground truth confirmed; Level-4 road lockdown directive enforced.',
+                    },
+                  }));
+                }}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-rose-600 hover:from-purple-500 hover:to-rose-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+              >
+                <ShieldCheck className="w-4 h-4 text-white" />
+                <span>Adopt Ground Truth &amp; Issue Level-4 Lockdown</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setConflictResolutions((prev) => ({
+                    ...prev,
+                    [selectedConflict.id]: {
+                      status: 'DRONE_TASKED',
+                      override: true,
+                      notes: 'Thermal drone reconnaissance dispatched for 3D photogrammetry.',
+                    },
+                  }));
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-[#0b214d] hover:bg-[#102d68] text-cyan-300 border border-cyan-400/40 text-xs font-mono font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-2"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Task Thermal Drone Verification</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

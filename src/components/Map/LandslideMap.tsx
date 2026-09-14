@@ -1086,9 +1086,13 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       mapInstanceRef.current
     ) {
       try {
-        mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 10, {
-          duration: 1.2,
-        });
+        const container = mapContainerRef.current;
+        if (container && container.clientWidth > 10 && container.clientHeight > 10) {
+          mapInstanceRef.current.invalidateSize();
+          mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 10, {
+            duration: 1.2,
+          });
+        }
       } catch (err) {
         console.warn('[Leaflet] flyTo error:', err);
       }
@@ -1096,7 +1100,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   }, [selectedStation]);
 
   const fitAllStations = () => {
-    if (!mapInstanceRef.current || stations.length === 0) return;
+    const map = mapInstanceRef.current;
+    if (!map || stations.length === 0) return;
+    const container = mapContainerRef.current;
+    if (!container || container.clientWidth < 10 || container.clientHeight < 10) return;
+
     const validCoords = stations
       .filter(
         (s) =>
@@ -1110,8 +1118,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       .map((s) => [s.latitude, s.longitude] as [number, number]);
     if (validCoords.length === 0) return;
     try {
+      map.invalidateSize();
       const bounds = L.latLngBounds(validCoords);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [45, 45] });
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [45, 45], maxZoom: 11, animate: false });
+      }
     } catch (err) {
       console.warn('[Leaflet] fitBounds error:', err);
     }
@@ -1123,7 +1134,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       initialFitRef.current = true;
       const timer = setTimeout(() => {
         fitAllStations();
-      }, 400);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [stations]);

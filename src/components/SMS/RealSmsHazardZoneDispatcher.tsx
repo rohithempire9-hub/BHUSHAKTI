@@ -369,7 +369,14 @@ export const RealSmsHazardZoneDispatcher: React.FC<RealSmsHazardZoneDispatcherPr
     drawnPolygonLayerRef.current = polygon;
 
     try {
-      map.fitBounds(polygon.getBounds(), { padding: [40, 40] });
+      const container = map.getContainer();
+      if (container && container.clientWidth > 10 && container.clientHeight > 10) {
+        map.invalidateSize();
+        const bounds = polygon.getBounds();
+        if (bounds && bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14, animate: false });
+        }
+      }
     } catch (e) {
       // Ignored
     }

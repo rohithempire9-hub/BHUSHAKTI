@@ -76,9 +76,44 @@ export type ExtendedIntelligenceTab =
   | 'judgechallenge'
   | 'sihflow';
 
-export const DisasterIntelligenceSuite: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ExtendedIntelligenceTab>('sihflow');
+export interface DisasterIntelligenceSuiteProps {
+  initialTab?: ExtendedIntelligenceTab;
+  activeScenario?: 'none' | 'tawang_escalation' | 'assam_flood' | 'multi_cascade' | 'offline_outage' | 'evidence_conflict';
+  onSelectScenario?: (scenario: 'none' | 'tawang_escalation' | 'assam_flood' | 'multi_cascade' | 'offline_outage' | 'evidence_conflict') => void;
+  onOpenSmsModal?: () => void;
+}
+
+export const DisasterIntelligenceSuite: React.FC<DisasterIntelligenceSuiteProps> = ({
+  initialTab,
+  activeScenario,
+  onSelectScenario,
+  onOpenSmsModal
+}) => {
+  const [activeTab, setActiveTab] = useState<ExtendedIntelligenceTab>(initialTab || 'sihflow');
   const [activeCategory, setActiveCategory] = useState<'WAR_ROOM' | 'CORE_ANALYTICS'>('WAR_ROOM');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+      const coreAnalyticsTabs: ExtendedIntelligenceTab[] = ['dna', 'timemachine', 'domino', 'priority', 'costofdelay', 'drill'];
+      if (coreAnalyticsTabs.includes(initialTab)) {
+        setActiveCategory('CORE_ANALYTICS');
+      } else {
+        setActiveCategory('WAR_ROOM');
+      }
+    }
+  }, [initialTab]);
+
+  React.useEffect(() => {
+    if (activeScenario === 'multi_cascade') {
+      setActiveTab('chainbreaker');
+      setActiveCategory('WAR_ROOM');
+    } else if (activeScenario === 'evidence_conflict') {
+      setActiveTab('contradiction');
+      setActiveCategory('WAR_ROOM');
+    }
+  }, [activeScenario]);
+
   const [showWallDisplay, setShowWallDisplay] = useState<boolean>(false);
   const [isDisasterModeActive, setIsDisasterModeActive] = useState<boolean>(false);
 
