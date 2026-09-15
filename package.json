@@ -7,7 +7,7 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "node scripts/patch-leaflet.js && vite build",
     "postinstall": "node scripts/patch-leaflet.js",
-    "start": "tsx server.ts",
+    "start": "tsx server-persistence.ts",
     "bootstrap:firestore": "tsx scripts/firestore-bootstrap.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
