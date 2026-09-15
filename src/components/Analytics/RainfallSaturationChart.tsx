@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -11,216 +11,124 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from 'recharts';
-import { TrendingUp, Droplets, CloudRain, AlertTriangle, ShieldCheck, Activity } from 'lucide-react';
-import { HOURLY_RAINFALL_SATURATION_SERIES } from '../../data/bhuShaktiData';
+import { Droplets, CloudRain, RefreshCw, Database, AlertTriangle } from 'lucide-react';
+import { loadFirestoreAnalytics, AnalyticsPoint } from '../../services/firestoreAnalytics';
 
 interface RainfallSaturationChartProps {
   currentStationName?: string;
+  stationId?: string;
   simulatedRainfall?: number;
   simulatedDisplacement?: number;
 }
 
 export const RainfallSaturationChart: React.FC<RainfallSaturationChartProps> = ({
-  currentStationName = 'Northeast India (Regional Cumulative)',
+  currentStationName = 'Northeast India (Regional)',
+  stationId,
   simulatedRainfall = 25,
   simulatedDisplacement = 0.8,
 }) => {
-  const [activeRange, setActiveRange] = useState<'24h' | '48h'>('24h');
+  const [history, setHistory] = useState<AnalyticsPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastLoaded, setLastLoaded] = useState<Date | null>(null);
 
-  // Dynamic 24-hour simulation scaling:
-  // When simulatedRainfall increases, the recent 8-10 hours rise in rainfall and soil saturation
-  const simulatedData = HOURLY_RAINFALL_SATURATION_SERIES.map((pt, idx) => {
-    // Weight increases towards the most recent hours (right side of chart)
-    const factor = idx / HOURLY_RAINFALL_SATURATION_SERIES.length;
-    const rainBoost = Math.round((simulatedRainfall - 25) * factor);
-    const effectiveRain = Math.max(2, Math.round(pt.rainfallMmH + rainBoost));
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const rows = await loadFirestoreAnalytics(stationId, 160);
+      setHistory(rows);
+      setLastLoaded(new Date());
+    } catch (error) {
+      console.warn('[BhuShakti Analytics] Firestore history unavailable:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Soil moisture rises with rainfall saturation
-    const moistureBoost = Math.round(((simulatedRainfall - 25) / 150) * 38 * factor + (simulatedDisplacement / 15) * 8 * factor);
-    const effectiveMoisture = Math.min(98, Math.max(35, Math.round(pt.soilMoisturePct + moistureBoost)));
+  useEffect(() => {
+    void loadHistory();
+    const interval = window.setInterval(() => void loadHistory(), 30_000);
+    return () => window.clearInterval(interval);
+  }, [stationId]);
 
-    return {
-      ...pt,
-      rainfallMmH: effectiveRain,
-      soilMoisturePct: effectiveMoisture,
-    };
-  });
+  const chartData = useMemo(() => history.map((p) => ({
+    ...p,
+    time: new Date(p.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  })), [history]);
 
-  const latestPoint = simulatedData[simulatedData.length - 1] || { rainfallMmH: 25, soilMoisturePct: 62 };
-  const isBreaching = simulatedData.some((d) => d.soilMoisturePct >= 80) || latestPoint.soilMoisturePct >= 80;
-
-  // Prompt requirement: "When lines breach this limit, the chart line color should dynamically transition from cyan to emergency crimson."
-  const soilLineColor = isBreaching ? '#ef4444' : '#06b6d4'; // Glowing cyan vs Emergency crimson
+  const latest = history[history.length - 1];
+  const latestRain = latest?.rainfallMmH ?? simulatedRainfall;
+  const latestMoisture = latest?.soilMoisturePct ?? Math.min(98, 50 + simulatedRainfall / 4 + simulatedDisplacement);
+  const breached = latestMoisture >= 80 || history.some((p) => p.soilMoisturePct >= 80);
+  const soilLineColor = breached ? '#ef4444' : '#06b6d4';
 
   return (
-    <div id="rainfall-soil-saturation-analytics-chart" className="flex flex-col h-full">
-      {/* Header & Metric summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 min-w-0">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border transition-colors whitespace-nowrap shrink-0 ${
-                isBreaching
-                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse'
-                  : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'
-              }`}
-            >
-              {isBreaching ? 'CRITICAL BREACH (>80%)' : 'NORMAL INFILTRATION'}
+    <div id="rainfall-soil-saturation-analytics-chart" className="flex flex-col h-full min-h-[430px]">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border ${breached ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse' : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30'}`}>
+              {breached ? 'CRITICAL BREACH (>80%)' : 'FIRESTORE LIVE HISTORY'}
             </span>
-            <span className="text-[11px] text-slate-400 font-mono truncate">
-              Dual-Axis: Rain (bar) vs Soil (line)
-            </span>
+            <span className="text-[11px] text-slate-400 font-mono">{currentStationName}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono">
+            <Database className="w-3 h-3" />
+            <span>{history.length} persisted telemetry points</span>
+            {lastLoaded && <span>• refreshed {lastLoaded.toLocaleTimeString()}</span>}
           </div>
         </div>
-
-        {/* Current Readout Badges */}
-        <div className="flex items-center gap-2 text-xs font-mono shrink-0">
-          <div className="px-2 py-0.5 rounded-lg bg-blue-950/60 border border-blue-800/60 text-blue-300 flex items-center gap-1.5 whitespace-nowrap">
-            <CloudRain className="w-3 h-3 text-blue-400 shrink-0" />
-            <span>{latestPoint.rainfallMmH} mm/h</span>
+        <div className="flex items-center gap-2">
+          <div className="px-2 py-1 rounded-lg bg-blue-950/60 border border-blue-800/60 text-blue-300 text-xs font-mono flex items-center gap-1.5">
+            <CloudRain className="w-3 h-3" /> {latestRain.toFixed(1)} mm/h
           </div>
-          <div
-            className={`px-2 py-0.5 rounded-lg border flex items-center gap-1.5 font-bold transition-colors whitespace-nowrap ${
-              isBreaching
-                ? 'bg-rose-950/70 border-rose-600/70 text-rose-300'
-                : 'bg-cyan-950/60 border-cyan-800/60 text-cyan-300'
-            }`}
-          >
-            <Droplets className="w-3 h-3 shrink-0" />
-            <span>{latestPoint.soilMoisturePct}% Saturation</span>
+          <div className={`px-2 py-1 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 ${breached ? 'bg-rose-950/70 border-rose-600/70 text-rose-300' : 'bg-cyan-950/60 border-cyan-800/60 text-cyan-300'}`}>
+            <Droplets className="w-3 h-3" /> {latestMoisture.toFixed(1)}% saturation
           </div>
+          <button onClick={() => void loadHistory()} disabled={loading} className="p-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 disabled:opacity-50" title="Refresh Firestore history">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* Chart Canvas */}
-      <div className="flex-1 w-full min-h-0 rounded-xl bg-slate-950/80 border border-slate-800 p-2 sm:p-2.5 relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={simulatedData} margin={{ top: 8, right: 12, left: -14, bottom: 0 }}>
-            <defs>
-              <linearGradient id="rainBarGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.65} />
-                <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.2} />
-              </linearGradient>
-              <linearGradient id="moistureAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={soilLineColor} stopOpacity={0.25} />
-                <stop offset="100%" stopColor={soilLineColor} stopOpacity={0.0} />
-              </linearGradient>
-            </defs>
-
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-            <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 10 }} />
-
-            {/* Left Y-Axis: Cumulative Rainfall (semi-transparent blue bars) */}
-            <YAxis
-              yAxisId="left"
-              orientation="left"
-              stroke="#60a5fa"
-              tick={{ fontSize: 10 }}
-              domain={[0, Math.max(100, Math.ceil(simulatedRainfall * 1.25))]}
-              unit=" mm"
-            />
-
-            {/* Right Y-Axis: Soil Moisture Saturation (glowing cyan / emergency crimson) */}
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              stroke={soilLineColor}
-              tick={{ fontSize: 10 }}
-              domain={[30, 100]}
-              unit="%"
-            />
-
-            <Tooltip
-              contentStyle={{
-                backgroundColor: '#0f172a',
-                borderColor: '#334155',
-                borderRadius: '12px',
-                color: '#f8fafc',
-                fontSize: '11px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6)',
-              }}
-              formatter={(value: any, name: any) => {
-                if (name === 'soilMoisturePct') return [`${value}%`, 'Soil Moisture Saturation'];
-                if (name === 'rainfallMmH') return [`${value} mm/h`, 'Rainfall Precipitation'];
-                return [value, name];
-              }}
-            />
-
-            {/* Subtle horizontal dashed threshold line at 80% saturation */}
-            <ReferenceLine
-              yAxisId="right"
-              y={80}
-              stroke="#ef4444"
-              strokeDasharray="4 4"
-              strokeWidth={2}
-              label={{
-                value: '80% DANGER THRESHOLD',
-                fill: '#ef4444',
-                fontSize: 9,
-                position: 'insideTopRight',
-              }}
-            />
-
-            {/* Left Y-Axis: Cumulative Rainfall (semi-transparent blue bars) */}
-            <Bar
-              yAxisId="left"
-              dataKey="rainfallMmH"
-              name="Cumulative Rainfall"
-              fill="url(#rainBarGradient)"
-              radius={[3, 3, 0, 0]}
-              barSize={14}
-            />
-
-            {/* Soft area under soil saturation line */}
-            <Area
-              yAxisId="right"
-              type="monotone"
-              dataKey="soilMoisturePct"
-              fill="url(#moistureAreaGradient)"
-              stroke="none"
-            />
-
-            {/* Right Y-Axis: Soil Moisture Saturation (glowing cyan line, transitions to emergency crimson when >80%) */}
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="soilMoisturePct"
-              name="Soil Moisture Saturation"
-              stroke={soilLineColor}
-              strokeWidth={2.5}
-              dot={{ r: 2.5, fill: soilLineColor }}
-              activeDot={{ r: 5, fill: soilLineColor }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+      <div className="flex-1 min-h-[350px] rounded-xl bg-slate-950/80 border border-slate-800 p-2 sm:p-3">
+        {history.length === 0 && !loading ? (
+          <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center text-slate-400 gap-2">
+            <AlertTriangle className="w-6 h-6 text-amber-400" />
+            <p className="text-sm font-semibold">Waiting for Firestore history</p>
+            <p className="text-xs max-w-md">Start the BhuShakti server and allow the history worker a few seconds to write telemetry snapshots.</p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 9 }} minTickGap={24} />
+              <YAxis yAxisId="left" stroke="#60a5fa" tick={{ fontSize: 9 }} domain={[0, 'auto']} unit=" mm" />
+              <YAxis yAxisId="right" orientation="right" stroke={soilLineColor} tick={{ fontSize: 9 }} domain={[30, 100]} unit="%" />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '11px' }}
+                formatter={(value: any, name: any) => {
+                  if (name === 'soilMoisturePct') return [`${value}%`, 'Soil Moisture'];
+                  if (name === 'rainfallMmH') return [`${value} mm/h`, 'Rainfall'];
+                  if (name === 'poreWaterPressureKpa') return [`${value} kPa`, 'Pore Pressure'];
+                  return [value, name];
+                }}
+              />
+              <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={2} label={{ value: '80% DANGER', fill: '#ef4444', fontSize: 9, position: 'insideTopRight' }} />
+              <Bar yAxisId="left" dataKey="rainfallMmH" name="Rainfall" fill="#2563eb" fillOpacity={0.55} radius={[3, 3, 0, 0]} barSize={12} />
+              <Area yAxisId="right" type="monotone" dataKey="soilMoisturePct" fill={soilLineColor} fillOpacity={0.12} stroke="none" />
+              <Line yAxisId="right" type="monotone" dataKey="soilMoisturePct" name="soilMoisturePct" stroke={soilLineColor} strokeWidth={2.5} dot={{ r: 2, fill: soilLineColor }} activeDot={{ r: 5, fill: soilLineColor }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
-      {/* Legend & Scientific Summary Bar */}
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400 font-mono">
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-blue-500/70 rounded-sm" />
-            <span className="text-slate-300">Rainfall (mm)</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-2.5 h-1 rounded-full transition-colors"
-              style={{ backgroundColor: soilLineColor }}
-            />
-            <span className={isBreaching ? 'text-rose-400 font-bold' : 'text-cyan-300 font-semibold'}>
-              Soil Moisture % {isBreaching ? '(Breached)' : '(Cyan Safe)'}
-            </span>
-          </span>
-          <span className="flex items-center gap-1.5 text-rose-400 font-mono text-[10px]">
-            <span className="w-2.5 h-0.5 border-b border-dashed border-rose-500" />
-            <span>80% Yield Limit</span>
-          </span>
+          <span>■ Rainfall (mm/h)</span>
+          <span className={breached ? 'text-rose-400 font-bold' : 'text-cyan-300 font-semibold'}>━ Soil Moisture %</span>
+          <span className="text-rose-400">┅ 80% danger threshold</span>
         </div>
-
-        <div className="flex items-center gap-1 text-slate-400 font-mono text-[10px]">
-          <ShieldCheck className="w-3 h-3 text-emerald-400" />
-          <span>Antecedent Saturation Model</span>
-        </div>
+        <span>30s Firestore refresh • simulation values remain available as fallback</span>
       </div>
     </div>
   );
