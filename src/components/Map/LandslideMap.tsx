@@ -27,7 +27,9 @@ import {
   Radio,
   CheckCircle2,
   Camera,
-  Maximize
+  Maximize,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { DisasterEvidenceReport } from '../../types/landslide';
 import { HIGHWAY_RISK_SEGMENTS, REMOTE_VILLAGE_PINS } from '../../data/bhuShaktiData';
@@ -112,6 +114,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const [showHighways, setShowHighways] = useState<boolean>(true);
   const [showVillages, setShowVillages] = useState<boolean>(true);
   const [showFloodLayer, setShowFloodLayer] = useState<boolean>(false);
+  const [showLayersMenu, setShowLayersMenu] = useState<boolean>(false);
   const [heatMetric, setHeatMetric] = useState<HeatMetricType>('risk');
   const [heatRadius, setHeatRadius] = useState<number>(45);
   const [showStationPins, setShowStationPins] = useState<boolean>(true);
@@ -1209,11 +1212,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         </div>
       </div>
 
-      {/* Right Side: Vertically Aligned Inside Map Controls */}
+      {/* Compact map controls: keep the map clean and put secondary layers in one selector. */}
       <div className="absolute top-3 right-3 bottom-12 z-10 pointer-events-none flex flex-col items-end">
         <div className="pointer-events-auto flex flex-col items-end gap-1.5 max-h-full overflow-y-auto pr-0.5 no-scrollbar py-0.5">
-          {/* Zoom Controls */}
-          <div className="flex flex-col bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl overflow-hidden shadow-xl">
+          {/* Zoom */}
+          <div className="flex flex-col bg-[#0b2038]/95 backdrop-blur-md border border-slate-700/80 rounded-xl overflow-hidden shadow-xl">
             <button
               type="button"
               onClick={() => mapInstanceRef.current?.zoomIn()}
@@ -1233,198 +1236,111 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             </button>
           </div>
 
-          {/* Fit All Monitored Places Button */}
-          <button
-            type="button"
-            onClick={fitAllStations}
-            className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 hover:border-cyan-400/60 text-xs font-bold text-slate-200 hover:text-white transition-all shadow-xl cursor-pointer w-36 active:scale-95"
-            title="View all 20 monitored landslide places"
-          >
-            <div className="flex items-center gap-1.5">
-              <Maximize className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span className="truncate">Fit All ({stations.length})</span>
-            </div>
-            <span className="text-[10px] font-mono font-bold px-1 rounded bg-indigo-500/20 text-indigo-300">
-              ALL
-            </span>
-          </button>
-
-          {/* Current Location Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                selectedStation &&
-                typeof selectedStation.latitude === 'number' &&
-                !isNaN(selectedStation.latitude) &&
-                isFinite(selectedStation.latitude) &&
-                typeof selectedStation.longitude === 'number' &&
-                !isNaN(selectedStation.longitude) &&
-                isFinite(selectedStation.longitude) &&
-                mapInstanceRef.current
-              ) {
-                try {
-                  mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 10);
-                } catch (err) {
-                  console.warn('[Leaflet] Current location flyTo error:', err);
-                }
-              }
-            }}
-            className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 hover:border-cyan-400/60 text-xs font-bold text-slate-200 hover:text-white transition-all shadow-xl cursor-pointer w-36 active:scale-95"
-            title="Fly to selected station location"
-          >
-            <div className="flex items-center gap-1.5">
-              <LocateFixed className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span className="truncate">Current Loc</span>
-            </div>
-          </button>
-
-          {/* Basemap Segmented Toggle (Satellite / Terrain) */}
-          <div className="flex flex-col bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 rounded-xl p-0.5 shadow-xl w-36">
+          {/* One selector replaces the long stack of map buttons. */}
+          <div className="relative pointer-events-auto">
             <button
               type="button"
-              onClick={() => setMapLayer('satellite')}
-              className={`flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                mapLayer === 'satellite'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
+              onClick={() => setShowLayersMenu((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0b2038]/95 backdrop-blur-md border border-indigo-500/40 hover:border-cyan-400/60 text-xs font-bold text-white transition-all shadow-xl cursor-pointer w-36 justify-between"
+              title="Map layers and view controls"
             >
-              <div className="flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 shrink-0 text-cyan-300" />
-                <span>Satellite</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Layers className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                <span className="truncate">Map Layers</span>
               </div>
-              {mapLayer === 'satellite' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-300" />}
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${showLayersMenu ? 'rotate-180' : ''}`} />
             </button>
-            <button
-              type="button"
-              onClick={() => setMapLayer('topo')}
-              className={`flex items-center justify-between gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                mapLayer === 'topo'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 shrink-0 text-amber-300" />
-                <span>Terrain</span>
+
+            {showLayersMenu && (
+              <div className="absolute top-full right-0 mt-1.5 w-52 rounded-xl bg-[#0b2038]/98 backdrop-blur-md border border-indigo-500/40 shadow-2xl overflow-hidden z-20 bhu-fade-in">
+                <div className="p-1.5 flex gap-1.5 border-b border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => fitAllStations()}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-bold text-slate-200 cursor-pointer"
+                  >
+                    <Maximize className="w-3 h-3 text-indigo-400" />
+                    Fit All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        selectedStation &&
+                        typeof selectedStation.latitude === 'number' &&
+                        !isNaN(selectedStation.latitude) &&
+                        isFinite(selectedStation.latitude) &&
+                        typeof selectedStation.longitude === 'number' &&
+                        !isNaN(selectedStation.longitude) &&
+                        isFinite(selectedStation.longitude) &&
+                        mapInstanceRef.current
+                      ) {
+                        try {
+                          mapInstanceRef.current.flyTo([selectedStation.latitude, selectedStation.longitude], 10);
+                        } catch (err) {
+                          console.warn('[Leaflet] Current location flyTo error:', err);
+                        }
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-bold text-slate-200 cursor-pointer"
+                    title="Fly to selected station"
+                  >
+                    <LocateFixed className="w-3 h-3 text-cyan-400" />
+                    Locate
+                  </button>
+                </div>
+
+                <div className="flex p-1.5 gap-1 border-b border-white/5">
+                  {(['satellite', 'topo'] as MapLayerType[]).map((lyr) => (
+                    <button
+                      key={lyr}
+                      type="button"
+                      onClick={() => setMapLayer(lyr)}
+                      className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        mapLayer === lyr ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'
+                      }`}
+                    >
+                      {lyr === 'satellite' ? <Globe className="w-3 h-3" /> : <Layers className="w-3 h-3" />}
+                      {lyr === 'satellite' ? 'Satellite' : 'Terrain'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="py-1">
+                  {[
+                    { label: 'Flood', active: showFloodLayer, toggle: () => setShowFloodLayer(!showFloodLayer), icon: Waves, color: 'text-cyan-300' },
+                    { label: 'Landslide', active: showHeatMap, toggle: () => setShowHeatMap(!showHeatMap), icon: Flame, color: 'text-amber-300' },
+                    { label: 'Safe Route', active: showEscapeRoute, toggle: () => setShowEscapeRoute(!showEscapeRoute), icon: Navigation, color: 'text-emerald-300' },
+                    { label: 'NH Corridors', active: showHighways, toggle: () => setShowHighways(!showHighways), icon: Compass, color: 'text-amber-300' },
+                    { label: 'Villages', active: showVillages, toggle: () => setShowVillages(!showVillages), icon: MapPin, color: 'text-teal-300' },
+                    {
+                      label: `Evidence (${evidenceList.length})`,
+                      active: showEvidencePins,
+                      toggle: () => {
+                        if (onOpenEvidenceModal) onOpenEvidenceModal();
+                        else setShowEvidencePins(!showEvidencePins);
+                      },
+                      icon: Camera,
+                      color: 'text-rose-300',
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.toggle}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-1.5 hover:bg-white/5 text-xs font-semibold text-slate-200 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <item.icon className={`w-3.5 h-3.5 shrink-0 ${item.color}`} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {item.active && <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {mapLayer === 'topo' && <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />}
-            </button>
+            )}
           </div>
-
-          {/* Flood Risk Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowFloodLayer(!showFloodLayer)}
-            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
-              showFloodLayer
-                ? 'bg-cyan-600 text-white border-cyan-400 shadow-cyan-900/50'
-                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <Waves className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
-              <span>Flood</span>
-            </div>
-            <span className={`w-2 h-2 rounded-full ${showFloodLayer ? 'bg-cyan-200 animate-pulse' : 'bg-slate-600'}`} />
-          </button>
-
-          {/* Landslide Heatmap Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowHeatMap(!showHeatMap)}
-            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
-              showHeatMap
-                ? 'bg-amber-600 text-white border-amber-400 shadow-amber-900/50'
-                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-              <span>Landslide</span>
-            </div>
-            <span className={`w-2 h-2 rounded-full ${showHeatMap ? 'bg-amber-200 animate-pulse' : 'bg-slate-600'}`} />
-          </button>
-
-          {/* Safe Escape Route Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowEscapeRoute(!showEscapeRoute)}
-            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
-              showEscapeRoute
-                ? 'bg-emerald-600 text-white border-emerald-400 shadow-emerald-950'
-                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <Navigation className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
-              <span>Safe Route</span>
-            </div>
-            <span className={`w-2 h-2 rounded-full ${showEscapeRoute ? 'bg-emerald-200 animate-pulse' : 'bg-slate-600'}`} />
-          </button>
-
-          {/* NH Highway Corridors Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowHighways(!showHighways)}
-            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
-              showHighways
-                ? 'bg-amber-600 text-white border-amber-400 shadow-amber-950/40'
-                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
-            }`}
-            title="Toggle simulated topographic heatmaps for NH-10, NH-27, and NH-29"
-          >
-            <div className="flex items-center gap-1.5">
-              <span>🛣️</span>
-              <span className="truncate">NH Corridors</span>
-            </div>
-            <span className={`w-2 h-2 rounded-full ${showHighways ? 'bg-amber-200 animate-pulse' : 'bg-slate-600'}`} />
-          </button>
-
-          {/* Remote Village Pins Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowVillages(!showVillages)}
-            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
-              showVillages
-                ? 'bg-teal-600 text-white border-teal-400 shadow-teal-950/40'
-                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
-            }`}
-            title="Toggle interactive pins for remote NER villages"
-          >
-            <div className="flex items-center gap-1.5">
-              <span>🏡</span>
-              <span className="truncate">Villages</span>
-            </div>
-            <span className={`w-2 h-2 rounded-full ${showVillages ? 'bg-teal-200 animate-pulse' : 'bg-slate-600'}`} />
-          </button>
-
-          {/* Photo Evidence Layer & Modal Toggle */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenEvidenceModal) {
-                onOpenEvidenceModal();
-              } else {
-                setShowEvidencePins(!showEvidencePins);
-              }
-            }}
-            className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xl border w-36 cursor-pointer active:scale-95 ${
-              showEvidencePins
-                ? 'bg-gradient-to-r from-rose-600 to-amber-600 text-white border-rose-400 shadow-rose-950/40'
-                : 'bg-[#0b1433]/95 backdrop-blur-md border-slate-700/80 text-slate-300 hover:text-white hover:border-slate-600'
-            }`}
-            title="Field Disaster Photo Evidence & AI Identification"
-          >
-            <div className="flex items-center gap-1.5">
-              <Camera className="w-3.5 h-3.5 text-rose-300 shrink-0" />
-              <span className="truncate">Evidence</span>
-            </div>
-            <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-[10px] text-white font-mono font-bold">
-              {evidenceList.length}
-            </span>
-          </button>
         </div>
       </div>
 
