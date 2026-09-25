@@ -61,7 +61,6 @@ import { WhatIfSimulatorView } from './components/Simulator/WhatIfSimulatorView'
 import { EmergencyResponseView } from './components/Emergency/EmergencyResponseView';
 import { PostDisasterForensicView } from './components/Reports/PostDisasterForensicView';
 import { BhuShaktiCopilotModal } from './components/Copilot/BhuShaktiCopilotModal';
-import { SihDemoBar, DemoScenarioId } from './components/Demo/SihDemoBar';
 import { DisasterIntelligenceSuite } from './components/Disasters/DisasterIntelligenceSuite';
 
 import {
@@ -433,14 +432,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#060c1e] text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-600 selection:text-white">
-      {/* 0. CENTRAL SIH EVALUATION DEMO BAR */}
-      <SihDemoBar
-        activeScenario={activeDemoScenario}
-        onSelectScenario={handleSelectDemoScenario}
-        onOpenCopilot={() => setCopilotModalOpen(true)}
-        onOpenWarRoom={() => setCurrentNavSection('war_room')}
-      />
-
       {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER (NO REPEATED BUTTONS) */}
       <BhuShaktiHeader
         currentLanguage={currentLanguage}
