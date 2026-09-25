@@ -492,29 +492,6 @@ export const RealSmsHazardZoneDispatcher: React.FC<RealSmsHazardZoneDispatcherPr
         {/* Left Column: Leaflet & Geoman Interactive Map (7 cols) */}
         <div className="lg:col-span-7 flex flex-col gap-3">
           <div className="relative rounded-2xl overflow-hidden border border-slate-700/80 bg-[#070e1c] shadow-2xl h-[480px] lg:h-[580px] flex flex-col">
-            {/* Map Top Status Bar */}
-            <div className="absolute top-3 left-14 right-3 z-[400] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-              <div className="bg-[#0b1433]/95 backdrop-blur-md border border-cyan-500/40 px-3 py-1.5 rounded-xl shadow-xl flex items-center gap-2 pointer-events-auto text-xs">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
-                <span className="font-bold text-white">Geoman Tool Active</span>
-                <span className="text-slate-400">|</span>
-                <span className="font-mono text-cyan-300">
-                  {currentCoords.length} Vertices • {polygonAreaKm2} km²
-                </span>
-              </div>
-
-              <div className="bg-[#0b1433]/95 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-xl shadow-xl flex items-center gap-2 pointer-events-auto text-xs">
-                <Users className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-bold text-amber-300">
-                  {targetedSubscribers.length} Targeted Contacts
-                </span>
-                <span className="text-slate-400">|</span>
-                <span className="text-slate-300 font-medium">
-                  {stationsInPerimeter.length} Stations in Sector
-                </span>
-              </div>
-            </div>
-
             {/* Leaflet Map Canvas */}
             <div ref={mapContainerRef} className="w-full h-full z-0" />
 
