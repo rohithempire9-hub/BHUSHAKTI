@@ -82,10 +82,10 @@ export const BhuShaktiMainDashboard: React.FC<BhuShaktiMainDashboardProps> = ({
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-[1720px] mx-auto">
       {/* 1. TOP HERO DASHBOARD BANNER - EXACTLY AS SEEN IN SCREENSHOT */}
-      <div className="rounded-2xl bg-gradient-to-b from-[#0e1d44] via-[#0b1738] to-[#070f26] border border-[#1b3470] p-5 sm:p-7 shadow-2xl relative overflow-hidden">
+      <div className="rounded-2xl bg-gradient-to-br from-[#101d4f] via-[#0b2038] to-[#07182a] border border-cyan-500/30 p-5 sm:p-7 shadow-2xl relative overflow-hidden">
         {/* Subtle decorative glow */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />\n        <div className="absolute -top-20 left-1/2 w-72 h-72 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col gap-3">
           {/* Status Badges Row */}
