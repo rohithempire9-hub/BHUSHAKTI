@@ -172,10 +172,11 @@ export const RealSmsHazardZoneDispatcher: React.FC<RealSmsHazardZoneDispatcherPr
     });
     mapInstanceRef.current = map;
 
-    // Dark-matter high-contrast tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // High-resolution Esri Dark Canvas (Reliable, no API key required, zero error tiles)
+    L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      maxNativeZoom: 16,
       maxZoom: 19,
-      subdomains: 'abcd',
+      attribution: '&copy; Esri &copy; OpenStreetMap',
     }).addTo(map);
 
     // Layer group for station pins

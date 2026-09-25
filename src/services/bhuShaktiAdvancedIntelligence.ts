@@ -510,8 +510,9 @@ export function getDisasterChainBreakerModel(activeInterventionIds: string[] = [
     }
   ];
 
+  const safeActiveIds = Array.isArray(activeInterventionIds) ? activeInterventionIds : [];
   const processedLinks = rawLinks.map((item) => {
-    const isApplied = activeInterventionIds.includes(item.intervention.id);
+    const isApplied = safeActiveIds.includes(item.intervention.id);
     if (isApplied) {
       riskReductionTotal += item.intervention.estimatedRiskReductionPct;
       exposureReductionTotal += item.intervention.estimatedExposureReductionPct;
@@ -548,11 +549,18 @@ export function getDisasterChainBreakerModel(activeInterventionIds: string[] = [
 // ============================================================================
 export function calculateRiskHalfLife(
   initialRisk: number = 86,
-  interventionsApplied: string[] = ['drainage', 'rain_stopped']
+  interventionsApplied: any = ['drainage', 'rain_stopped']
 ): RiskHalfLifeModel {
-  const hasDrainage = interventionsApplied.includes('drainage');
-  const rainStopped = interventionsApplied.includes('rain_stopped');
-  const hasRoadClosed = interventionsApplied.includes('road_closed');
+  // Normalize interventions to always be an array of strings
+  const safeInterventions: string[] = Array.isArray(interventionsApplied)
+    ? interventionsApplied.map(String)
+    : typeof interventionsApplied === 'string'
+    ? [interventionsApplied]
+    : ['drainage', 'rain_stopped'];
+
+  const hasDrainage = safeInterventions.includes('drainage');
+  const rainStopped = safeInterventions.includes('rain_stopped');
+  const hasRoadClosed = safeInterventions.includes('road_closed');
 
   let decayRate = 0.12; // baseline slow dissipation
   if (rainStopped) decayRate += 0.16;

@@ -65,8 +65,8 @@ export function handleBhuShaktiApi(pathname: string, method: string = 'GET', dat
       return {
         success: true,
         data: calculateRiskHalfLife(
-          Number(data.initialRisk || 86),
-          data.interventions || ['drainage', 'rain_stopped']
+          Number(data?.initialRisk || 86),
+          Array.isArray(data?.interventions) ? data.interventions : ['drainage', 'rain_stopped']
         )
       };
 

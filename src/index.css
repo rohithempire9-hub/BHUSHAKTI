@@ -1,116 +1,161 @@
 @import "tailwindcss";
 
-/* BhuShakti command-center design system */
+/* Multi-Spectrum Geospatial Intelligence Theme Variables */
 :root {
-  --bhu-bg-primary: #07111f;
-  --bhu-bg-secondary: #0b1728;
-  --bhu-card: rgba(15, 31, 50, 0.78);
-  --bhu-card-solid: #101f35;
-  --bhu-card-light: #12243a;
-  --bhu-card-hover: #16293f;
-  --bhu-border: rgba(148, 163, 184, 0.16);
-  --bhu-border-strong: #1e3a5c;
-  --bhu-cyan: #22d3ee;
-  --bhu-teal: #14b8a6;
-  --bhu-emerald: #22c55e;
-  --bhu-warning: #facc15;
-  --bhu-high: #fb923c;
-  --bhu-critical: #ef4444;
-  --bhu-white: #f8fafc;
-  --bhu-muted: #94a3b8;
-  --bhu-grad-cyan-teal: linear-gradient(135deg, var(--bhu-cyan), var(--bhu-teal));
-  --bhu-grad-teal-emerald: linear-gradient(135deg, var(--bhu-teal), var(--bhu-emerald));
-  --bhu-grad-orange-red: linear-gradient(135deg, var(--bhu-high), var(--bhu-critical));
-  --bhu-grad-blue-cyan: linear-gradient(135deg, #0ea5e9, var(--bhu-cyan));
-  --ocean-bg-darkest: var(--bhu-bg-primary);
-  --ocean-bg-deep: var(--bhu-bg-secondary);
-  --ocean-bg-card: var(--bhu-card-solid);
-  --ocean-bg-card-hover: var(--bhu-card-hover);
-  --ocean-border: var(--bhu-border-strong);
-  --ocean-border-glow: #2b5f92;
+  --canvas-bg: #080c16;
+  --surface-bg: #0d1322;
+  --card-bg: #12192c;
+  --card-hover: #17223b;
+  --border-slate: #1e293b;
+  --border-emerald: #059669;
+  --border-amber: #d97706;
+  --border-violet: #7c3aed;
+  --border-rose: #e11d48;
+  --border-cyan: #0891b2;
 }
-* { box-sizing: border-box; }
-html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+
 body {
-  background-color: var(--bhu-bg-primary);
-  color: var(--bhu-white);
+  background-color: #070b14;
+  color: #f1f5f9;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
-  position: relative;
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 15% 5%, rgba(16, 185, 129, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 85% 12%, rgba(245, 158, 11, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 50% at 50% 90%, rgba(6, 182, 212, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 65%, rgba(139, 92, 246, 0.06) 0%, transparent 45%);
+  background-attachment: fixed;
 }
-.bhu-atmosphere {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-  background:
-    radial-gradient(ellipse 900px 500px at 12% -8%, rgba(34,211,238,.10), transparent 60%),
-    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(20,184,166,.08), transparent 60%),
-    radial-gradient(ellipse 800px 600px at 50% 120%, rgba(34,197,94,.05), transparent 60%);
+
+/* Custom Multi-Tone Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-.bhu-atmosphere::before {
-  content:''; position:absolute; inset:0;
-  background-image: linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
-  background-size:42px 42px;
-  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 75%);
+
+/* Leaflet custom marker reset - removes default white box and border */
+.custom-clean-place-icon,
+.custom-landslide-marker,
+.custom-village-marker {
+  background: transparent !important;
+  border: none !important;
 }
-.bhu-atmosphere::after {
-  content:''; position:absolute; inset:0; opacity:.35;
-  background-image:
-    repeating-radial-gradient(circle at 18% 24%, rgba(34,211,238,.06) 0px, transparent 2px 46px),
-    repeating-radial-gradient(circle at 82% 68%, rgba(20,184,166,.05) 0px, transparent 2px 60px);
+
+::-webkit-scrollbar-track {
+  background: #090e1a;
 }
-::-webkit-scrollbar { width:6px; height:6px; }
-::-webkit-scrollbar-track { background:var(--bhu-bg-primary); }
-::-webkit-scrollbar-thumb { background:var(--bhu-border-strong); border-radius:9999px; }
-::-webkit-scrollbar-thumb:hover { background:var(--bhu-cyan); }
-.scrollbar-thin { scrollbar-width:thin; }
-.custom-clean-place-icon,.custom-landslide-marker,.custom-village-marker { background:transparent!important; border:none!important; }
-.text-truncate-safe { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+::-webkit-scrollbar-thumb {
+  background: #253350;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b4e75;
+}
+
+/* Prevent text overflow and word wrapping defects across all cards and containers */
+.text-truncate-safe {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Glassmorphic Ultra-Finish Utilities */
 .glass-panel {
-  background:var(--bhu-card); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--bhu-border);
+  background: rgba(10, 16, 32, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.05);
 }
-.glass-card {
-  background:var(--bhu-card); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  border:1px solid var(--bhu-border); border-radius:1rem;
-  transition:border-color .25s ease, transform .25s ease, box-shadow .25s ease;
+
+.glass-panel-subtle {
+  background: rgba(10, 16, 30, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.glass-card:hover { border-color:rgba(34,211,238,.35); box-shadow:0 12px 32px -12px rgba(34,211,238,.18); }
-.glass-card-static:hover { transform:none; }
-.card-ocean { background:linear-gradient(180deg,var(--bhu-card-solid) 0%,var(--bhu-bg-secondary) 100%); border:1px solid var(--bhu-border-strong); }
+
+.glass-card-interactive {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-interactive:hover {
+  background: rgba(15, 24, 48, 0.82);
+  border-color: rgba(6, 182, 212, 0.35);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.65), 0 0 25px rgba(6, 182, 212, 0.12);
+  transform: translateY(-2px);
+}
+
+.glass-dropdown {
+  background: rgba(8, 14, 28, 0.92);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+.glass-pill {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-pill:hover {
+  background: rgba(22, 33, 62, 0.85);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+/* Multi-Spectrum Glass Cards */
+.card-ocean {
+  background: linear-gradient(180deg, #111a2f 0%, #0c1424 100%);
+  border: 1px solid #1e2e4f;
+}
+
 .card-ocean-glow {
-  background:linear-gradient(180deg,var(--bhu-card-hover) 0%,var(--bhu-bg-secondary) 100%);
-  border:1px solid rgba(34,211,238,.35); box-shadow:0 10px 25px -5px rgba(34,211,238,.12);
+  background: linear-gradient(180deg, #14203a 0%, #0e172a 100%);
+  border: 1px solid #2d426d;
+  box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.08);
 }
-.bhu-text-gradient-cyan { background:var(--bhu-grad-cyan-teal); -webkit-background-clip:text; background-clip:text; color:transparent; }
-.bhu-grad-border-cyan { border-image:var(--bhu-grad-cyan-teal) 1; }
-@keyframes bhu-pulse-ring {
-  0%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}
-  70%{box-shadow:0 0 0 14px rgba(239,68,68,0)}
-  100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}
+
+/* Geospatial Multi-Chromatic Accents */
+.card-slate-glass {
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.85) 0%, rgba(11, 17, 29, 0.95) 100%);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  backdrop-filter: blur(12px);
 }
-.bhu-pulse-critical { animation:bhu-pulse-ring 2.2s cubic-bezier(.4,0,.6,1) infinite; }
-@keyframes bhu-glow-breathe { 0%,100%{opacity:.55} 50%{opacity:1} }
-.bhu-glow-breathe { animation:bhu-glow-breathe 2.6s ease-in-out infinite; }
-@keyframes bhu-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-.bhu-skeleton {
-  background:linear-gradient(90deg,var(--bhu-card-solid) 25%,var(--bhu-card-hover) 50%,var(--bhu-card-solid) 75%);
-  background-size:200% 100%; animation:bhu-shimmer 1.6s ease-in-out infinite;
+
+.card-emerald-glow {
+  background: linear-gradient(180deg, rgba(6, 36, 26, 0.75) 0%, rgba(3, 18, 13, 0.85) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.12);
 }
-@keyframes bhu-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-.bhu-float { animation:bhu-float 5s ease-in-out infinite; }
-@keyframes bhu-rotate-slow { from{transform:rotate(0)} to{transform:rotate(360deg)} }
-.bhu-rotate-slow { animation:bhu-rotate-slow 40s linear infinite; }
-@keyframes bhu-fade-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-.bhu-fade-in,.bhu-transition-page { animation:bhu-fade-in .35s ease-out both; }
-@media (prefers-reduced-motion: reduce) {
-  *,*::before,*::after { animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important; }
+
+.card-amber-glow {
+  background: linear-gradient(180deg, rgba(42, 26, 7, 0.75) 0%, rgba(20, 12, 3, 0.85) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.12);
 }
-html[data-reduce-motion="true"] .bhu-pulse-critical,
-html[data-reduce-motion="true"] .bhu-glow-breathe,
-html[data-reduce-motion="true"] .bhu-float,
-html[data-reduce-motion="true"] .bhu-rotate-slow,
-html[data-reduce-motion="true"] .bhu-skeleton { animation:none!important; }
-a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible {
-  outline:2px solid var(--bhu-cyan); outline-offset:2px; border-radius:4px;
+
+.card-violet-glow {
+  background: linear-gradient(180deg, rgba(32, 18, 54, 0.75) 0%, rgba(16, 9, 28, 0.85) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.12);
 }
-.bhu-scroll-x { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-@media (max-width:639px) { .bhu-hide-mobile { display:none!important; } }
+
+.card-rose-glow {
+  background: linear-gradient(180deg, rgba(45, 12, 24, 0.75) 0%, rgba(22, 6, 12, 0.85) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(244, 63, 94, 0.12);
+}
+
+/* Subtle Topographic Dot Pattern */
+.bg-topo-dots {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+
+
+

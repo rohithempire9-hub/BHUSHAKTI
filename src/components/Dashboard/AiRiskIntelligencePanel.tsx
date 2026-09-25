@@ -119,39 +119,40 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
     setSmsSentSuccess(`Emergency alert dispatched to Gutla rohith (+91 9032479657)!`);
     setTimeout(() => setSmsSentSuccess(null), 7000);
 
-    // Deep link open SMS or WhatsApp
-    window.open(`sms:+91${phone}?body=${encodeURIComponent(alertMsg)}`, '_blank');
+    try {
+      window.open(`sms:+91${phone}?body=${encodeURIComponent(alertMsg)}`, '_blank');
+    } catch {}
   };
 
   return (
-    <div className="bg-[#0b1433]/95 backdrop-blur-xl border border-indigo-500/20 rounded-3xl p-6 shadow-2xl flex flex-col justify-between space-y-5 text-white">
+    <div className="bg-slate-900/70 backdrop-blur-2xl border border-white/10 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col justify-between space-y-5 text-white overflow-hidden min-w-0">
       {/* Top Header */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] font-bold tracking-wider uppercase text-cyan-400">
+      <div className="min-w-0">
+        <div className="flex items-center justify-between mb-1 min-w-0">
+          <span className="text-[11px] font-bold tracking-wider uppercase text-cyan-400 truncate">
             AI RISK INTELLIGENCE
           </span>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-mono">
+          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-mono shrink-0">
             LIVE SENSORS
           </span>
         </div>
 
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-2xl font-black text-white tracking-tight">{station.name}</h2>
-          <span className="text-sm font-semibold text-slate-400">{station.region}</span>
+        <div className="flex items-baseline justify-between gap-2 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight truncate">{station.name}</h2>
+          <span className="text-xs sm:text-sm font-semibold text-slate-300 shrink-0">{station.region}</span>
         </div>
 
-        <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span>BHUSAKTHI demo provider adapter</span>
+        <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2 min-w-0 overflow-hidden">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+          <span className="truncate">BHUSHAKTI Physics-Informed Geotech Engine</span>
           <span>•</span>
-          <span>11 Sept 2026, 10:16 am</span>
-          <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold">DEMO</span>
+          <span className="shrink-0">IMD Synced</span>
+          <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-bold shrink-0">ONLINE</span>
         </div>
       </div>
 
       {/* Sub navigation pills */}
-      <div className="flex items-center gap-1.5 bg-[#070d22] p-1 rounded-2xl border border-slate-800 text-xs">
+      <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-white/10 text-xs min-w-0">
         <button
           onClick={() => setActiveSubTab('overview')}
           className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all ${

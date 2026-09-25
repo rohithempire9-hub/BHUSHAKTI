@@ -61,6 +61,7 @@ import { WhatIfSimulatorView } from './components/Simulator/WhatIfSimulatorView'
 import { EmergencyResponseView } from './components/Emergency/EmergencyResponseView';
 import { PostDisasterForensicView } from './components/Reports/PostDisasterForensicView';
 import { BhuShaktiCopilotModal } from './components/Copilot/BhuShaktiCopilotModal';
+import { SihDemoBar, DemoScenarioId } from './components/Demo/SihDemoBar';
 import { DisasterIntelligenceSuite } from './components/Disasters/DisasterIntelligenceSuite';
 
 import {
@@ -119,6 +120,7 @@ export default function App() {
   const [disastersModalOpen, setDisastersModalOpen] = useState(false);
   const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
   const [copilotModalOpen, setCopilotModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Central SIH Evaluation Scenario State
   const [activeDemoScenario, setActiveDemoScenario] = useState<DemoScenarioId>('none');
@@ -157,18 +159,20 @@ export default function App() {
       if (tawangStation) setSelectedStation(tawangStation);
       setSimulatedRainfall(155);
       setSimulatedDisplacement(7.2);
+      setDismissedCriticalBanner(false);
       setCurrentNavSection('landslide');
       setLandslideSubTab('memory');
     } else if (scenario === 'assam_flood') {
       const assamStation = stations.find((s) => s.region.includes('Assam') || s.id === 'dima-hasao-03') || stations[1];
       if (assamStation) setSelectedStation(assamStation);
+      setSimulatedRainfall(130);
       setCurrentNavSection('flood');
     } else if (scenario === 'multi_cascade') {
       const tawangStation = stations.find((s) => s.id === 'tawang-pass-01') || stations[0];
       if (tawangStation) setSelectedStation(tawangStation);
       setCurrentNavSection('emergency_response');
     } else if (scenario === 'offline_outage') {
-      setCurrentNavSection('alerts');
+      setMassSosModalOpen(true);
     } else if (scenario === 'evidence_conflict') {
       const tawangStation = stations.find((s) => s.id === 'tawang-pass-01') || stations[0];
       if (tawangStation) setSelectedStation(tawangStation);
@@ -431,16 +435,40 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#060c1e] text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-600 selection:text-white">
-      {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER (NO REPEATED BUTTONS) */}
-      <BhuShaktiHeader
-        currentLanguage={currentLanguage}
-        onLanguageChange={setCurrentLanguage}
-        onNavigate={(sec) => setCurrentNavSection(sec)}
-        searchQuery={globalSearchQuery}
-        onSearchChange={handleSearchLocation}
-        activeAlertsCount={criticalNodes.length + criticalCount}
-      />
+    <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200 relative overflow-x-hidden bg-topo-dots">
+      {/* Dynamic Multi-Spectrum Atmospheric Aurora Gradients (Emerald, Amber, Violet, Rose, Teal) */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {/* Northern Forest / Ecological Emerald Radiance */}
+        <div className="absolute -top-40 -left-40 w-[720px] h-[720px] bg-emerald-500/16 rounded-full blur-[140px]" />
+        {/* Geothermal / Earth Mantle Warm Amber-Orange Radiance */}
+        <div className="absolute top-10 right-0 w-[680px] h-[680px] bg-gradient-to-br from-amber-500/16 via-orange-500/14 to-transparent rounded-full blur-[150px]" />
+        {/* Neural AI Deep Violet-Amethyst Radiance */}
+        <div className="absolute top-[40%] left-[20%] w-[650px] h-[650px] bg-gradient-to-tr from-violet-600/16 to-fuchsia-600/12 rounded-full blur-[160px]" />
+        {/* Active Geotechnical Warning Crimson Rose Bloom */}
+        <div className="absolute bottom-[20%] right-10 w-[580px] h-[580px] bg-rose-600/14 rounded-full blur-[150px]" />
+        {/* Hydrological River Basin Alpine Teal/Cyan Shimmer */}
+        <div className="absolute -bottom-40 left-10 w-[750px] h-[750px] bg-gradient-to-tr from-teal-500/16 via-cyan-500/14 to-transparent rounded-full blur-[160px]" />
+      </div>
+
+      {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER (STREAMLINED, NO UPPER BAR CLUTTER) */}
+      <div className="relative z-40">
+        <BhuShaktiHeader
+          currentLanguage={currentLanguage}
+          onLanguageChange={setCurrentLanguage}
+          onNavigate={(sec) => {
+            setCurrentNavSection(sec);
+            setIsMobileMenuOpen(false);
+          }}
+          searchQuery={globalSearchQuery}
+          onSearchChange={handleSearchLocation}
+          activeAlertsCount={criticalNodes.length + criticalCount}
+          onOpenSmsModal={() => setSmsModalOpen(true)}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
+          activeScenario={activeDemoScenario}
+          onSelectScenario={handleSelectDemoScenario}
+        />
+      </div>
 
       {/* 2. CRITICAL HAZARD WARNING BANNER */}
       {!dismissedCriticalBanner && criticalNodes.length > 0 && (
@@ -448,8 +476,10 @@ export default function App() {
           <CriticalHazardBanner
             criticalNodes={criticalNodes}
             onTriggerMassSos={() => setMassSosModalOpen(true)}
-            onInspectNode={(_node) => {
-              setMassSosModalOpen(true);
+            onInspectNode={(node) => {
+              const matched = stations.find((s) => s.id === node.stationId || s.name.toLowerCase().includes(node.locationName.toLowerCase())) || stations[0];
+              if (matched) setSelectedStation(matched);
+              setInspectModalOpen(true);
             }}
             onDismiss={() => setDismissedCriticalBanner(true)}
           />
@@ -461,11 +491,17 @@ export default function App() {
         {/* Authoritative Sidebar - Contains All 12 Functions Stacked Vertically */}
         <BhuShaktiSidebar
           currentSection={currentNavSection}
-          onSelectSection={(sec) => setCurrentNavSection(sec)}
+          onSelectSection={(sec) => {
+            setCurrentNavSection(sec);
+            setIsMobileMenuOpen(false);
+          }}
           currentLanguage={currentLanguage}
           pendingReportsCount={citizenReports.filter((r) => r.status === 'Pending Review').length}
           activeCriticalNodesCount={criticalNodes.length}
           registeredDevicesCount={registeredDevices.length}
+          onOpenSmsModal={() => setSmsModalOpen(true)}
+          isMobileOpen={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
         />
 
         {/* Dynamic Center Viewport: Each Menu Item Opens in Its Dedicated Smooth View */}
@@ -484,7 +520,7 @@ export default function App() {
               simulatedDisplacement={simulatedDisplacement}
               simulatedRiskLevel={isJudgeEmergency ? 'critical' : simulatedRainfall > 40 ? 'warning' : 'safe'}
               onOpenSmsModal={() => setSmsModalOpen(true)}
-              onOpenEscapeModal={() => setMassSosModalOpen(true)}
+              onOpenEscapeModal={() => setCurrentNavSection('emergency_response')}
               onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
               evidenceList={evidenceList.map((e) => e.id)}
               mapFilterStatus={mapFilterStatus}
@@ -498,7 +534,7 @@ export default function App() {
           {/* VIEW 2: RISK MAP (FULL-PAGE GIS SPATIAL WORKBENCH) */}
           {currentNavSection === 'risk_map' && (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-[#0b1738] border border-[#1b3470] p-4 sm:p-5 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+              <div className="rounded-2xl bg-slate-900/65 backdrop-blur-2xl border border-white/10 p-4 sm:p-5 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)] flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-black text-white font-sans">
                     Interactive GIS Landslide &amp; Topographical Hazard Map
@@ -517,7 +553,7 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setMassSosModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-lg shadow-rose-600/30 cursor-pointer flex items-center gap-2"
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold transition-all shadow-lg shadow-rose-600/30 cursor-pointer flex items-center gap-2"
                   >
                     <Radio className="w-3.5 h-3.5" />
                     <span>Dispatch Siren</span>
@@ -525,7 +561,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="h-[750px] rounded-2xl overflow-hidden border border-[#18316c] shadow-2xl bg-[#0a1738]">
+              <div className="h-[750px] rounded-2xl overflow-hidden border border-white/10 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)] bg-slate-900/65 backdrop-blur-2xl">
                 <LandslideMap
                   stations={stations}
                   selectedStation={selectedStation}
@@ -658,7 +694,7 @@ export default function App() {
           {/* VIEW 7: ANALYTICS (RAINFALL & SATURATION DUAL-AXIS) */}
           {currentNavSection === 'analytics' && (
             <div className="space-y-6">
-              <div className="rounded-2xl bg-[#0b1738] border border-[#1b3470] p-5 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+              <div className="rounded-2xl bg-slate-900/65 backdrop-blur-2xl border border-white/10 p-5 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)] flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-black text-white font-sans">
                     Dual-Axis Rainfall &amp; Soil Moisture Saturation Analytics
@@ -669,13 +705,13 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 font-mono">Focus Zone:</span>
-                  <span className="px-3 py-1 rounded-xl bg-[#102454] border border-cyan-400 text-cyan-300 font-bold text-xs">
+                  <span className="px-3 py-1 rounded-xl bg-slate-800/80 border border-cyan-400/50 text-cyan-300 font-bold text-xs">
                     {selectedStation?.name || 'Tawang Sela Pass'}
                   </span>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-[#0a1738] border border-[#162e66] p-6 shadow-2xl">
+              <div className="rounded-2xl bg-slate-900/65 backdrop-blur-2xl border border-white/10 p-6 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)]">
                 <RainfallSaturationChart
                   currentStationName={selectedStation?.name}
                   simulatedRainfall={simulatedRainfall}
@@ -688,7 +724,7 @@ export default function App() {
           {/* VIEW 8: HISTORICAL & POST-DISASTER FORENSIC AUDIT */}
           {currentNavSection === 'historical' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 p-1.5 bg-[#081534] border border-[#142d63] rounded-xl w-fit">
+              <div className="flex items-center gap-2 p-1.5 bg-slate-900/80 border border-white/10 rounded-xl w-fit backdrop-blur-xl">
                 <button
                   onClick={() => setHistoricalSubTab('forensic')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
@@ -721,7 +757,7 @@ export default function App() {
 
           {/* VIEW 9: FIELD REPORTS (CROWDSOURCED GEOPORTAL & PHOTO EVIDENCE) */}
           {currentNavSection === 'field_reports' && (
-            <div className="rounded-2xl bg-[#0a1738] border border-[#162e66] p-6 shadow-2xl">
+            <div className="rounded-2xl bg-slate-900/65 backdrop-blur-2xl border border-white/10 p-6 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)]">
               <CitizenReportingPortal
                 reports={citizenReports}
                 onSubmitReport={handleSubmitCitizenReport}
@@ -733,7 +769,7 @@ export default function App() {
 
           {/* VIEW 10: ALERTS (ZERO-INTERNET SMS EARLY WARNING GATEWAY) */}
           {currentNavSection === 'alerts' && (
-            <div className="rounded-2xl bg-[#0a1738] border border-[#162e66] p-6 shadow-2xl">
+            <div className="rounded-2xl bg-slate-900/65 backdrop-blur-2xl border border-white/10 p-6 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.7)]">
               <SmsEarlyWarningHub
                 registeredDevices={registeredDevices}
                 currentLanguage={currentLanguage}
