@@ -41,7 +41,7 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
   subscribers = INITIAL_SUBSCRIBERS,
   initialStation,
 }) => {
-  const [activeSubView, setActiveSubView] = useState<'polygon' | 'devices'>('polygon');
+  const [activeSubView, setActiveSubView] = useState<'polygon' | 'devices'>('devices');
   const [selectedDevice, setSelectedDevice] = useState<RegisteredDeviceProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
