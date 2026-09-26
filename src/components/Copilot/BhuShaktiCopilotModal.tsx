@@ -80,24 +80,24 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
-      <div className="w-full max-w-3xl h-[85vh] rounded-2xl bg-[#091533] border border-[#1e3c7a] shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-3xl h-[85vh] rounded-2xl bg-white border border-slate-200 shadow-2xl flex flex-col overflow-hidden">
         {/* MODAL HEADER */}
-        <div className="p-4 bg-gradient-to-r from-[#0c1c45] to-[#071330] border-b border-[#18326a] flex items-center justify-between">
+        <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg shadow-cyan-900/50">
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-black text-white font-sans tracking-wide">
-                  BHUSAKTHI COPILOT
+                <h2 className="text-base font-bold text-slate-900 font-sans tracking-tight">
+                  BHUSHAKTI COPILOT
                 </h2>
-                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-500/40">
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                   GROUNDED AI
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Decision Support Assistant • Zero Hallucination • Live Telemetry Grounded
               </p>
             </div>
@@ -105,22 +105,22 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-[#0e214d] hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer transition-all"
+            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center cursor-pointer transition-all"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* PRESET CHIPS */}
-        <div className="p-3 bg-[#07112b] border-b border-[#142857] flex items-center gap-2 overflow-x-auto select-none no-scrollbar">
-          <span className="text-[10px] font-mono font-bold text-cyan-400 shrink-0 uppercase">
+        <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center gap-2 overflow-x-auto select-none no-scrollbar">
+          <span className="text-[10px] font-mono font-bold text-slate-500 shrink-0 uppercase">
             Suggested:
           </span>
           {PRESET_QUESTIONS.map((q) => (
             <button
               key={q}
               onClick={() => handleSend(q)}
-              className="px-2.5 py-1 rounded-lg bg-[#0e204a] hover:bg-[#142e6a] text-slate-300 hover:text-cyan-200 text-[11px] font-medium border border-[#1a3875] whitespace-nowrap cursor-pointer transition-all"
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-[11px] font-medium border border-slate-200 whitespace-nowrap cursor-pointer transition-all shadow-2xs"
             >
               {q}
             </button>
@@ -128,7 +128,7 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
         </div>
 
         {/* MESSAGES LIST */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4">
+        <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50">
           {messages.map((m, idx) => (
             <div
               key={`${m.id}-${idx}`}
@@ -137,7 +137,7 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
               }`}
             >
               {m.sender === 'copilot' && (
-                <div className="w-7 h-7 rounded-lg bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0 mt-0.5">
                   <Bot className="w-4 h-4" />
                 </div>
               )}
@@ -145,17 +145,17 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
               <div
                 className={`max-w-[85%] rounded-2xl p-4 space-y-2 ${
                   m.sender === 'user'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
-                    : 'bg-[#0c1c42] border border-[#193670] text-slate-200 rounded-tl-none shadow-md'
+                    ? 'bg-blue-600 text-white rounded-tr-none shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-xs'
                 }`}
               >
                 <div className="whitespace-pre-line">{m.text}</div>
 
                 {m.sources && m.sources.length > 0 && (
-                  <div className="pt-2 border-t border-[#162e66] flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400 font-mono">
-                    <span className="text-cyan-400">Sources:</span>
+                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 font-mono">
+                    <span className="text-blue-600 font-bold">Sources:</span>
                     {m.sources.map((s, i) => (
-                      <span key={i} className="px-1.5 py-0.2 rounded bg-[#081534] text-slate-300 border border-slate-700">
+                      <span key={i} className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
                         {s}
                       </span>
                     ))}
@@ -168,20 +168,20 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
                       onNavigateSection(m.actionLink!.section);
                       onClose();
                     }}
-                    className="mt-1 px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all"
+                    className="mt-1 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-all shadow-xs"
                   >
                     <span>{m.actionLink.label}</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </button>
                 )}
 
-                <div className="text-[9px] text-slate-400 text-right font-mono">
+                <div className={`text-[9px] text-right font-mono ${m.sender === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
                   {m.timestamp}
                 </div>
               </div>
 
               {m.sender === 'user' && (
-                <div className="w-7 h-7 rounded-lg bg-slate-700 text-slate-300 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5">
                   <User className="w-4 h-4" />
                 </div>
               )}
@@ -191,7 +191,7 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
         </div>
 
         {/* INPUT BAR */}
-        <div className="p-3 bg-[#07112b] border-t border-[#162e66]">
+        <div className="p-3 bg-white border-t border-slate-200">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -204,12 +204,12 @@ Ask me about live hazard priorities, "Why Now?" risk drivers, What-If simulation
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask BhuShakti Copilot about hazard priorities, roads, or 'Why Now?'..."
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#0a1738] border border-[#1b3674] text-xs text-white placeholder-slate-400 outline-none focus:border-cyan-400 transition-all font-sans"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans"
             />
             <button
               type="submit"
               disabled={!inputValue.trim()}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Ask</span>

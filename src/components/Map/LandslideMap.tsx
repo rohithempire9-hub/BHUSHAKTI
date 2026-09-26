@@ -230,12 +230,19 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const windStreamlinesGroupRef = useRef<L.LayerGroup | null>(null);
   const drainageFlowGroupRef = useRef<L.LayerGroup | null>(null);
   const buildingsGroupRef = useRef<L.LayerGroup | null>(null);
+  const riskBuffersGroupRef = useRef<L.LayerGroup | null>(null);
+  const safeZonesGroupRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
 
-  // BASE MAP STATE
-  const [baseMap, setBaseMap] = useState<BaseMapType>('satellite');
+  // BASE MAP STATE - Default to Terrain Topo (Clean Light GIS Basemap)
+  const [baseMap, setBaseMap] = useState<BaseMapType>('topo');
 
   // HAZARD / ENVIRONMENTAL LAYERS STATE
+  const [layerStationPins, setLayerStationPins] = useState<boolean>(true);
+  const [layerHeatmap, setLayerHeatmap] = useState<boolean>(true);
+  const [heatmapMetric, setHeatmapMetric] = useState<'risk' | 'soil_moisture' | 'pore_pressure' | 'erosion'>('risk');
+  const [layerRiskBuffers, setLayerRiskBuffers] = useState<boolean>(true);
+  const [layerSafeZones, setLayerSafeZones] = useState<boolean>(true);
   const [layerLandslide, setLayerLandslide] = useState<boolean>(true);
   const [layerRiskZones, setLayerRiskZones] = useState<boolean>(true);
   const [riskZoneFilter, setRiskZoneFilter] = useState<'all' | 'extreme' | 'high' | 'moderate' | 'low'>('all');
@@ -250,6 +257,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const [layerSafeRoutes, setLayerSafeRoutes] = useState<boolean>(true);
   const [layerCommunityHubs, setLayerCommunityHubs] = useState<boolean>(true);
   const [layerRoads, setLayerRoads] = useState<boolean>(true);
+  const [layerVillages, setLayerVillages] = useState<boolean>(true);
   const [layerRivers, setLayerRivers] = useState<boolean>(true);
   const [layerBuildings, setLayerBuildings] = useState<boolean>(false);
   const [layerShelters, setLayerShelters] = useState<boolean>(true);
@@ -368,6 +376,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       windStreamlinesGroupRef.current = L.layerGroup().addTo(map);
       drainageFlowGroupRef.current = L.layerGroup().addTo(map);
       buildingsGroupRef.current = L.layerGroup().addTo(map);
+      riskBuffersGroupRef.current = L.layerGroup().addTo(map);
+      safeZonesGroupRef.current = L.layerGroup().addTo(map);
 
       L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
     } catch (err) {
@@ -492,157 +502,226 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
     if (!layerLandslide) return;
 
-    // Render Station Pins
-    filteredStations.forEach((station) => {
-      const { status } = station.riskAssessment || { status: 'moderate' };
-      const isSelected = selectedStation?.id === station.id;
+    // 1. RENDER STATION PINS
+    if (layerStationPins && layerLandslide) {
+      filteredStations.forEach((station) => {
+        const { status } = station.riskAssessment || { status: 'moderate' };
+        const isSelected = selectedStation?.id === station.id;
 
-      let color = '#10b981';
-      let badgeLabel = 'SAFE';
+        let badgeLabel = 'SAFE';
+        if (status === 'critical') {
+          badgeLabel = 'CRITICAL';
+        } else if (status === 'high') {
+          badgeLabel = 'HIGH';
+        } else if (status === 'moderate') {
+          badgeLabel = 'MODERATE';
+        }
 
-      if (status === 'critical') {
-        color = '#ef4444';
-        badgeLabel = 'CRITICAL';
-      } else if (status === 'high') {
-        color = '#f97316';
-        badgeLabel = 'HIGH';
-      } else if (status === 'moderate') {
-        color = '#eab308';
-        badgeLabel = 'MODERATE';
-      }
+        const isSafe = status === 'safe';
+        const placeName = getCleanPlaceName(station);
 
-      const isSafe = status === 'safe';
-      const placeName = getCleanPlaceName(station);
-
-      const iconHtml = `
-        <div class="custom-place-tag cursor-pointer" style="transform: translate(-50%, -100%);">
-          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shadow-xl transition-all duration-200 ${
-            isSelected
-              ? 'bg-[#081b36] text-white border-2 border-cyan-400 ring-2 ring-cyan-400/50 scale-105 z-50'
-              : isSafe
-              ? 'bg-[#06151c]/95 text-slate-100 border border-emerald-500/60 hover:scale-105'
-              : status === 'critical'
-              ? 'bg-[#20080d]/95 text-white border border-rose-500/80 hover:scale-105'
-              : status === 'high'
-              ? 'bg-[#1f1005]/95 text-slate-100 border border-orange-500/70 hover:scale-105'
-              : 'bg-[#1b1505]/95 text-slate-100 border border-amber-500/60 hover:scale-105'
-          }">
-            <span class="w-2 h-2 rounded-full shrink-0 ${
-              isSafe
-                ? 'bg-emerald-400'
+        const iconHtml = `
+          <div class="custom-place-tag cursor-pointer" style="transform: translate(-50%, -100%);">
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shadow-md transition-all duration-200 ${
+              isSelected
+                ? 'bg-blue-600 text-white border-2 border-white ring-2 ring-blue-500 scale-110 z-50'
+                : isSafe
+                ? 'bg-white text-slate-800 border-2 border-emerald-500 hover:scale-105'
                 : status === 'critical'
-                ? 'bg-rose-500 animate-pulse'
+                ? 'bg-white text-red-900 border-2 border-red-600 hover:scale-105 ring-1 ring-red-200'
                 : status === 'high'
-                ? 'bg-orange-500'
-                : 'bg-amber-400'
-            }"></span>
-            <span class="font-bold tracking-tight text-[11px] ${isSelected ? 'text-cyan-300' : 'text-slate-100'}">
-              ${placeName}
-            </span>
-          </div>
-          <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] ${
-            isSelected ? 'border-t-cyan-400' : isSafe ? 'border-t-emerald-500' : status === 'critical' ? 'border-t-rose-500' : status === 'high' ? 'border-t-orange-500' : 'border-t-amber-500'
-          } mx-auto -mt-[0.5px]"></div>
-        </div>
-      `;
-
-      try {
-        const customIcon = L.divIcon({
-          html: iconHtml,
-          className: 'custom-clean-place-icon',
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-        });
-
-        const marker = L.marker([station.latitude, station.longitude], {
-          icon: customIcon,
-          zIndexOffset: isSelected ? 1000 : status === 'critical' ? 50 : 20,
-        });
-
-        const popupHtml = `
-          <div class="text-slate-900 font-sans p-2 min-w-[210px]">
-            <div class="flex items-center justify-between gap-1.5 pb-1.5 mb-1.5 border-b border-slate-200">
-              <span class="font-bold text-xs truncate text-slate-900">${station.name}</span>
-              <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${
-                isSafe ? 'bg-emerald-100 text-emerald-800' : status === 'critical' ? 'bg-rose-100 text-rose-800' : status === 'high' ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-800'
-              }">${badgeLabel}</span>
+                ? 'bg-white text-orange-900 border-2 border-orange-500 hover:scale-105'
+                : 'bg-white text-amber-900 border-2 border-amber-500 hover:scale-105'
+            }">
+              <span class="w-2 h-2 rounded-full shrink-0 ${
+                isSafe
+                  ? 'bg-emerald-500'
+                  : status === 'critical'
+                  ? 'bg-red-600 animate-pulse'
+                  : status === 'high'
+                  ? 'bg-orange-500'
+                  : 'bg-amber-500'
+              }"></span>
+              <span class="font-bold tracking-tight text-[11px] ${isSelected ? 'text-white' : 'text-slate-900'}">
+                ${placeName}
+              </span>
             </div>
-            <div class="text-[11px] text-slate-600 mb-2">${station.region}</div>
-            <div class="grid grid-cols-2 gap-1.5 text-[11px] mb-2 bg-slate-100 p-2 rounded-lg">
-              <div><span class="text-slate-500">Risk Score:</span> <strong>${station.riskAssessment?.riskScore ?? 50}%</strong></div>
-              <div><span class="text-slate-500">Safety (FS):</span> <strong>${station.riskAssessment?.safetyFactor ?? 1.5}</strong></div>
-              <div><span class="text-slate-500">Rain 24h:</span> <strong>${station.telemetry?.rainfall24hMm ?? 0} mm</strong></div>
-              <div><span class="text-slate-500">Moisture:</span> <strong>${station.telemetry?.soilMoisturePct ?? 50}%</strong></div>
-              <div><span class="text-slate-500">Slope:</span> <strong>${station.slopeAngleDeg ?? 35}°</strong></div>
-              <div><span class="text-slate-500">Pore Press:</span> <strong>${station.telemetry?.poreWaterPressureKpa ?? 15} kPa</strong></div>
-            </div>
-            <button id="inspect-btn-${station.id}" class="w-full text-center py-1 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer transition-colors shadow-sm">
-              Focus Sensor Node
-            </button>
+            <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] ${
+              isSelected
+                ? 'border-t-blue-600'
+                : isSafe
+                ? 'border-t-emerald-500'
+                : status === 'critical'
+                ? 'border-t-red-600'
+                : status === 'high'
+                ? 'border-t-orange-500'
+                : 'border-t-amber-500'
+            } mx-auto -mt-[0.5px]"></div>
           </div>
         `;
 
-        marker.bindPopup(popupHtml);
-        marker.on('click', () => {
-          onSelectStation(station);
-        });
+        try {
+          const customIcon = L.divIcon({
+            html: iconHtml,
+            className: 'custom-clean-place-icon',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+          });
 
-        marker.on('popupopen', () => {
-          const btn = document.getElementById(`inspect-btn-${station.id}`);
-          if (btn) {
-            btn.onclick = () => {
-              onSelectStation(station);
-              marker.closePopup();
-            };
-          }
-        });
+          const marker = L.marker([station.latitude, station.longitude], {
+            icon: customIcon,
+            zIndexOffset: isSelected ? 1000 : status === 'critical' ? 50 : 20,
+          });
 
-        markersGroup.addLayer(marker);
-      } catch (err) {
-        console.warn('[Leaflet] Marker add error:', err);
-      }
-    });
+          const popupHtml = `
+            <div class="text-slate-900 font-sans p-2 min-w-[210px]">
+              <div class="flex items-center justify-between gap-1.5 pb-1.5 mb-1.5 border-b border-slate-200">
+                <span class="font-bold text-xs truncate text-slate-900">${station.name}</span>
+                <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${
+                  isSafe
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : status === 'critical'
+                    ? 'bg-red-50 text-red-800 border border-red-200'
+                    : status === 'high'
+                    ? 'bg-orange-50 text-orange-800 border border-orange-200'
+                    : 'bg-amber-50 text-amber-800 border border-amber-200'
+                }">${badgeLabel}</span>
+              </div>
+              <div class="text-[11px] text-slate-600 mb-2">${station.region}</div>
+              <div class="grid grid-cols-2 gap-1.5 text-[11px] mb-2 bg-slate-50 border border-slate-200 p-2 rounded-lg">
+                <div><span class="text-slate-500">Risk Score:</span> <strong>${station.riskAssessment?.riskScore ?? 50}%</strong></div>
+                <div><span class="text-slate-500">Safety (FS):</span> <strong>${station.riskAssessment?.safetyFactor ?? 1.5}</strong></div>
+                <div><span class="text-slate-500">Rain 24h:</span> <strong>${station.telemetry?.rainfall24hMm ?? 0} mm</strong></div>
+                <div><span class="text-slate-500">Moisture:</span> <strong>${station.telemetry?.soilMoisturePct ?? 50}%</strong></div>
+                <div><span class="text-slate-500">Slope:</span> <strong>${station.slopeAngleDeg ?? 35}°</strong></div>
+                <div><span class="text-slate-500">Pore Press:</span> <strong>${station.telemetry?.poreWaterPressureKpa ?? 15} kPa</strong></div>
+              </div>
+              <button id="inspect-btn-${station.id}" class="w-full text-center py-1.5 text-xs font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-colors shadow-xs">
+                Focus Sensor Node
+              </button>
+            </div>
+          `;
 
-    // Render Heatmap if plugin is available
-    if (isHeatPluginReady && typeof (L as any).heatLayer === 'function') {
+          marker.bindPopup(popupHtml);
+          marker.on('click', () => {
+            onSelectStation(station);
+          });
+
+          marker.on('popupopen', () => {
+            const btn = document.getElementById(`inspect-btn-${station.id}`);
+            if (btn) {
+              btn.onclick = () => {
+                onSelectStation(station);
+                marker.closePopup();
+              };
+            }
+          });
+
+          markersGroup.addLayer(marker);
+        } catch (err) {
+          console.warn('[Leaflet] Marker add error:', err);
+        }
+      });
+    }
+
+    // 2. RENDER RISK HEATMAP (Scientific GIS Color Gradient)
+    if (layerHeatmap) {
       const heatPoints: [number, number, number][] = [];
 
       filteredStations.forEach((st) => {
-        const scoreNorm = (st.riskAssessment?.riskScore ?? 50) / 100;
-        const weight = st.riskAssessment?.status === 'critical' ? 1.0 : st.riskAssessment?.status === 'high' ? 0.75 : 0.4;
+        let weight = 0.5;
+        if (heatmapMetric === 'soil_moisture') {
+          weight = Math.min(1.0, Math.max(0.15, (st.telemetry?.soilMoisturePct ?? 50) / 90));
+        } else if (heatmapMetric === 'pore_pressure') {
+          weight = Math.min(1.0, Math.max(0.15, (st.telemetry?.poreWaterPressureKpa ?? 18) / 40));
+        } else if (heatmapMetric === 'erosion') {
+          weight = Math.min(1.0, Math.max(0.15, (st.slopeAngleDeg ?? 35) / 55));
+        } else {
+          // Default: risk score / classification
+          weight =
+            st.riskAssessment?.status === 'critical'
+              ? 1.0
+              : st.riskAssessment?.status === 'high'
+              ? 0.75
+              : st.riskAssessment?.status === 'moderate'
+              ? 0.5
+              : 0.25;
+        }
+
         heatPoints.push([st.latitude, st.longitude, weight]);
 
-        // Disperse heat points
-        const count = st.riskAssessment?.status === 'critical' ? 6 : 3;
+        // Disperse surrounding points for realistic GIS slope contour coverage
+        const count = weight > 0.7 ? 6 : 3;
         for (let i = 0; i < count; i++) {
           const angle = (i / count) * Math.PI * 2;
-          const dist = 0.05;
-          heatPoints.push([st.latitude + Math.sin(angle) * dist, st.longitude + Math.cos(angle) * dist, weight * 0.65]);
+          const dist = 0.045;
+          heatPoints.push([st.latitude + Math.sin(angle) * dist, st.longitude + Math.cos(angle) * dist, weight * 0.7]);
         }
       });
 
-      try {
-        const heat = (L as any).heatLayer(heatPoints, {
-          radius: 40,
-          blur: 24,
-          maxZoom: 16,
-          max: 1.0,
-          minOpacity: 0.35,
-          gradient: {
-            0.0: '#10b981',
-            0.35: '#06b6d4',
-            0.6: '#eab308',
-            0.8: '#f97316',
-            1.0: '#ef4444',
-          },
-        });
-        heat.addTo(map);
-        heatLayerRef.current = heat;
-      } catch (e) {
-        console.warn('[Leaflet] heatLayer failed:', e);
+      if (isHeatPluginReady && typeof (L as any).heatLayer === 'function') {
+        try {
+          const heat = (L as any).heatLayer(heatPoints, {
+            radius: 42,
+            blur: 26,
+            maxZoom: 16,
+            max: 1.0,
+            minOpacity: 0.38,
+            gradient: {
+              0.0: '#10b981', // green = low
+              0.35: '#84cc16', // light green
+              0.55: '#eab308', // yellow = moderate
+              0.75: '#f97316', // orange = high
+              1.0: '#ef4444', // red = critical
+            },
+          });
+          heat.addTo(map);
+          heatLayerRef.current = heat;
+        } catch (e) {
+          console.warn('[Leaflet] heatLayer failed:', e);
+        }
       }
     }
-  }, [filteredStations, layerLandslide, selectedStation?.id, isHeatPluginReady]);
+  }, [filteredStations, layerStationPins, layerLandslide, layerHeatmap, heatmapMetric, selectedStation?.id, isHeatPluginReady]);
+
+  // RENDER RISK BUFFER ZONES AROUND STATIONS
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const buffersGroup = riskBuffersGroupRef.current;
+    if (!map || !buffersGroup) return;
+
+    buffersGroup.clearLayers();
+    if (!layerRiskBuffers) return;
+
+    filteredStations.forEach((st) => {
+      const status = st.riskAssessment?.status || 'moderate';
+      const isCritical = status === 'critical';
+      const isHigh = status === 'high';
+      const isMod = status === 'moderate';
+
+      const radius = isCritical ? 3500 : isHigh ? 2200 : isMod ? 1400 : 800;
+      const strokeColor = isCritical ? '#ef4444' : isHigh ? '#f97316' : isMod ? '#eab308' : '#10b981';
+      const fillColor = isCritical ? '#fecaca' : isHigh ? '#fed7aa' : isMod ? '#fef08a' : '#dcfce7';
+
+      const circle = L.circle([st.latitude, st.longitude], {
+        radius,
+        color: strokeColor,
+        weight: isCritical ? 2 : 1.5,
+        dashArray: '5, 5',
+        fillColor,
+        fillOpacity: 0.28,
+      });
+
+      circle.bindTooltip(`
+        <div class="font-sans font-bold text-xs p-1">
+          <span style="color: ${strokeColor}">● ${status.toUpperCase()} BUFFER:</span> ${(radius / 1000).toFixed(1)}km
+          <div class="text-[10px] text-slate-600 font-normal">${st.name}</div>
+        </div>
+      `, { sticky: true });
+
+      buffersGroup.addLayer(circle);
+    });
+  }, [layerRiskBuffers, filteredStations, isMapReady]);
 
   // 2. RENDER FLOOD RISK LAYER
   useEffect(() => {
@@ -840,40 +919,44 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     if (!map || !villageGroup) return;
 
     villageGroup.clearLayers();
-    if (!layerShelters) return;
+    if (!layerVillages) return;
 
     REMOTE_VILLAGE_PINS.forEach((vil) => {
       const iconHtml = `
         <div class="cursor-pointer" style="transform: translate(-50%, -100%);">
-          <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#04201e]/95 text-teal-200 border border-teal-400 shadow-md">
-            <span>🛡️</span>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white text-slate-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
+            <span>🏡</span>
             <span>${vil.villageName}</span>
           </div>
+          <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-emerald-500 mx-auto -mt-[0.5px]"></div>
         </div>
       `;
 
       const customIcon = L.divIcon({
         html: iconHtml,
-        className: 'custom-shelter-icon',
+        className: 'custom-village-icon',
         iconSize: [0, 0],
         iconAnchor: [0, 0],
       });
 
-      const marker = L.marker([vil.latitude, vil.longitude], { icon: customIcon });
+      const marker = L.marker([vil.latitude, vil.longitude], { icon: customIcon, zIndexOffset: 260 });
       marker.bindPopup(`
-        <div class="text-slate-900 font-sans p-2 min-w-[210px]">
-          <div class="font-bold text-xs text-teal-900 mb-1">🏡 ${vil.villageName}</div>
-          <div class="text-[11px] text-slate-600 mb-1">${vil.district}, ${vil.state} • Elev: ${vil.elevationM}m</div>
-          <div class="p-1.5 rounded bg-emerald-50 text-[11px] text-emerald-900 mb-1">
+        <div class="text-slate-900 font-sans p-2.5 min-w-[220px]">
+          <div class="font-bold text-xs text-slate-900 mb-1 flex items-center gap-1.5">
+            <span>🏡</span>
+            <span>${vil.villageName}</span>
+          </div>
+          <div class="text-[11px] text-slate-600 mb-1.5">${vil.district}, ${vil.state} • Elev: ${vil.elevationM}m</div>
+          <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 mb-2">
             <strong>Safe Shelter Haven:</strong> ${vil.safeShelterHaven}
           </div>
-          <div class="text-[10px] text-slate-500">Population at Risk: <strong>${vil.populationAtRisk}</strong></div>
+          <div class="text-[10px] text-slate-600">Population at Risk: <strong class="text-slate-900">${vil.populationAtRisk.toLocaleString()}</strong></div>
         </div>
       `);
 
       villageGroup.addLayer(marker);
     });
-  }, [layerShelters]);
+  }, [layerVillages]);
 
   // 8. RENDER PHOTO EVIDENCE PINS
   useEffect(() => {
@@ -1093,38 +1176,38 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       });
 
       const popupHtml = `
-        <div class="text-white font-sans p-3 min-w-[250px] max-w-[290px] overflow-hidden">
-          <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-white/10 min-w-0">
+        <div class="text-slate-900 font-sans p-2.5 min-w-[250px] max-w-[290px] overflow-hidden">
+          <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-200 min-w-0">
             <div class="flex items-center gap-1.5 min-w-0 truncate">
-              <span class="text-emerald-400 font-black">🛡️</span>
-              <span class="font-extrabold text-xs text-white truncate">${route.name}</span>
+              <span class="text-emerald-600 font-black">🛡️</span>
+              <span class="font-bold text-xs text-slate-900 truncate">${route.name}</span>
             </div>
-            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/50 shrink-0">
+            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
               ${route.safetyStatus}
             </span>
           </div>
 
-          <div class="text-[11px] text-slate-300 mb-2 truncate">${route.state} • ${route.corridorCode}</div>
+          <div class="text-[11px] text-slate-600 mb-2 truncate">${route.state} • ${route.corridorCode}</div>
 
-          <div class="grid grid-cols-2 gap-1.5 text-[10px] mb-2.5 bg-white/5 p-2 rounded-xl border border-white/10">
-            <div><span class="text-slate-400">Distance:</span> <strong class="text-emerald-300 font-mono">${route.distanceKm} km</strong></div>
-            <div><span class="text-slate-400">Transit:</span> <strong class="text-emerald-300 font-mono">~${route.estEvacTimeMinutes} mins</strong></div>
-            <div><span class="text-slate-400">Capacity:</span> <strong class="text-white">${route.capacityVehiclesPerHour} veh/h</strong></div>
-            <div><span class="text-slate-400">Profile:</span> <strong class="text-teal-300">Crest Ridge</strong></div>
+          <div class="grid grid-cols-2 gap-1.5 text-[10px] mb-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+            <div><span class="text-slate-500">Distance:</span> <strong class="text-emerald-700 font-mono">${route.distanceKm} km</strong></div>
+            <div><span class="text-slate-500">Transit:</span> <strong class="text-emerald-700 font-mono">~${route.estEvacTimeMinutes} mins</strong></div>
+            <div><span class="text-slate-500">Capacity:</span> <strong class="text-slate-800">${route.capacityVehiclesPerHour} veh/h</strong></div>
+            <div><span class="text-slate-500">Profile:</span> <strong class="text-blue-700">Crest Ridge</strong></div>
           </div>
 
-          <div class="text-[10px] text-slate-300 mb-1.5">
-            <span class="font-bold text-white">Engineering:</span> ${route.surfaceType}
+          <div class="text-[11px] text-slate-700 mb-1.5">
+            <span class="font-bold text-slate-900">Engineering:</span> ${route.surfaceType}
           </div>
 
-          <div class="p-2 rounded-xl bg-white/5 text-[10px] text-slate-300 leading-snug mb-2.5 italic border border-white/10">
+          <div class="p-2 rounded-lg bg-emerald-50/70 text-[11px] text-emerald-900 leading-snug mb-2 italic border border-emerald-200">
             "${route.description}"
           </div>
 
           ${
             onOpenEscapeModal
-              ? `<button id="btn-full-evac-plan" class="w-full text-center py-1.5 text-[11px] font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer transition-colors shadow-md">
-                  Open Command Evacuation Dispatch
+              ? `<button id="btn-full-evac-plan" class="w-full text-center py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors shadow-xs">
+                  Open Evacuation Command Dispatch
                 </button>`
               : ''
           }
@@ -1149,8 +1232,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         const checkIcon = L.divIcon({
           html: `
             <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black bg-emerald-950/95 text-emerald-300 border-2 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] whitespace-nowrap hover:scale-105 transition-transform">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black bg-white text-emerald-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>🛡️ ${route.corridorCode} START</span>
               </div>
             </div>
@@ -1172,7 +1255,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           const midIcon = L.divIcon({
             html: `
               <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-                <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-950/90 text-teal-300 border border-teal-400 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
+                <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-white text-teal-800 border border-teal-400 shadow-xs whitespace-nowrap hover:scale-105 transition-transform">
                   <span>🛣️ ${route.name.split('–')[0].trim()} • ${route.distanceKm}km</span>
                 </div>
               </div>
@@ -1186,8 +1269,125 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           safeRoutesGroup.addLayer(midMarker);
         }
       }
+
+      // Safe Destination Marker at End of Route
+      const endCoord = route.coordinates[route.coordinates.length - 1];
+      if (endCoord) {
+        const destIcon = L.divIcon({
+          html: `
+            <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black bg-white text-emerald-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
+                <span>🏁</span>
+                <span>SAFE DESTINATION: ${route.connectedHub.split(' ')[0]}</span>
+              </div>
+            </div>
+          `,
+          className: 'custom-safe-dest-marker',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
+        const destMarker = L.marker(endCoord, { icon: destIcon, zIndexOffset: 350 });
+        destMarker.bindPopup(popupHtml);
+        safeRoutesGroup.addLayer(destMarker);
+      }
     });
   }, [layerSafeRoutes, onOpenEscapeModal, isMapReady]);
+
+  // RENDER DEDICATED SAFE ZONES (Clear Translucent Green Polygons, Borders & SAFE ZONE Labels)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const safeZonesGroup = safeZonesGroupRef.current;
+    if (!map || !safeZonesGroup) return;
+
+    safeZonesGroup.clearLayers();
+    if (!layerSafeZones) return;
+
+    COMMUNITY_HUBS.forEach((hub) => {
+      // 1. Translucent green muster polygon
+      if (hub.safeAreaCoords && hub.safeAreaCoords.length > 2) {
+        const safePolygon = L.polygon(hub.safeAreaCoords, {
+          color: '#059669',
+          fillColor: '#10b981',
+          fillOpacity: 0.32,
+          weight: 2.5,
+          dashArray: '5, 4',
+        });
+        safePolygon.bindTooltip(`
+          <div class="font-sans font-bold text-xs p-1 text-emerald-900">
+            <span class="text-emerald-700">🛡️ SAFE ZONE:</span> ${hub.name}
+            <div class="text-[10px] text-slate-600 font-normal">Designated Evacuation Haven • Cap ${hub.safeCapacityPeople.toLocaleString()}</div>
+          </div>
+        `, { sticky: true });
+        safeZonesGroup.addLayer(safePolygon);
+      }
+
+      // 2. Safe zone buffer circle
+      const safeCircle = L.circle(hub.coordinates, {
+        radius: hub.safeAreaRadiusMeters || 1200,
+        color: '#10b981',
+        fillColor: '#dcfce7',
+        fillOpacity: 0.24,
+        weight: 2,
+        dashArray: '4, 4',
+      });
+      safeZonesGroup.addLayer(safeCircle);
+
+      // 3. Clear "SAFE ZONE" Label Marker
+      const labelIcon = L.divIcon({
+        html: `
+          <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-white text-emerald-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>🛡️ SAFE ZONE: ${hub.name.split(' ')[0]}</span>
+              <span class="text-[9px] px-1 rounded bg-emerald-50 text-emerald-900 border border-emerald-300">Cap ${hub.safeCapacityPeople.toLocaleString()}</span>
+            </div>
+          </div>
+        `,
+        className: 'custom-safe-zone-icon',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+
+      const marker = L.marker(hub.coordinates, { icon: labelIcon, zIndexOffset: 340 });
+
+      const popupHtml = `
+        <div class="text-slate-900 font-sans p-2.5 min-w-[240px]">
+          <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-200">
+            <div class="flex items-center gap-1.5 truncate">
+              <span class="text-emerald-600 font-black text-sm">🛡️</span>
+              <span class="font-bold text-xs text-slate-900 truncate">SAFE ZONE: ${hub.name}</span>
+            </div>
+            <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300">
+              SAFE HAVEN
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-600 mb-2">${hub.district}, ${hub.state} • Elev: ${hub.elevationM}m</div>
+          <div class="grid grid-cols-2 gap-1.5 text-[11px] mb-2 bg-emerald-50/70 border border-emerald-200 p-2 rounded-lg">
+            <div><span class="text-slate-500">Designated Cap:</span> <strong>${hub.safeCapacityPeople.toLocaleString()}</strong></div>
+            <div><span class="text-slate-500">Ration Days:</span> <strong>${hub.supplies.foodRationDays} Days</strong></div>
+            <div><span class="text-slate-500">Water Supply:</span> <strong>${hub.supplies.waterSource}</strong></div>
+            <div><span class="text-slate-500">Medical Post:</span> <strong>${hub.supplies.medicalAid}</strong></div>
+          </div>
+          <button id="zoom-safe-zone-${hub.id}" class="w-full text-center py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors shadow-xs">
+            Zoom to Safe Zone Perimeter
+          </button>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml);
+      marker.on('popupopen', () => {
+        const btn = document.getElementById(`zoom-safe-zone-${hub.id}`);
+        if (btn) {
+          btn.onclick = () => {
+            marker.closePopup();
+            map.flyTo(hub.coordinates, 13, { duration: 1.2 });
+          };
+        }
+      });
+
+      safeZonesGroup.addLayer(marker);
+    });
+  }, [layerSafeZones, isMapReady]);
 
   // 11. RENDER COMMUNITY HUBS & SAFE ASSEMBLY PERIMETERS
   useEffect(() => {
@@ -1210,7 +1410,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         });
         safePolygon.bindTooltip(`Safe Muster Perimeter • ${hub.name}`, {
           sticky: true,
-          className: 'text-xs font-mono font-bold bg-slate-900 text-emerald-300 border border-emerald-500 p-1 rounded',
+          className: 'text-xs font-mono font-bold bg-white text-emerald-800 border border-emerald-300 p-1 rounded shadow-xs',
         });
         hubsGroup.addLayer(safePolygon);
       }
@@ -1218,13 +1418,13 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       // 2. Hub Beacon Marker
       const iconHtml = `
         <div class="cursor-pointer" style="transform: translate(-50%, -100%);">
-          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-slate-950/95 text-teal-200 border-2 border-teal-400 shadow-[0_0_20px_rgba(20,184,166,0.6)] hover:scale-110 transition-transform whitespace-nowrap">
-            <span class="w-2 h-2 rounded-full bg-teal-400 animate-ping shrink-0"></span>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white text-emerald-800 border-2 border-emerald-500 shadow-md hover:scale-105 transition-transform whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
             <span>🏛️</span>
             <span>${hub.name.split(' ')[0]} Haven</span>
-            <span class="text-[9px] font-mono px-1 rounded bg-teal-950 text-teal-300 border border-teal-500/40">Cap ${hub.safeCapacityPeople.toLocaleString()}</span>
+            <span class="text-[9px] font-mono px-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-300">Cap ${hub.safeCapacityPeople.toLocaleString()}</span>
           </div>
-          <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[7px] border-t-teal-400 mx-auto -mt-[0.5px]"></div>
+          <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[7px] border-t-emerald-600 mx-auto -mt-[0.5px]"></div>
         </div>
       `;
 
@@ -1241,34 +1441,34 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       });
 
       const popupHtml = `
-        <div class="text-white font-sans p-3 min-w-[260px] max-w-[300px] overflow-hidden">
-          <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-white/10 min-w-0">
+        <div class="text-slate-900 font-sans p-3 min-w-[260px] max-w-[300px] overflow-hidden">
+          <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-200 min-w-0">
             <div class="flex items-center gap-1.5 truncate">
-              <span class="text-teal-400 font-black text-sm">🏛️</span>
-              <span class="font-extrabold text-xs text-white truncate">${hub.name}</span>
+              <span class="text-emerald-600 font-black text-sm">🏛️</span>
+              <span class="font-bold text-xs text-slate-900 truncate">${hub.name}</span>
             </div>
-            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-500/50 shrink-0">
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 shrink-0">
               ${hub.status}
             </span>
           </div>
 
-          <div class="text-[11px] text-slate-300 mb-2 truncate">${hub.district}, ${hub.state} • Elev: ${hub.elevationM}m</div>
+          <div class="text-[11px] text-slate-500 mb-2 truncate">${hub.district}, ${hub.state} • Elev: ${hub.elevationM}m</div>
 
-          <div class="grid grid-cols-2 gap-1.5 text-[10px] mb-2.5 bg-white/5 p-2 rounded-xl border border-white/10">
-            <div><span class="text-slate-400">Designated Cap:</span> <strong class="text-emerald-300">${hub.safeCapacityPeople.toLocaleString()}</strong></div>
-            <div><span class="text-slate-400">Occupancy:</span> <strong class="text-white">${hub.currentOccupancy}</strong></div>
-            <div><span class="text-slate-400">Ration Stock:</span> <strong class="text-teal-300">${hub.supplies.foodRationDays} Days</strong></div>
-            <div><span class="text-slate-400">Safe Radius:</span> <strong class="text-white">${hub.safeAreaRadiusMeters}m</strong></div>
+          <div class="grid grid-cols-2 gap-1.5 text-[10px] mb-2.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <div><span class="text-slate-500">Designated Cap:</span> <strong class="text-emerald-700 font-bold">${hub.safeCapacityPeople.toLocaleString()}</strong></div>
+            <div><span class="text-slate-500">Occupancy:</span> <strong class="text-slate-800 font-bold">${hub.currentOccupancy}</strong></div>
+            <div><span class="text-slate-500">Ration Stock:</span> <strong class="text-blue-700 font-bold">${hub.supplies.foodRationDays} Days</strong></div>
+            <div><span class="text-slate-500">Safe Radius:</span> <strong class="text-slate-800 font-bold">${hub.safeAreaRadiusMeters}m</strong></div>
           </div>
 
-          <div class="space-y-1 text-[10px] text-slate-300 mb-2.5 bg-slate-950/60 p-2 rounded-xl border border-white/10">
-            <div class="truncate">💧 <strong class="text-white">Water:</strong> ${hub.supplies.waterSource}</div>
-            <div class="truncate">🏥 <strong class="text-white">Medical:</strong> ${hub.supplies.medicalAid}</div>
-            <div class="truncate">⚡ <strong class="text-white">Power:</strong> ${hub.supplies.powerBackup}</div>
-            <div class="truncate">📡 <strong class="text-white">Comms:</strong> ${hub.supplies.comms}</div>
+          <div class="space-y-1 text-[10px] text-slate-600 mb-2.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <div class="truncate">💧 <strong class="text-slate-800">Water:</strong> ${hub.supplies.waterSource}</div>
+            <div class="truncate">🏥 <strong class="text-slate-800">Medical:</strong> ${hub.supplies.medicalAid}</div>
+            <div class="truncate">⚡ <strong class="text-slate-800">Power:</strong> ${hub.supplies.powerBackup}</div>
+            <div class="truncate">📡 <strong class="text-slate-800">Comms:</strong> ${hub.supplies.comms}</div>
           </div>
 
-          <button id="hub-zoom-btn-${hub.id}" class="w-full text-center py-1.5 text-[11px] font-bold rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white cursor-pointer transition-colors shadow-md">
+          <button id="hub-zoom-btn-${hub.id}" class="w-full text-center py-2 text-[11px] font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors shadow-xs">
             Zoom to Safe Muster Perimeter
           </button>
         </div>
@@ -1522,7 +1722,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   return (
     <div
       id="landslide-map-wrapper"
-      className="relative isolate z-0 w-full h-full min-h-[380px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#080c16]"
+      className="relative isolate z-0 w-full h-full min-h-[420px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-[#F8FAFC]"
     >
       {/* Map Canvas Element */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
@@ -1532,20 +1732,20 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         {/* Row 1: Search & Place Selector & Fit Bounds */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Search Input */}
-          <div className="flex items-center backdrop-blur-xl bg-slate-950/80 border border-white/15 rounded-xl px-2.5 py-1.5 shadow-2xl w-32 sm:w-44 pointer-events-auto">
+          <div className="flex items-center bg-white/95 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm w-32 sm:w-44 pointer-events-auto">
             <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
             <input
               id="map-search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search place..."
-              className="bg-transparent text-xs text-white placeholder-slate-400 focus:outline-none w-full min-w-0"
+              placeholder="Search station or area..."
+              className="bg-transparent text-xs text-slate-900 placeholder-slate-400 focus:outline-none w-full min-w-0 font-medium"
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
-                className="text-xs text-slate-400 hover:text-white ml-1 px-1 cursor-pointer"
+                className="text-xs text-slate-400 hover:text-slate-700 ml-1 px-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -1553,9 +1753,9 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           </div>
 
           {/* Compact Select Place */}
-          <div className="backdrop-blur-xl bg-slate-950/80 border border-cyan-500/30 rounded-xl px-2.5 py-1 shadow-2xl flex items-center gap-1.5 pointer-events-auto max-w-[140px] sm:max-w-[200px]">
-            <span className="text-[9px] font-mono font-black text-cyan-400 uppercase tracking-wider shrink-0 hidden sm:inline">
-              PLACE:
+          <div className="bg-white/95 border border-slate-200 rounded-xl px-2.5 py-1 shadow-sm flex items-center gap-1.5 pointer-events-auto max-w-[140px] sm:max-w-[200px]">
+            <span className="text-[9px] font-mono font-bold text-blue-600 uppercase tracking-wider shrink-0 hidden sm:inline">
+              STATION:
             </span>
             <select
               value={selectedStation?.id || ''}
@@ -1563,13 +1763,13 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                 const found = stations.find((s) => s.id === e.target.value);
                 if (found) onSelectStation(found);
               }}
-              className="bg-transparent text-xs text-white font-bold focus:outline-none cursor-pointer w-full min-w-0 truncate"
+              className="bg-transparent text-xs text-slate-800 font-bold focus:outline-none cursor-pointer w-full min-w-0 truncate"
             >
               {stations.map((st) => {
                 const clean = getCleanPlaceName(st);
                 const region = st.region ? st.region.split(',')[0].replace(/District/i, '').trim() : '';
                 return (
-                  <option key={st.id} value={st.id} className="bg-slate-900 text-white">
+                  <option key={st.id} value={st.id} className="bg-white text-slate-900">
                     {clean} {region ? `(${region})` : ''}
                   </option>
                 );
@@ -1581,66 +1781,66 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           <button
             type="button"
             onClick={fitAllStations}
-            className="p-1.5 backdrop-blur-xl bg-slate-950/80 border border-white/15 hover:border-cyan-400/50 text-slate-300 hover:text-white rounded-xl shadow-2xl pointer-events-auto transition-colors cursor-pointer shrink-0"
-            title="Fit All Monitored Northeast Stations"
+            className="p-2 bg-white/95 border border-slate-200 hover:border-blue-400 hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm pointer-events-auto transition-colors cursor-pointer shrink-0"
+            title="Fit All Monitored Stations"
           >
-            <LocateFixed className="w-3.5 h-3.5 text-cyan-400" />
+            <LocateFixed className="w-3.5 h-3.5 text-blue-600" />
           </button>
         </div>
 
-        {/* Row 2: Prominent Quick Toggle Badges for Safe Routes, Community Hubs & Risk Zones */}
+        {/* Row 2: Prominent Quick Toggle Badges for Safe Routes, Safe Zones & Risk Zones */}
         <div className="flex items-center gap-1.5 flex-wrap pointer-events-auto">
           {/* Safe Routes Toggle */}
           <button
             type="button"
             onClick={() => setLayerSafeRoutes((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-extrabold backdrop-blur-xl transition-all shadow-lg cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shadow-xs cursor-pointer ${
               layerSafeRoutes
-                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-400/80 shadow-emerald-950/40'
-                : 'bg-slate-950/80 text-slate-400 border border-white/10 hover:text-slate-200'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                : 'bg-white/95 text-slate-600 border border-slate-200 hover:bg-slate-50'
             }`}
             title="Click to toggle Safe Evacuation Corridors on Map"
           >
-            <Route className="w-3 h-3 text-emerald-400 shrink-0" />
+            <Route className="w-3 h-3 text-emerald-600 shrink-0" />
             <span className="whitespace-nowrap">Safe Routes ({SAFE_EVACUATION_ROUTES.length})</span>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerSafeRoutes ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerSafeRoutes ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
           </button>
 
-          {/* Community Hubs Toggle */}
+          {/* Safe Zones Toggle */}
           <button
             type="button"
-            onClick={() => setLayerCommunityHubs((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-extrabold backdrop-blur-xl transition-all shadow-lg cursor-pointer ${
-              layerCommunityHubs
-                ? 'bg-teal-950/80 text-teal-300 border border-teal-400/80 shadow-teal-950/40'
-                : 'bg-slate-950/80 text-slate-400 border border-white/10 hover:text-slate-200'
+            onClick={() => setLayerSafeZones((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shadow-xs cursor-pointer ${
+              layerSafeZones
+                ? 'bg-teal-50 text-teal-800 border border-teal-300'
+                : 'bg-white/95 text-slate-600 border border-slate-200 hover:bg-slate-50'
             }`}
-            title="Click to toggle Community Relief Hubs & Safe Havens on Map"
+            title="Click to toggle Safe Havens & Muster Perimeters on Map"
           >
-            <Home className="w-3 h-3 text-teal-400 shrink-0" />
-            <span className="whitespace-nowrap">Community Hubs ({COMMUNITY_HUBS.length})</span>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerCommunityHubs ? 'bg-teal-400 animate-pulse' : 'bg-slate-500'}`} />
+            <ShieldCheck className="w-3 h-3 text-teal-600 shrink-0" />
+            <span className="whitespace-nowrap">Safe Zones ({COMMUNITY_HUBS.length})</span>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerSafeZones ? 'bg-teal-500 animate-pulse' : 'bg-slate-300'}`} />
           </button>
 
           {/* Risk Zones Toggle & Severity Filter */}
-          <div className="flex items-center backdrop-blur-xl bg-slate-950/80 border border-white/15 rounded-xl overflow-hidden shadow-lg">
+          <div className="flex items-center bg-white/95 border border-slate-200 rounded-xl overflow-hidden shadow-xs">
             <button
               type="button"
               onClick={() => setLayerRiskZones((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-extrabold transition-all cursor-pointer ${
-                layerRiskZones ? 'text-amber-300 bg-amber-950/80' : 'text-slate-400 hover:text-slate-200'
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
+                layerRiskZones ? 'text-amber-900 bg-amber-50' : 'text-slate-600 hover:bg-slate-50'
               }`}
               title="Click to toggle Multi-Tier Risk Zones on Map"
             >
-              <AlertOctagon className="w-3 h-3 text-amber-400 shrink-0" />
+              <AlertOctagon className="w-3 h-3 text-amber-500 shrink-0" />
               <span className="whitespace-nowrap">Risk Zones ({GEOSPATIAL_RISK_ZONES.length})</span>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerRiskZones ? 'bg-amber-400' : 'bg-slate-500'}`} />
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerRiskZones ? 'bg-amber-500' : 'bg-slate-300'}`} />
             </button>
             {layerRiskZones && (
               <select
                 value={riskZoneFilter}
                 onChange={(e) => setRiskZoneFilter(e.target.value as any)}
-                className="bg-slate-950/90 text-[10px] font-black text-slate-200 px-1.5 py-1 border-l border-white/15 focus:outline-none cursor-pointer"
+                className="bg-white text-[10px] font-bold text-slate-700 px-1.5 py-1 border-l border-slate-200 focus:outline-none cursor-pointer"
                 title="Filter Geospatial Risk Zones by severity"
               >
                 <option value="all">All (17)</option>
@@ -1655,8 +1855,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
         {/* Row 3: Direct Quick Jump to Any Geospatial Risk Zone, Safe Route, or Safe Haven */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
-          <div className="backdrop-blur-xl bg-slate-950/85 border border-white/15 hover:border-cyan-400/50 rounded-xl px-2.5 py-1 shadow-2xl flex items-center gap-1.5 w-full max-w-[280px] sm:max-w-xs transition-all">
-            <span className="text-[10px] font-mono font-black text-cyan-400 shrink-0">
+          <div className="bg-white/95 border border-slate-200 hover:border-blue-400 rounded-xl px-2.5 py-1 shadow-sm flex items-center gap-1.5 w-full max-w-[280px] sm:max-w-xs transition-all">
+            <span className="text-[10px] font-mono font-bold text-blue-600 shrink-0">
               🎯 FOCUS:
             </span>
             <select
@@ -1689,47 +1889,47 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                   const hubId = val.replace('hub:', '');
                   const hub = COMMUNITY_HUBS.find((h) => h.id === hubId);
                   if (hub) {
-                    setLayerCommunityHubs(true);
+                    setLayerSafeZones(true);
                     map.flyTo(hub.coordinates, 13, { duration: 1.2 });
                   }
                 }
               }}
-              className="bg-transparent text-xs text-slate-200 font-bold focus:outline-none cursor-pointer w-full min-w-0 truncate"
+              className="bg-transparent text-xs text-slate-800 font-semibold focus:outline-none cursor-pointer w-full min-w-0 truncate"
             >
-              <option value="" className="bg-slate-900 text-slate-400">
+              <option value="" className="bg-white text-slate-500">
                 Jump to Risk Zone / Safe Route / Haven...
               </option>
-              <optgroup label="🚨 Extreme Risk Zones" className="bg-slate-900 text-rose-300">
+              <optgroup label="🚨 Extreme Risk Zones" className="bg-white text-rose-700">
                 {GEOSPATIAL_RISK_ZONES.filter((z) => z.category === 'extreme').map((z) => (
-                  <option key={z.id} value={`zone:${z.id}`} className="bg-slate-900 text-rose-300">
+                  <option key={z.id} value={`zone:${z.id}`} className="bg-white text-rose-700">
                     🔴 {z.name} ({z.state})
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="⚠️ High Risk Zones" className="bg-slate-900 text-orange-300">
+              <optgroup label="⚠️ High Risk Zones" className="bg-white text-orange-700">
                 {GEOSPATIAL_RISK_ZONES.filter((z) => z.category === 'high').map((z) => (
-                  <option key={z.id} value={`zone:${z.id}`} className="bg-slate-900 text-orange-300">
+                  <option key={z.id} value={`zone:${z.id}`} className="bg-white text-orange-700">
                     🟠 {z.name} ({z.state})
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="⚡ Moderate & Low Risk Zones" className="bg-slate-900 text-amber-300">
+              <optgroup label="⚡ Moderate & Low Risk Zones" className="bg-white text-amber-700">
                 {GEOSPATIAL_RISK_ZONES.filter((z) => z.category === 'moderate' || z.category === 'low').map((z) => (
-                  <option key={z.id} value={`zone:${z.id}`} className="bg-slate-900 text-amber-300">
+                  <option key={z.id} value={`zone:${z.id}`} className="bg-white text-amber-700">
                     {z.category === 'moderate' ? '🟡' : '🟢'} {z.name} ({z.state})
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="🛡️ Safe Evacuation Routes" className="bg-slate-900 text-emerald-300">
+              <optgroup label="🛡️ Safe Evacuation Routes" className="bg-white text-emerald-700">
                 {SAFE_EVACUATION_ROUTES.map((r) => (
-                  <option key={r.id} value={`route:${r.id}`} className="bg-slate-900 text-emerald-300">
+                  <option key={r.id} value={`route:${r.id}`} className="bg-white text-emerald-700">
                     🛡️ {r.name} ({r.distanceKm} km)
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="🏛️ Community Safe Havens" className="bg-slate-900 text-teal-300">
+              <optgroup label="🏛️ Community Safe Havens" className="bg-white text-teal-700">
                 {COMMUNITY_HUBS.map((h) => (
-                  <option key={h.id} value={`hub:${h.id}`} className="bg-slate-900 text-teal-300">
+                  <option key={h.id} value={`hub:${h.id}`} className="bg-white text-teal-700">
                     🏛️ {h.name} (Cap {h.safeCapacityPeople.toLocaleString()})
                   </option>
                 ))}
@@ -1751,34 +1951,34 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
               e.stopPropagation();
               setIsLayerPanelOpen(!isLayerPanelOpen);
             }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl backdrop-blur-xl bg-slate-950/80 border border-white/15 hover:border-cyan-400/60 text-xs font-black text-white shadow-2xl cursor-pointer transition-all active:scale-95"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 border border-slate-200 hover:border-blue-500 hover:bg-white text-xs font-bold text-slate-800 shadow-sm cursor-pointer transition-all active:scale-95"
             title="Open GIS & Hazard Map Layers Selector"
           >
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <span className="hidden sm:inline tracking-wide font-sans">Map Layers</span>
+            <Layers className="w-4 h-4 text-blue-600" />
+            <span className="hidden sm:inline font-sans">Map Layers</span>
             <span className="sm:hidden font-sans">Layers</span>
             <ChevronDown
-              className={`w-3.5 h-3.5 text-cyan-300 transition-transform duration-200 ${
+              className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${
                 isLayerPanelOpen ? 'rotate-180' : ''
               }`}
             />
           </button>
 
           {/* Zoom Buttons Group */}
-          <div className="flex items-center backdrop-blur-xl bg-slate-950/80 border border-white/15 rounded-xl overflow-hidden shadow-2xl">
+          <div className="flex items-center bg-white/95 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <button
               type="button"
               onClick={() => mapInstanceRef.current?.zoomIn()}
-              className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
-            <div className="w-[1px] h-4 bg-white/15" />
+            <div className="w-[1px] h-4 bg-slate-200" />
             <button
               type="button"
               onClick={() => mapInstanceRef.current?.zoomOut()}
-              className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
@@ -1793,20 +1993,20 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             id="floating-map-layer-panel"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            className="w-72 sm:w-80 max-h-[calc(100vh-160px)] sm:max-h-[540px] overflow-y-auto glass-dropdown rounded-2xl p-3 sm:p-4 text-xs space-y-4 animate-in fade-in zoom-in-95 duration-150"
+            className="w-80 sm:w-88 max-h-[calc(100vh-160px)] sm:max-h-[580px] overflow-y-auto bg-white border border-slate-200 rounded-2xl p-4 text-xs space-y-4 shadow-xl text-slate-800 animate-in fade-in zoom-in-95 duration-150"
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-cyan-400" />
-                <span className="font-extrabold text-white uppercase tracking-wider text-[11px] font-sans">
-                  Map Layer Selection
+                <Layers className="w-4 h-4 text-blue-600" />
+                <span className="font-bold text-slate-900 uppercase tracking-wider text-[11px] font-sans">
+                  Map Layers &amp; Overlays
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsLayerPanelOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1814,16 +2014,16 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
             {/* CATEGORY 1: BASE MAPS */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 font-mono block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
                 BASE MAPS
               </span>
               <div className="grid grid-cols-2 gap-1.5">
                 {(
                   [
-                    { id: 'satellite', label: 'Satellite', icon: Globe },
-                    { id: 'dark', label: 'Dark Canvas', icon: Globe },
                     { id: 'topo', label: 'Terrain Topo', icon: Layers },
+                    { id: 'satellite', label: 'Satellite', icon: Globe },
                     { id: 'osm', label: 'Standard OSM', icon: Globe },
+                    { id: 'dark', label: 'Dark Canvas', icon: Globe },
                   ] as const
                 ).map((base) => {
                   const Icon = base.icon;
@@ -1835,298 +2035,281 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                       onClick={() => setBaseMap(base.id)}
                       className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-md'
-                          : 'bg-white/5 text-slate-300 border-white/10 hover:border-white/20'
+                          ? 'bg-blue-50 text-blue-800 border-blue-400 shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center gap-1.5 truncate">
-                        <Icon className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <Icon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                         <span className="truncate">{base.label}</span>
                       </div>
-                      {isActive && <Check className="w-3 h-3 text-cyan-300 shrink-0" />}
+                      {isActive && <Check className="w-3 h-3 text-blue-600 shrink-0" />}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* CATEGORY 2: HAZARD / ENVIRONMENTAL LAYERS */}
+            {/* CATEGORY 2: PRIMARY DISASTER & HAZARD LAYERS */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 font-mono block">
-                HAZARD / ENVIRONMENTAL LAYERS
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
+                HAZARD &amp; EVACUATION OVERLAYS
               </span>
-              <div className="space-y-1">
-                {/* Landslide Risk */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+              <div className="space-y-1.5">
+                {/* Safe Zones */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-emerald-50/60 border border-emerald-200 hover:border-emerald-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-amber-400" />
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
                     <div>
-                      <span className="font-bold text-white block">Landslide Risk Sensors</span>
-                      <span className="text-[9px] text-slate-400">Telemetry &amp; Heatmap</span>
+                      <span className="font-bold text-slate-900 block">Safe Zones</span>
+                      <span className="text-[10px] text-slate-500">Muster perimeters &amp; havens</span>
                     </div>
                   </div>
                   <input
                     type="checkbox"
-                    checked={layerLandslide}
-                    onChange={(e) => setLayerLandslide(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
+                    checked={layerSafeZones}
+                    onChange={(e) => setLayerSafeZones(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
-                {/* Geospatial Risk Zones */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-rose-500/40 hover:border-rose-400 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-white">Risk Zones</span>
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-rose-950 text-rose-300 border border-rose-500/50">
-                          17 ZONES
-                        </span>
+                {/* Risk Heatmap & Metric Selection */}
+                <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-4 h-4 text-amber-500" />
+                      <div>
+                        <span className="font-bold text-slate-900 block">Risk Heatmap</span>
+                        <span className="text-[10px] text-slate-500">Scientific GIS color density</span>
                       </div>
-                      <span className="text-[9px] text-slate-300">Extreme • High • Mod • Low</span>
                     </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerRiskZones}
-                    onChange={(e) => setLayerRiskZones(e.target.checked)}
-                    className="w-4 h-4 rounded text-rose-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                {/* Flood Risk */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Waves className="w-4 h-4 text-cyan-300" />
-                    <span className="font-bold text-white">Flood Risk</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerFlood}
-                    onChange={(e) => setLayerFlood(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                {/* Rainfall Doppler */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <CloudRain className="w-4 h-4 text-sky-400" />
-                    <div>
-                      <span className="font-bold text-white block">Rainfall Doppler Radar</span>
-                      <span className="text-[9px] text-slate-400">Live IMD Polarimetric Feed</span>
+                    <input
+                      type="checkbox"
+                      checked={layerHeatmap}
+                      onChange={(e) => setLayerHeatmap(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
+                    />
+                  </label>
+                  {layerHeatmap && (
+                    <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-slate-600 uppercase font-mono">Heatmap Metric:</span>
+                      <select
+                        value={heatmapMetric}
+                        onChange={(e) => setHeatmapMetric(e.target.value as any)}
+                        className="bg-white border border-slate-300 text-slate-800 text-[11px] font-semibold px-2 py-1 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="risk">Risk</option>
+                        <option value="soil_moisture">Soil Moisture</option>
+                        <option value="pore_pressure">Pore Pressure</option>
+                        <option value="erosion">Erosion</option>
+                      </select>
                     </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerRainfall}
-                    onChange={(e) => setLayerRainfall(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
+                  )}
+                </div>
 
-                {/* Temperature */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+                {/* Safe Routes */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Thermometer className="w-4 h-4 text-orange-400" />
+                    <Route className="w-4 h-4 text-emerald-600" />
                     <div>
-                      <span className="font-bold text-white block">Surface Temperature</span>
-                      <span className="text-[9px] text-slate-400">Thermal Infrared Isotherms</span>
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerTemperature}
-                    onChange={(e) => setLayerTemperature(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                {/* Wind */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Wind className="w-4 h-4 text-teal-300" />
-                    <div>
-                      <span className="font-bold text-white block">Wind Velocity</span>
-                      <span className="text-[9px] text-slate-400">Pass Streamlines &amp; Vectors</span>
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerWind}
-                    onChange={(e) => setLayerWind(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                {/* Soil Moisture */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Droplets className="w-4 h-4 text-indigo-400" />
-                    <span className="font-bold text-white">Soil Moisture (VWC)</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerSoilMoisture}
-                    onChange={(e) => setLayerSoilMoisture(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                {/* Drainage / Water Flow */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-cyan-400" />
-                    <div>
-                      <span className="font-bold text-white block">Drainage Flow</span>
-                      <span className="text-[9px] text-slate-400">Valley Hydraulic Runoff</span>
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerDrainage}
-                    onChange={(e) => setLayerDrainage(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* CATEGORY 3: INFRASTRUCTURE / GEOSPATIAL */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 font-mono block">
-                INFRASTRUCTURE / GEOSPATIAL
-              </span>
-              <div className="space-y-1">
-                {/* Safe Routes & Evacuation Corridors */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-emerald-500/40 hover:border-emerald-400 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Route className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-white">Safe Evacuation Routes</span>
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/50">
-                          6 CORRIDORS
-                        </span>
-                      </div>
-                      <span className="text-[9px] text-slate-300">Ridge Bypasses • All-Clear</span>
+                      <span className="font-bold text-slate-900 block">Safe Routes</span>
+                      <span className="text-[10px] text-slate-500">Ridge bypasses &amp; all-clear corridors</span>
                     </div>
                   </div>
                   <input
                     type="checkbox"
                     checked={layerSafeRoutes}
                     onChange={(e) => setLayerSafeRoutes(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-500 focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
-                {/* Community Hubs & Safe Areas */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-teal-500/40 hover:border-teal-400 cursor-pointer">
+                {/* Risk Buffers */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-amber-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Home className="w-4 h-4 text-teal-300 shrink-0" />
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-white">Community Hubs &amp; Havens</span>
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-teal-950 text-teal-300 border border-teal-500/50">
-                          8 HAVENS
-                        </span>
-                      </div>
-                      <span className="text-[9px] text-slate-300">Safe Muster Perimeters &amp; Stock</span>
+                      <span className="font-bold text-slate-900 block">Risk Buffers</span>
+                      <span className="text-[10px] text-slate-500">Concentric hazard impact radii</span>
                     </div>
                   </div>
                   <input
                     type="checkbox"
-                    checked={layerCommunityHubs}
-                    onChange={(e) => setLayerCommunityHubs(e.target.checked)}
-                    className="w-4 h-4 rounded text-teal-500 focus:ring-0 cursor-pointer"
+                    checked={layerRiskBuffers}
+                    onChange={(e) => setLayerRiskBuffers(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
-                {/* Roads */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+                {/* Station Pins */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-blue-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Milestone className="w-4 h-4 text-amber-400" />
-                    <span className="font-bold text-white">Roads (NH Corridors)</span>
+                    <MapPin className="w-4 h-4 text-blue-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Station Pins</span>
+                      <span className="text-[10px] text-slate-500">Live IoT telemetry nodes &amp; status</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerStationPins}
+                    onChange={(e) => setLayerStationPins(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* Flood Layer */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-cyan-50/50 border border-cyan-200 hover:border-cyan-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Waves className="w-4 h-4 text-cyan-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Flood Layer</span>
+                      <span className="text-[10px] text-slate-500">Hydraulic inundation perimeters</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerFlood}
+                    onChange={(e) => setLayerFlood(e.target.checked)}
+                    className="w-4 h-4 rounded text-cyan-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* NH Corridors */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-amber-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Milestone className="w-4 h-4 text-amber-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">NH Corridors</span>
+                      <span className="text-[10px] text-slate-500">Highways NH-10, NH-29, NH-102</span>
+                    </div>
                   </div>
                   <input
                     type="checkbox"
                     checked={layerRoads}
                     onChange={(e) => setLayerRoads(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
-                {/* Rivers */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+                {/* Villages */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Waves className="w-4 h-4 text-sky-400" />
-                    <span className="font-bold text-white">Rivers (Brahmaputra, Barak)</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={layerRivers}
-                    onChange={(e) => setLayerRivers(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
-                  />
-                </label>
-
-                {/* Buildings */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-slate-300" />
+                    <Home className="w-4 h-4 text-emerald-600" />
                     <div>
-                      <span className="font-bold text-white block">Buildings</span>
-                      <span className="text-[9px] text-slate-400">GIS Structural Footprints</span>
+                      <span className="font-bold text-slate-900 block">Villages</span>
+                      <span className="text-[10px] text-slate-500">Remote settlement safe pins</span>
                     </div>
                   </div>
                   <input
                     type="checkbox"
-                    checked={layerBuildings}
-                    onChange={(e) => setLayerBuildings(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
+                    checked={layerVillages}
+                    onChange={(e) => setLayerVillages(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
-                {/* Emergency Shelters */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+                {/* Evidence */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-rose-50/40 border border-rose-200 hover:border-rose-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span className="font-bold text-white">Emergency Shelters</span>
+                    <Camera className="w-4 h-4 text-rose-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Evidence</span>
+                      <span className="text-[10px] text-slate-500">Disaster photos &amp; ground reports</span>
+                    </div>
                   </div>
                   <input
                     type="checkbox"
-                    checked={layerShelters}
-                    onChange={(e) => setLayerShelters(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
+                    checked={showEvidencePins}
+                    onChange={(e) => setShowEvidencePins(e.target.checked)}
+                    className="w-4 h-4 rounded text-rose-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* CATEGORY 3: ADVANCED METEOROLOGY & SENSING */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-200">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
+                ADVANCED SENSING &amp; INFRASTRUCTURE
+              </span>
+              <div className="space-y-1">
+                {/* Rainfall Doppler */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-blue-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <CloudRain className="w-4 h-4 text-blue-500" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Rainfall Doppler Radar</span>
+                      <span className="text-[10px] text-slate-500">Live IMD Polarimetric Feed</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerRainfall}
+                    onChange={(e) => setLayerRainfall(e.target.checked)}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* Surface Temperature */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-orange-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Thermometer className="w-4 h-4 text-orange-500" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Surface Temperature</span>
+                      <span className="text-[10px] text-slate-500">Thermal Infrared Isotherms</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerTemperature}
+                    onChange={(e) => setLayerTemperature(e.target.checked)}
+                    className="w-4 h-4 rounded text-orange-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* Wind */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-teal-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Wind className="w-4 h-4 text-teal-600" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">Wind Velocity</span>
+                      <span className="text-[10px] text-slate-500">Pass Streamlines &amp; Vectors</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerWind}
+                    onChange={(e) => setLayerWind(e.target.checked)}
+                    className="w-4 h-4 rounded text-teal-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
                 {/* Hospitals */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-rose-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <Hospital className="w-4 h-4 text-rose-400" />
-                    <span className="font-bold text-white">Hospitals</span>
+                    <Hospital className="w-4 h-4 text-rose-600" />
+                    <span className="font-bold text-slate-900">District Hospitals</span>
                   </div>
                   <input
                     type="checkbox"
                     checked={layerHospitals}
                     onChange={(e) => setLayerHospitals(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded text-rose-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
                 {/* Critical Infrastructure */}
-                <label className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/40 cursor-pointer">
+                <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 cursor-pointer">
                   <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4 text-indigo-400" />
-                    <span className="font-bold text-white">Critical Infrastructure</span>
+                    <ShieldAlert className="w-4 h-4 text-indigo-600" />
+                    <span className="font-bold text-slate-900">Critical Infrastructure</span>
                   </div>
                   <input
                     type="checkbox"
                     checked={layerCriticalInfra}
                     onChange={(e) => setLayerCriticalInfra(e.target.checked)}
-                    className="w-4 h-4 rounded text-cyan-500 focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
               </div>
@@ -2138,10 +2321,10 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       {/* FLOATING RISK LEGEND ON MAP (BOTTOM-RIGHT) */}
       <div
         id="map-floating-risk-legend"
-        className="absolute bottom-3 right-3 z-[1000] backdrop-blur-xl bg-slate-950/85 border border-white/15 rounded-2xl p-3 shadow-2xl text-xs max-w-[280px] sm:max-w-xs pointer-events-auto overflow-hidden"
+        className="absolute bottom-3 right-3 z-[1000] bg-white/95 border border-slate-200 rounded-2xl p-3 shadow-md text-xs max-w-[280px] sm:max-w-xs pointer-events-auto overflow-hidden text-slate-800"
       >
-        <div className="flex items-center justify-between gap-3 pb-1.5 mb-1.5 border-b border-white/10">
-          <span className="font-black text-white text-[11px] uppercase tracking-wider font-mono truncate">
+        <div className="flex items-center justify-between gap-3 pb-1.5 mb-1.5 border-b border-slate-200">
+          <span className="font-bold text-slate-900 text-[11px] uppercase tracking-wider font-mono truncate">
             {activeLegendHazard === 'flood'
               ? 'FLOOD INUNDATION RISK'
               : activeLegendHazard === 'rainfall'
@@ -2154,7 +2337,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
               ? 'SOIL MOISTURE (VWC)'
               : 'LANDSLIDE RISK'}
           </span>
-          <span className="text-[9px] font-mono text-cyan-400 shrink-0">ACTIVE</span>
+          <span className="text-[9px] font-mono font-bold text-blue-600 shrink-0">ACTIVE</span>
         </div>
 
         {/* Landslide & Geospatial Risk Zones Legend */}
@@ -2162,50 +2345,50 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
           <div className="space-y-1.5 text-[11px]">
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-rose-400 font-bold truncate">
+                <span className="flex items-center gap-1.5 text-rose-700 font-bold truncate">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
                   <span className="truncate">EXTREME RISK</span>
                 </span>
-                <span className="text-slate-400 font-mono text-[10px] shrink-0">FS &lt; 1.0</span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS &lt; 1.0</span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-orange-400 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+                <span className="flex items-center gap-1.5 text-orange-700 font-bold truncate">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
                   <span className="truncate">HIGH RISK</span>
                 </span>
-                <span className="text-slate-400 font-mono text-[10px] shrink-0">FS 1.0 – 1.2</span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS 1.0 – 1.2</span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-amber-400 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                <span className="flex items-center gap-1.5 text-amber-700 font-bold truncate">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                   <span className="truncate">MODERATE</span>
                 </span>
-                <span className="text-slate-400 font-mono text-[10px] shrink-0">FS 1.2 – 1.5</span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS 1.2 – 1.5</span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-emerald-400 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <span className="flex items-center gap-1.5 text-emerald-700 font-bold truncate">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                   <span className="truncate">LOW / SAFE SHIELD</span>
                 </span>
-                <span className="text-slate-400 font-mono text-[10px] shrink-0">FS &gt; 1.5</span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS &gt; 1.5</span>
               </div>
             </div>
 
             {/* Geospatial Lifelines */}
-            <div className="pt-1.5 border-t border-white/10 space-y-1 text-[10px]">
-              <div className="flex items-center justify-between gap-2 text-emerald-300 font-semibold min-w-0">
+            <div className="pt-1.5 border-t border-slate-200 space-y-1 text-[10px]">
+              <div className="flex items-center justify-between gap-2 text-emerald-800 font-semibold min-w-0">
                 <span className="flex items-center gap-1.5 truncate">
-                  <span className="w-3.5 h-0.5 bg-emerald-400 border-t border-dashed border-emerald-200 shrink-0" />
+                  <span className="w-3.5 h-0.5 bg-emerald-500 border-t border-dashed border-emerald-300 shrink-0" />
                   <span className="truncate">Safe Evacuation Route</span>
                 </span>
-                <span className="font-mono text-[9px] text-emerald-400 shrink-0">Ridge Bypass</span>
+                <span className="font-mono text-[9px] text-emerald-700 shrink-0">Ridge Bypass</span>
               </div>
-              <div className="flex items-center justify-between gap-2 text-teal-300 font-semibold min-w-0">
+              <div className="flex items-center justify-between gap-2 text-teal-800 font-semibold min-w-0">
                 <span className="flex items-center gap-1.5 truncate">
                   <span className="text-[10px] shrink-0">🏛️</span>
                   <span className="truncate">Community Safe Haven</span>
                 </span>
-                <span className="font-mono text-[9px] text-teal-400 shrink-0">Muster Hub</span>
+                <span className="font-mono text-[9px] text-teal-700 shrink-0">Muster Hub</span>
               </div>
             </div>
           </div>
@@ -2215,32 +2398,32 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         {activeLegendHazard === 'flood' && (
           <div className="space-y-1 text-[11px]">
             <div className="flex items-center justify-between gap-2 min-w-0">
-              <span className="flex items-center gap-1.5 text-sky-400 font-bold truncate">
-                <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+              <span className="flex items-center gap-1.5 text-sky-700 font-bold truncate">
+                <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
                 <span className="truncate">Low Inundation</span>
               </span>
-              <span className="text-slate-400 font-mono text-[10px] shrink-0">&lt; 0.5m</span>
+              <span className="text-slate-500 font-mono text-[10px] shrink-0">&lt; 0.5m</span>
             </div>
             <div className="flex items-center justify-between gap-2 min-w-0">
-              <span className="flex items-center gap-1.5 text-cyan-300 font-bold truncate">
-                <span className="w-2 h-2 rounded-full bg-cyan-300 shrink-0" />
+              <span className="flex items-center gap-1.5 text-cyan-700 font-bold truncate">
+                <span className="w-2 h-2 rounded-full bg-cyan-500 shrink-0" />
                 <span className="truncate">Moderate</span>
               </span>
-              <span className="text-slate-400 font-mono text-[10px] shrink-0">0.5 – 1.5m</span>
+              <span className="text-slate-500 font-mono text-[10px] shrink-0">0.5 – 1.5m</span>
             </div>
             <div className="flex items-center justify-between gap-2 min-w-0">
-              <span className="flex items-center gap-1.5 text-orange-400 font-bold truncate">
-                <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+              <span className="flex items-center gap-1.5 text-orange-700 font-bold truncate">
+                <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
                 <span className="truncate">High</span>
               </span>
-              <span className="text-slate-400 font-mono text-[10px] shrink-0">1.5 – 3.0m</span>
+              <span className="text-slate-500 font-mono text-[10px] shrink-0">1.5 – 3.0m</span>
             </div>
             <div className="flex items-center justify-between gap-2 min-w-0">
-              <span className="flex items-center gap-1.5 text-rose-400 font-bold truncate">
+              <span className="flex items-center gap-1.5 text-rose-700 font-bold truncate">
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
                 <span className="truncate">Catastrophic</span>
               </span>
-              <span className="text-slate-400 font-mono text-[10px] shrink-0">&gt; 3.0m</span>
+              <span className="text-slate-500 font-mono text-[10px] shrink-0">&gt; 3.0m</span>
             </div>
           </div>
         )}
@@ -2248,24 +2431,21 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         {/* Rainfall Legend */}
         {activeLegendHazard === 'rainfall' && (
           <div className="space-y-1 text-[11px]">
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Light Rain</span>
-              <span className="font-mono text-[10px] text-cyan-300 shrink-0">&lt; 2.5 mm/h</span>
+              <span className="font-mono text-[10px] text-cyan-700 shrink-0">&lt; 2.5 mm/h</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Moderate</span>
-              <span className="font-mono text-[10px] text-cyan-300 shrink-0">2.5 – 10 mm/h</span>
+              <span className="font-mono text-[10px] text-cyan-700 shrink-0">2.5 – 10 mm/h</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Heavy</span>
-              <span className="font-mono text-[10px] text-amber-300 shrink-0">10 – 50 mm/h</span>
+              <span className="font-mono text-[10px] text-amber-700 shrink-0">10 – 50 mm/h</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Torrential Core</span>
-              <span className="font-mono text-[10px] text-rose-400 shrink-0">&gt; 50 mm/h</span>
-            </div>
-            <div className="text-[9px] text-cyan-300/90 pt-1 border-t border-white/10 truncate">
-              Polarimetric Doppler Radar Active
+              <span className="font-mono text-[10px] text-rose-700 shrink-0">&gt; 50 mm/h</span>
             </div>
           </div>
         )}
@@ -2273,20 +2453,17 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         {/* Temperature Legend */}
         {activeLegendHazard === 'temperature' && (
           <div className="space-y-1 text-[11px]">
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Alpine Permafrost</span>
-              <span className="font-mono text-[10px] text-sky-400 shrink-0">&lt; 10°C</span>
+              <span className="font-mono text-[10px] text-sky-700 shrink-0">&lt; 10°C</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Himalayan Ridge</span>
-              <span className="font-mono text-[10px] text-teal-300 shrink-0">11°C – 18°C</span>
+              <span className="font-mono text-[10px] text-teal-700 shrink-0">11°C – 18°C</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Valley Baseline</span>
-              <span className="font-mono text-[10px] text-amber-300 shrink-0">&gt; 24°C</span>
-            </div>
-            <div className="text-[9px] text-amber-300/90 pt-1 border-t border-white/10 truncate">
-              Satellite Thermal Infrared Isotherms Active
+              <span className="font-mono text-[10px] text-amber-700 shrink-0">&gt; 24°C</span>
             </div>
           </div>
         )}
@@ -2294,20 +2471,17 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         {/* Wind Legend */}
         {activeLegendHazard === 'wind' && (
           <div className="space-y-1 text-[11px]">
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Valley Breezes</span>
-              <span className="font-mono text-[10px] text-emerald-400 shrink-0">&lt; 20 km/h</span>
+              <span className="font-mono text-[10px] text-emerald-700 shrink-0">&lt; 20 km/h</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Pass Moderate</span>
-              <span className="font-mono text-[10px] text-teal-300 shrink-0">20 – 35 km/h</span>
+              <span className="font-mono text-[10px] text-teal-700 shrink-0">20 – 35 km/h</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">High-Ridge Jet</span>
-              <span className="font-mono text-[10px] text-cyan-300 shrink-0">&gt; 35 km/h</span>
-            </div>
-            <div className="text-[9px] text-teal-300/90 pt-1 border-t border-white/10 truncate">
-              Anemometer Vector Streamlines Active
+              <span className="font-mono text-[10px] text-cyan-700 shrink-0">&gt; 35 km/h</span>
             </div>
           </div>
         )}
@@ -2315,26 +2489,26 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         {/* Soil Moisture Legend */}
         {activeLegendHazard === 'soil_moisture' && (
           <div className="space-y-1 text-[11px]">
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Dry Slope</span>
-              <span className="font-mono text-[10px] text-emerald-400 shrink-0">&lt; 30%</span>
+              <span className="font-mono text-[10px] text-emerald-700 shrink-0">&lt; 30%</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Moist</span>
-              <span className="font-mono text-[10px] text-amber-400 shrink-0">30% – 65%</span>
+              <span className="font-mono text-[10px] text-amber-700 shrink-0">30% – 65%</span>
             </div>
-            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-300">
+            <div className="flex items-center justify-between gap-2 min-w-0 text-slate-700">
               <span className="truncate">Fully Saturated</span>
-              <span className="font-mono text-[10px] text-rose-400 shrink-0">&gt; 75%</span>
+              <span className="font-mono text-[10px] text-rose-700 shrink-0">&gt; 75%</span>
             </div>
           </div>
         )}
       </div>
 
       {/* FLOATING BOTTOM-LEFT TAG */}
-      <div className="absolute bottom-3 left-3 z-[1000] pointer-events-none flex items-center gap-2 text-[10px] sm:text-[11px] backdrop-blur-xl bg-slate-950/80 px-3 py-1.5 rounded-full border border-white/10 text-slate-300 shadow-xl">
-        <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-        <span className="truncate">Esri GIS Imagery • 20 Monitored Stations</span>
+      <div className="absolute bottom-3 left-3 z-[1000] pointer-events-none flex items-center gap-2 text-[10px] sm:text-[11px] bg-white/95 px-3 py-1.5 rounded-full border border-slate-200 text-slate-700 shadow-sm">
+        <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+        <span className="truncate font-medium">GIS Disaster Monitoring • {stations.length} Monitored Stations</span>
       </div>
     </div>
   );

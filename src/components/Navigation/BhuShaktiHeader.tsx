@@ -82,18 +82,18 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
     <header
       ref={headerRef}
       id="bhushakti-main-header"
-      className="sticky top-0 z-40 w-full bg-slate-950/75 border-b border-white/10 backdrop-blur-2xl transition-colors shadow-2xl"
+      className="sticky top-0 z-40 w-full bg-white/95 border-b border-slate-200 backdrop-blur-md transition-colors shadow-sm"
     >
       <div className="max-w-[1720px] mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2.5 sm:gap-6">
-        {/* Left: Hamburger (mobile only) + Brand + System Operational Status */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Left: Hamburger (mobile only) + Brand + Status Pills */}
+        <div className="flex items-center gap-3 shrink-0">
           {/* Mobile hamburger menu toggle */}
           {onToggleMobileMenu && (
             <button
               type="button"
               onClick={onToggleMobileMenu}
               aria-label="Toggle navigation menu"
-              className="lg:hidden p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-white cursor-pointer active:scale-95"
+              className="lg:hidden p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 cursor-pointer active:scale-95"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -107,23 +107,33 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
             <BhuShaktiLogo size="md" className="group-hover:scale-105 transition-transform" />
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="text-base sm:text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-cyan-300 font-sans">
-                  BhuShakti AI
+                <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 font-sans">
+                  BhuShakti
                 </span>
-                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
-                  v3.2 NER
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  GIS v3.2
                 </span>
               </div>
-              <div className="hidden xs:flex items-center gap-2 mt-0.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-                </span>
-                <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase font-mono truncate">
-                  16 NER SENSOR STATIONS ONLINE
-                </span>
+              <div className="text-[10px] font-medium text-slate-500 truncate hidden xs:block">
+                Landslide Early Warning &amp; Risk Monitoring
               </div>
             </div>
+          </div>
+
+          {/* Status Pills */}
+          <div className="hidden xl:flex items-center gap-2 pl-2 border-l border-slate-200">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              SYSTEM ONLINE
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              WEATHER LIVE
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+              GIS UPDATED
+            </span>
           </div>
         </div>
 
@@ -136,13 +146,13 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
               id="header-location-search"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search location (e.g. Tawang, Gangtok, Dima Hasao)..."
-              className="w-full pl-9.5 pr-8 py-2 rounded-xl bg-slate-900/80 border border-slate-700/60 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 shadow-inner transition-all"
+              placeholder="Search station or region (e.g. Tawang, Gangtok, Dima Hasao)..."
+              className="w-full pl-9.5 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 shadow-inner transition-all font-medium"
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -157,15 +167,15 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
             <button
               id="header-sms-alert-btn"
               onClick={onOpenSmsModal}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600/30 to-amber-600/30 hover:from-rose-600/50 hover:to-amber-600/50 border border-rose-500/40 text-rose-200 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
               title="Open SMS Alert Center"
             >
-              <Radio className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+              <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
               <span className="hidden sm:inline">SMS Alert</span>
             </button>
           )}
 
-          {/* Test Scenarios Dropdown (Compact, Non-Intrusive) */}
+          {/* Test Scenarios Dropdown */}
           {onSelectScenario && (
             <div className="relative">
               <button
@@ -173,12 +183,12 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                 onClick={() => setScenarioDropdownOpen(!scenarioDropdownOpen)}
                 className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-sm cursor-pointer ${
                   activeScenario !== 'none'
-                    ? 'bg-violet-600/30 border-violet-400/60 text-violet-200'
-                    : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700/60 text-slate-200 hover:text-white'
+                    ? 'bg-purple-50 border-purple-300 text-purple-700'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900'
                 }`}
                 title="Simulate SIH Disaster Scenarios"
               >
-                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                 <span className="hidden md:inline">Simulations</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
@@ -186,9 +196,9 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
               {scenarioDropdownOpen && (
                 <div
                   id="header-scenarios-menu"
-                  className="absolute right-0 mt-2 w-56 rounded-xl bg-[#0f172a] border border-slate-700 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
                 >
-                  <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1 flex items-center justify-between">
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 mb-1 flex items-center justify-between">
                     <span>Disaster Scenarios</span>
                     {activeScenario !== 'none' && (
                       <button
@@ -196,7 +206,7 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                           onSelectScenario('none');
                           setScenarioDropdownOpen(false);
                         }}
-                        className="text-[10px] text-cyan-400 hover:underline"
+                        className="text-[10px] text-blue-600 hover:underline"
                       >
                         Reset
                       </button>
@@ -214,11 +224,11 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                         }}
                         className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
                           isActive
-                            ? 'bg-violet-600/25 text-violet-200 font-bold border border-violet-500/30'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            ? 'bg-purple-50 text-purple-800 font-bold border border-purple-200'
+                            : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                         }`}
                       >
-                        <Icon className={`w-3.5 h-3.5 shrink-0 ${sc.color}`} />
+                        <Icon className="w-3.5 h-3.5 shrink-0 text-purple-600" />
                         <span>{sc.label}</span>
                       </button>
                     );
@@ -233,9 +243,9 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
             <button
               id="header-language-btn"
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-200 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold transition-all shadow-sm cursor-pointer"
             >
-              <Globe className="w-3.5 h-3.5 text-cyan-400" />
+              <Globe className="w-3.5 h-3.5 text-blue-600" />
               <span className="hidden sm:inline">{currentLangObj.label}</span>
               <span className="sm:hidden uppercase text-[10px] font-mono">{currentLangObj.code}</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -244,9 +254,9 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
             {langDropdownOpen && (
               <div
                 id="header-lang-menu"
-                className="absolute right-0 mt-2 w-48 rounded-xl bg-[#0f172a] border border-slate-700 shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                className="absolute right-0 mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
               >
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 mb-1">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 mb-1">
                   Language Selector
                 </div>
                 {LANGUAGE_OPTIONS.map((lang) => (
@@ -258,12 +268,12 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                     }}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
                       currentLanguage === lang.code
-                        ? 'bg-cyan-500/20 text-cyan-300 font-bold'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-blue-50 text-blue-700 font-bold'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
                     <span>{lang.native}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{lang.label}</span>
+                    <span className="text-[10px] text-slate-500 font-mono">{lang.label}</span>
                   </button>
                 ))}
               </div>
@@ -274,10 +284,10 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
           <button
             id="header-admin-btn"
             onClick={() => onNavigate('settings')}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-200 hover:text-white text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
             title="System Administration & Settings"
           >
-            <User className="w-3.5 h-3.5 text-cyan-300" />
+            <User className="w-3.5 h-3.5 text-blue-600" />
             <span className="hidden sm:inline">Admin</span>
           </button>
         </div>

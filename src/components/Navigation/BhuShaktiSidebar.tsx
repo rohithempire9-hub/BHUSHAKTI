@@ -8,16 +8,15 @@ import {
   CloudRain,
   BarChart3,
   Clock,
-  MapPin,
   AlertTriangle,
   Cpu,
   Settings,
   ShieldCheck,
-  ChevronRight,
   Radio,
   Sliders,
   Brain,
   FileText,
+  Smartphone,
   X
 } from 'lucide-react';
 import { BhuLanguage } from '../../types/bhuShakti';
@@ -56,61 +55,86 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
   onSelectSection,
   pendingReportsCount,
   activeCriticalNodesCount,
+  registeredDevicesCount,
   onOpenSmsModal,
   isMobileOpen,
   onCloseMobile,
 }) => {
-  // Primary Navigation Sections
-  const primaryNavItems: {
-    id: BhuNavSection | 'sms_center';
+  // Navigation Sections grouped with clear headers
+  const monitoringItems: {
+    id: BhuNavSection;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     badge?: string | number;
     badgeColor?: string;
-    iconColor?: string;
-    action?: () => void;
+    iconColor: string;
   }[] = [
     {
       id: 'dashboard',
       label: 'Dashboard',
       icon: Home,
-      iconColor: 'text-cyan-400',
+      iconColor: 'text-blue-600',
     },
     {
       id: 'risk_map',
       label: 'Risk Map',
       icon: Map,
-      iconColor: 'text-emerald-400',
-    },
-    {
-      id: 'weather',
-      label: 'Weather',
-      icon: CloudRain,
-      iconColor: 'text-sky-400',
+      iconColor: 'text-emerald-600',
     },
     {
       id: 'landslide',
-      label: 'Hazard Analysis',
+      label: 'Live Monitoring',
       icon: Flame,
-      iconColor: 'text-amber-400',
-      badge: activeCriticalNodesCount > 0 ? `${activeCriticalNodesCount} Active` : undefined,
-      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+      iconColor: 'text-amber-600',
+      badge: activeCriticalNodesCount > 0 ? `${activeCriticalNodesCount} Alert` : undefined,
+      badgeColor: 'bg-red-50 text-red-700 border-red-200',
     },
+    {
+      id: 'emergency_response',
+      label: 'Safe Routes / Corridors',
+      icon: ShieldCheck,
+      iconColor: 'text-teal-600',
+      badge: '6 Routes',
+      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: BarChart3,
+      iconColor: 'text-indigo-600',
+    },
+    {
+      id: 'weather',
+      label: 'Weather Radar',
+      icon: CloudRain,
+      iconColor: 'text-sky-600',
+    },
+  ];
+
+  const emergencyItems: {
+    id: BhuNavSection | 'sms_center';
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: string | number;
+    badgeColor?: string;
+    iconColor: string;
+    action?: () => void;
+  }[] = [
     {
       id: 'alerts',
       label: 'Alerts',
       icon: AlertTriangle,
-      iconColor: 'text-rose-400',
-      badge: '12',
-      badgeColor: 'bg-rose-600 text-white font-bold',
+      iconColor: 'text-rose-600',
+      badge: '12 Active',
+      badgeColor: 'bg-red-100 text-red-800 border-red-300 font-bold',
     },
     {
       id: 'sms_center',
-      label: 'SMS Center',
+      label: 'SMS Warning',
       icon: Radio,
-      iconColor: 'text-rose-400',
-      badge: 'Direct',
-      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+      iconColor: 'text-red-600',
+      badge: 'Direct SOS',
+      badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
       action: () => {
         if (onOpenSmsModal) onOpenSmsModal();
         else onSelectSection('alerts');
@@ -118,116 +142,170 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
     },
     {
       id: 'field_reports',
-      label: 'Reports',
+      label: 'Field Evidence',
       icon: FileText,
-      iconColor: 'text-teal-400',
+      iconColor: 'text-emerald-600',
       badge: pendingReportsCount > 0 ? `${pendingReportsCount} New` : undefined,
-      badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     },
     {
-      id: 'emergency_response',
-      label: 'Emergency Response',
-      icon: ShieldCheck,
-      iconColor: 'text-rose-400',
-      badge: 'Priority P1',
-      badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      iconColor: 'text-slate-400',
+      id: 'war_room',
+      label: 'Disaster Intelligence',
+      icon: Brain,
+      iconColor: 'text-purple-600',
+      badge: 'War Room',
+      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
     },
   ];
 
-  // Advanced SIH Intelligence Modules
-  const advancedNavItems: {
+  const simulationItems: {
     id: BhuNavSection;
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     badge?: string;
     badgeColor?: string;
-    iconColor?: string;
+    iconColor: string;
   }[] = [
     {
-      id: 'war_room',
-      label: 'Disaster Intelligence',
-      icon: Brain,
-      iconColor: 'text-cyan-400',
-      badge: 'War Room',
-      badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-    },
-    {
       id: 'flood',
-      label: 'Flood Simulation',
+      label: 'Flood Inundation',
       icon: Waves,
-      iconColor: 'text-cyan-300',
+      iconColor: 'text-cyan-600',
     },
     {
       id: 'disaster_3d',
       label: '3D Digital Twin',
       icon: Globe,
-      iconColor: 'text-indigo-400',
+      iconColor: 'text-blue-600',
     },
     {
       id: 'what_if',
       label: 'What-If Simulator',
       icon: Sliders,
-      iconColor: 'text-fuchsia-400',
-      badge: 'Interactive',
-      badgeColor: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40',
-    },
-    {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: BarChart3,
-      iconColor: 'text-purple-400',
+      iconColor: 'text-fuchsia-600',
     },
     {
       id: 'historical',
       label: 'Historical Archive',
       icon: Clock,
-      iconColor: 'text-amber-300',
+      iconColor: 'text-amber-600',
       badge: '12 Events',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
     },
     {
       id: 'ai_insights',
       label: 'AI Stability Matrix',
       icon: Cpu,
-      iconColor: 'text-fuchsia-400',
+      iconColor: 'text-violet-600',
     },
   ];
 
-  const handleItemClick = (item: typeof primaryNavItems[0]) => {
+  const systemItems: {
+    id: BhuNavSection | 'registered_devices';
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: string | number;
+    badgeColor?: string;
+    iconColor: string;
+    action?: () => void;
+  }[] = [
+    {
+      id: 'registered_devices',
+      label: 'Registered Devices',
+      icon: Smartphone,
+      iconColor: 'text-slate-600',
+      badge: registeredDevicesCount > 0 ? registeredDevicesCount : '8 Online',
+      badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+      action: () => {
+        onSelectSection('settings');
+      },
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: Settings,
+      iconColor: 'text-slate-600',
+    },
+  ];
+
+  const handleItemClick = (item: {
+    id: string;
+    action?: () => void;
+  }) => {
     if (item.action) {
       item.action();
-    } else if (item.id !== 'sms_center') {
+    } else {
       onSelectSection(item.id as BhuNavSection);
     }
     if (onCloseMobile) onCloseMobile();
   };
 
-  const handleAdvancedClick = (id: BhuNavSection) => {
-    onSelectSection(id);
-    if (onCloseMobile) onCloseMobile();
-  };
+  const renderNavGroup = (
+    title: string,
+    items: Array<{
+      id: string;
+      label: string;
+      icon: React.ComponentType<{ className?: string }>;
+      badge?: string | number;
+      badgeColor?: string;
+      iconColor: string;
+      action?: () => void;
+    }>
+  ) => (
+    <div className="space-y-1 mb-3">
+      <div className="px-3 pt-2 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">
+        {title}
+      </div>
+      {items.map((item) => {
+        const Icon = item.icon;
+        const isActive = currentSection === item.id;
+
+        return (
+          <button
+            key={item.id}
+            id={`sidebar-link-${item.id}`}
+            onClick={() => handleItemClick(item)}
+            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+              isActive
+                ? 'bg-blue-50 text-blue-800 border-l-4 border-blue-600 shadow-xs font-bold'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 truncate">
+              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600' : item.iconColor}`} />
+              <span className="truncate">{item.label}</span>
+            </div>
+
+            {item.badge && (
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono border shrink-0 ${
+                  item.badgeColor || 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                {item.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   const sidebarContent = (
     <div className="flex flex-col justify-between h-full">
-      <div>
+      <div className="overflow-y-auto max-h-[calc(100vh-140px)] pr-1 scrollbar-thin">
         {/* Operations Header */}
-        <div className="flex items-center justify-between px-3 py-2 mb-3 rounded-xl bg-slate-900/90 border border-slate-800">
+        <div className="flex items-center justify-between px-3 py-2 mb-2 rounded-xl bg-slate-50 border border-slate-200">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider font-mono">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider font-mono">
               OPERATIONS MATRIX
             </span>
           </div>
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="lg:hidden text-slate-400 hover:text-white p-1"
+              className="lg:hidden text-slate-500 hover:text-slate-800 p-1"
               aria-label="Close menu"
             >
               <X className="w-4 h-4" />
@@ -235,93 +313,26 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
           )}
         </div>
 
-        {/* Primary Stacked Menu */}
-        <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto max-h-[calc(100vh-280px)] scrollbar-thin pb-1 lg:pb-2">
-          {primaryNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentSection === item.id;
-
-            return (
-              <button
-                key={item.id}
-                id={`sidebar-link-${item.id}`}
-                onClick={() => handleItemClick(item)}
-                className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer text-left ${
-                  isActive
-                    ? 'bg-gradient-to-r from-cyan-500/20 via-slate-800/60 to-transparent text-cyan-200 border-l-2 border-cyan-400 shadow-md font-bold'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/50 border border-transparent'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-300' : item.iconColor || 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </div>
-
-                {item.badge && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[10px] font-mono border ${
-                      item.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-
-          {/* ADVANCED INTELLIGENCE SUB-SECTION */}
-          <div className="pt-2 mt-2 border-t border-slate-800/80">
-            <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-violet-400/90 font-mono">
-              SIH INTELLIGENCE
-            </div>
-            {advancedNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentSection === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  id={`sidebar-link-${item.id}`}
-                  onClick={() => handleAdvancedClick(item.id)}
-                  className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
-                    isActive
-                      ? 'bg-gradient-to-r from-violet-600/25 via-slate-800/60 to-transparent text-violet-200 border-l-2 border-violet-400 shadow-sm font-bold'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-violet-300' : item.iconColor || 'text-slate-400'}`} />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-
-                  {item.badge && (
-                    <span
-                      className={`px-1.5 py-0.2 rounded text-[9px] font-mono border ${
-                        item.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+        {/* Navigation Groups */}
+        {renderNavGroup('MONITORING & GIS', monitoringItems)}
+        {renderNavGroup('EMERGENCY & FIELD', emergencyItems)}
+        {renderNavGroup('ANALYSIS & SIMULATION', simulationItems)}
+        {renderNavGroup('CONFIGURATION', systemItems)}
       </div>
 
       {/* Footer System Status Card */}
-      <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
-        <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between shadow-inner">
+      <div className="pt-3 border-t border-slate-200 text-[11px] text-slate-500">
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="font-mono text-[10px] text-emerald-300 font-bold">PINN AI MODEL v3.2</span>
+            <span className="font-mono text-[10px] text-slate-700 font-bold">PINN AI MODEL v3.2</span>
           </div>
-          <span className="text-[10px] font-mono text-cyan-400">READY</span>
+          <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+            ONLINE
+          </span>
         </div>
       </div>
     </div>
@@ -332,19 +343,19 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
       {/* Desktop Persistent Sidebar */}
       <aside
         id="bhushakti-main-sidebar"
-        className="hidden lg:flex w-64 shrink-0 bg-slate-950/70 backdrop-blur-2xl border-r border-white/10 p-4 flex-col justify-between shadow-2xl z-30"
+        className="hidden lg:flex w-64 shrink-0 bg-white border-r border-slate-200 p-3.5 flex-col justify-between shadow-xs z-30"
       >
         {sidebarContent}
       </aside>
 
-      {/* Mobile Drawer (with backdrop blur) */}
+      {/* Mobile Drawer */}
       {isMobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             onClick={onCloseMobile}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-slate-950/90 backdrop-blur-2xl border-r border-white/10 p-4 shadow-2xl z-10 overflow-y-auto">
+          <aside className="relative w-72 max-w-[85vw] bg-white border-r border-slate-200 p-4 shadow-2xl z-10 overflow-y-auto">
             {sidebarContent}
           </aside>
         </div>

@@ -84,6 +84,7 @@ export const RealSmsHazardZoneDispatcher: React.FC<RealSmsHazardZoneDispatcherPr
   const [dispatchError, setDispatchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'handset' | 'receipts' | 'cap' | 'gateway'>('handset');
   const [copiedCap, setCopiedCap] = useState(false);
+  const [showDrawTools, setShowDrawTools] = useState(false);
 
   // Real-time spatial intersections
   const [stationsInPerimeter, setStationsInPerimeter] = useState<LandslideStation[]>([]);
@@ -484,56 +485,56 @@ export const RealSmsHazardZoneDispatcher: React.FC<RealSmsHazardZoneDispatcherPr
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left Column: Leaflet & Geoman Interactive Map (7 cols) */}
         <div className="lg:col-span-7 flex flex-col gap-3">
-          <div className="relative rounded-2xl overflow-hidden border border-slate-700/80 bg-[#070e1c] shadow-2xl h-[480px] lg:h-[580px] flex flex-col">
+          <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm h-[480px] lg:h-[580px] flex flex-col">
             {/* Compact Geoman selector: keeps drawing/editing tools off the map surface until needed. */}
             <div className="absolute top-3 left-14 z-[500] pointer-events-auto">
               <button
                 type="button"
                 onClick={() => setShowDrawTools((v) => !v)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b2038]/95 backdrop-blur-md border border-cyan-500/40 hover:border-cyan-300/80 text-white text-xs font-bold shadow-xl transition-all"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-bold shadow-md transition-all cursor-pointer"
                 title="Hazard-zone drawing and editing tools"
               >
-                <PenTool className="w-3.5 h-3.5 text-cyan-300" />
+                <PenTool className="w-3.5 h-3.5 text-blue-600" />
                 <span>Draw Tools</span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showDrawTools ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${showDrawTools ? 'rotate-180' : ''}`} />
               </button>
 
               {showDrawTools && (
-                <div className="absolute left-0 top-full mt-1.5 w-48 rounded-xl bg-[#0b2038]/98 backdrop-blur-md border border-cyan-500/30 shadow-2xl overflow-hidden">
+                <div className="absolute left-0 top-full mt-1.5 w-48 rounded-xl bg-white border border-slate-200 shadow-xl overflow-hidden">
                   <button
                     type="button"
                     onClick={() => { (mapInstanceRef.current as any)?.pm?.enableDraw('Polygon'); setShowDrawTools(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-cyan-500/10 cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    <PenTool className="w-3.5 h-3.5 text-rose-300" /> Draw Hazard Polygon
+                    <PenTool className="w-3.5 h-3.5 text-red-600" /> Draw Hazard Polygon
                   </button>
                   <button
                     type="button"
                     onClick={() => { (mapInstanceRef.current as any)?.pm?.enableDraw('Rectangle'); setShowDrawTools(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-cyan-500/10 cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    <Square className="w-3.5 h-3.5 text-amber-300" /> Draw Rectangle
+                    <Square className="w-3.5 h-3.5 text-amber-600" /> Draw Rectangle
                   </button>
                   <button
                     type="button"
                     onClick={() => { (mapInstanceRef.current as any)?.pm?.enableGlobalEditMode(); setShowDrawTools(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-cyan-500/10 cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    <Pencil className="w-3.5 h-3.5 text-cyan-300" /> Edit Zone
+                    <Pencil className="w-3.5 h-3.5 text-blue-600" /> Edit Zone
                   </button>
                   <button
                     type="button"
                     onClick={() => { (mapInstanceRef.current as any)?.pm?.enableGlobalDragMode(); setShowDrawTools(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-cyan-500/10 cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    <Move className="w-3.5 h-3.5 text-emerald-300" /> Move Zone
+                    <Move className="w-3.5 h-3.5 text-emerald-600" /> Move Zone
                   </button>
                   <button
                     type="button"
                     onClick={() => { (mapInstanceRef.current as any)?.pm?.enableGlobalRemovalMode(); setShowDrawTools(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-cyan-500/10 cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-300" /> Remove Zone
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" /> Remove Zone
                   </button>
                   <button
                     type="button"
@@ -545,7 +546,7 @@ export const RealSmsHazardZoneDispatcher: React.FC<RealSmsHazardZoneDispatcherPr
                       pm?.disableGlobalRemovalMode?.();
                       setShowDrawTools(false);
                     }}
-                    className="w-full px-3 py-2 border-t border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer"
+                    className="w-full px-3 py-2 border-t border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 hover:bg-slate-50 cursor-pointer"
                   >
                     Close / Cancel Tool
                   </button>
