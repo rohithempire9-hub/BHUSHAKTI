@@ -514,6 +514,7 @@ export default function App() {
               mapSearchQuery={globalSearchQuery}
               setMapSearchQuery={setGlobalSearchQuery}
               onNavigate={(pageId) => setCurrentNavSection(pageId)}
+              currentLanguage={currentLanguage}
             />
           )}
 
@@ -559,6 +560,7 @@ export default function App() {
                   onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
                   evidenceList={evidenceList.map((e) => e.id)}
                   simulatedRiskLevel={isJudgeEmergency ? 'critical' : simulatedRainfall > 40 ? 'warning' : 'safe'}
+                  currentLanguage={currentLanguage}
                 />
               </div>
             </div>
@@ -879,15 +881,16 @@ export default function App() {
         onNavigateSection={(sec) => setCurrentNavSection(sec)}
       />
 
-      {/* FLOATING ACTION BUTTON TO OPEN BHUSAKTHI COPILOT FROM ANY SCREEN */}
+      {/* FLOATING ACTION BUTTON TO OPEN BHUSHAKTI COPILOT FROM ANY SCREEN */}
       <button
         id="floating-copilot-trigger"
         onClick={() => setCopilotModalOpen(true)}
-        className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xl shadow-blue-600/30 border border-blue-400 flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+        className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/50 border border-blue-300/40 ring-2 ring-indigo-400/20 flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+        title="Open AI Decision Support Copilot"
       >
-        <Sparkles className="w-4 h-4 text-blue-200" />
-        <span className="tracking-wide font-sans">BHUSAKTHI COPILOT</span>
-        <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[9px] font-mono border border-white/30">
+        <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
+        <span className="tracking-wide font-sans font-black">BHUSHAKTI COPILOT</span>
+        <span className="px-2 py-0.5 rounded-full bg-white/20 text-[9px] font-mono font-bold border border-white/30 backdrop-blur-xs">
           AI
         </span>
       </button>

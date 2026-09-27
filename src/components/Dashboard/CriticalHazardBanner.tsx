@@ -57,16 +57,16 @@ export const CriticalHazardBanner: React.FC<CriticalHazardBannerProps> = ({
           <button
             id="banner-inspect-node-btn"
             onClick={() => onInspectNode(leadNode)}
-            className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-800 border border-slate-300 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-blue-50 text-xs font-bold text-blue-700 border border-blue-300 transition-all flex items-center gap-1.5 shadow-xs hover:shadow-sm cursor-pointer whitespace-nowrap shrink-0"
           >
             <span>Inspect Node</span>
-            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+            <ArrowRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
           </button>
 
           <button
             id="banner-mass-sos-trigger-btn"
             onClick={onTriggerMassSos}
-            className="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-bold text-white border border-red-500 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-xs font-bold text-white shadow-md shadow-red-600/20 border border-red-500/50 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transform active:scale-95"
           >
             <Radio className="w-3.5 h-3.5 animate-pulse shrink-0" />
             <span>Simulate Mass SOS Alert</span>
@@ -75,7 +75,7 @@ export const CriticalHazardBanner: React.FC<CriticalHazardBannerProps> = ({
           {onDismiss && (
             <button
               onClick={onDismiss}
-              className="p-1.5 rounded-lg text-red-500 hover:text-red-800 hover:bg-red-100 transition-colors cursor-pointer shrink-0"
+              className="p-1.5 rounded-xl text-red-500 hover:text-red-800 hover:bg-red-100/80 transition-colors cursor-pointer shrink-0"
               title="Dismiss warning"
             >
               <X className="w-4 h-4" />

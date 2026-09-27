@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import { LandslideStation, RiskStatus, DisasterEvidenceReport } from '../../types/landslide';
+import { BhuLanguage } from '../../types/bhuShakti';
+import { TRANSLATIONS } from '../../utils/translations';
 import { HIGHWAY_RISK_SEGMENTS, REMOTE_VILLAGE_PINS } from '../../data/bhuShaktiData';
 import {
   SAFE_EVACUATION_ROUTES,
@@ -15,6 +17,8 @@ import {
   Layers,
   ZoomIn,
   ZoomOut,
+  Plus,
+  Minus,
   Maximize,
   ShieldCheck,
   AlertTriangle,
@@ -79,11 +83,12 @@ export function getCleanPlaceName(station: { id?: string; name?: string; region?
   return clean.length > 18 ? clean.substring(0, 16) + '…' : clean;
 }
 
-// Major Northeast river channel coordinates for verified geospatial visualization
+// Major Northeast river channel coordinates for verified geospatial visualization (bright cyan/blue #06B6D4)
 const RIVER_SYSTEMS = [
   {
     name: 'Brahmaputra River Corridor',
     state: 'Assam / Arunachal',
+    weight: 3.5,
     coordinates: [
       [27.95, 95.38],
       [27.48, 94.92],
@@ -91,34 +96,242 @@ const RIVER_SYSTEMS = [
       [26.65, 92.83],
       [26.19, 91.75],
       [26.12, 90.62],
-      [25.98, 89.98]
+      [25.98, 89.98],
     ] as [number, number][],
     waterLevel: 'High (0.8m below danger level)',
   },
   {
     name: 'Barak River Basin',
     state: 'Assam / Manipur',
+    weight: 3.0,
     coordinates: [
       [25.18, 93.18],
       [24.89, 92.89],
       [24.82, 92.79],
       [24.88, 92.52],
-      [24.93, 92.35]
+      [24.93, 92.35],
     ] as [number, number][],
     waterLevel: 'Moderate Flow (Normal)',
   },
   {
     name: 'Teesta River Basin',
     state: 'Sikkim / West Bengal',
+    weight: 2.5,
     coordinates: [
       [27.92, 88.62],
       [27.65, 88.55],
       [27.32, 88.51],
       [27.05, 88.54],
-      [26.85, 88.72]
+      [26.85, 88.72],
     ] as [number, number][],
     waterLevel: 'Rapid Glacier Runoff',
-  }
+  },
+  {
+    name: 'Haora River (Agartala Corridor)',
+    state: 'Tripura (Agartala)',
+    weight: 2.4,
+    coordinates: [
+      [23.89, 91.42],
+      [23.86, 91.36],
+      [23.84, 91.31],
+      [23.8315, 91.2868], // Directly bisecting Agartala city
+      [23.822, 91.25],
+      [23.815, 91.21],
+    ] as [number, number][],
+    waterLevel: 'Monitored (Station Gauge 1.4m)',
+  },
+  {
+    name: 'Gomati River Basin',
+    state: 'Tripura (Udaipur / Sonamura)',
+    weight: 2.8,
+    coordinates: [
+      [23.55, 91.82],
+      [23.53, 91.68],
+      [23.52, 91.50],
+      [23.48, 91.35],
+      [23.46, 91.22],
+    ] as [number, number][],
+    waterLevel: 'Regulated Flow (Dumbur Dam)',
+  },
+  {
+    name: 'Manu River Channel',
+    state: 'Tripura (Kailashahar)',
+    weight: 2.0,
+    coordinates: [
+      [24.32, 92.05],
+      [24.18, 92.02],
+      [23.98, 91.99],
+      [23.75, 91.95],
+    ] as [number, number][],
+    waterLevel: 'Catchment Runoff Stable',
+  },
+  {
+    name: 'Khowai River Channel',
+    state: 'Tripura (Khowai)',
+    weight: 1.8,
+    coordinates: [
+      [24.28, 91.65],
+      [24.08, 91.62],
+      [23.88, 91.58],
+      [23.65, 91.55],
+    ] as [number, number][],
+    waterLevel: 'Active Riverbed Gauged',
+  },
+  {
+    name: 'Tlawng River Channel',
+    state: 'Mizoram (Aizawl)',
+    weight: 2.0,
+    coordinates: [
+      [23.95, 92.68],
+      [23.78, 92.70],
+      [23.55, 92.72],
+      [23.32, 92.75],
+    ] as [number, number][],
+    waterLevel: 'High Slope Valley Runoff',
+  },
+  {
+    name: 'Kopili River Corridor',
+    state: 'Assam / Meghalaya',
+    weight: 2.2,
+    coordinates: [
+      [26.15, 92.85],
+      [25.85, 92.80],
+      [25.53, 92.78],
+    ] as [number, number][],
+    waterLevel: 'Hydro Surveillance Active',
+  },
+];
+
+// State & district boundary corridors (Purple / Violet #A855F7, 1-2px, semi-transparent)
+const STATE_DISTRICT_BOUNDARIES = [
+  {
+    name: 'Tripura State Boundary',
+    coordinates: [
+      [24.53, 92.17],
+      [24.52, 92.25],
+      [24.31, 92.28],
+      [24.16, 92.34],
+      [23.95, 92.29],
+      [23.75, 92.18],
+      [23.51, 91.95],
+      [23.32, 91.75],
+      [23.00, 91.68],
+      [23.05, 91.45],
+      [23.23, 91.31],
+      [23.58, 91.24],
+      [23.83, 91.26], // West of Agartala
+      [24.08, 91.35],
+      [24.28, 91.62],
+      [24.45, 91.89],
+      [24.53, 92.17],
+    ] as [number, number][],
+  },
+  {
+    name: 'Mizoram State Boundary',
+    coordinates: [
+      [24.52, 92.98],
+      [24.25, 93.15],
+      [23.85, 93.28],
+      [23.40, 93.38],
+      [22.85, 93.12],
+      [22.35, 93.00],
+      [21.95, 92.85],
+      [22.25, 92.65],
+      [22.75, 92.48],
+      [23.25, 92.35],
+      [23.75, 92.20],
+      [24.15, 92.35],
+      [24.45, 92.65],
+      [24.52, 92.98],
+    ] as [number, number][],
+  },
+  {
+    name: 'Meghalaya State Boundary',
+    coordinates: [
+      [26.05, 90.15],
+      [25.95, 90.65],
+      [25.88, 91.25],
+      [25.85, 91.85],
+      [25.65, 92.55],
+      [25.35, 92.75],
+      [25.15, 92.45],
+      [25.18, 91.75],
+      [25.19, 91.25],
+      [25.22, 90.45],
+      [25.35, 89.85],
+      [25.75, 89.92],
+      [26.05, 90.15],
+    ] as [number, number][],
+  },
+  {
+    name: 'Barak Valley Boundary (Assam)',
+    coordinates: [
+      [25.18, 92.45],
+      [24.85, 92.40],
+      [24.55, 92.35],
+      [24.28, 92.75],
+      [24.45, 93.15],
+      [24.85, 93.25],
+      [25.18, 93.15],
+      [25.35, 92.75],
+    ] as [number, number][],
+  },
+  {
+    name: 'Manipur State Boundary',
+    coordinates: [
+      [25.68, 94.25],
+      [25.45, 94.65],
+      [24.95, 94.45],
+      [24.25, 94.25],
+      [23.85, 93.30],
+      [24.35, 93.15],
+      [24.95, 93.25],
+      [25.45, 93.65],
+      [25.68, 94.25],
+    ] as [number, number][],
+  },
+  {
+    name: 'Sikkim State Boundary',
+    coordinates: [
+      [28.12, 88.55],
+      [27.85, 88.85],
+      [27.35, 88.75],
+      [27.08, 88.55],
+      [27.15, 88.10],
+      [27.65, 88.05],
+      [28.05, 88.25],
+      [28.12, 88.55],
+    ] as [number, number][],
+  },
+  {
+    name: 'India - Bangladesh International Border',
+    coordinates: [
+      [26.15, 89.85],
+      [25.75, 89.92],
+      [25.35, 89.85],
+      [25.19, 90.45],
+      [25.18, 91.25],
+      [25.15, 92.45],
+      [24.85, 92.40],
+      [24.53, 92.17],
+      [24.45, 91.89],
+      [24.08, 91.35],
+      [23.83, 91.26],
+      [23.23, 91.31],
+      [23.00, 91.68],
+      [22.85, 91.85],
+    ] as [number, number][],
+  },
+];
+
+// Broad territory labels (rendered only at overview zoom with purple boundary layer)
+const REGIONAL_MAP_LABELS = [
+  { name: 'TRIPURA', lat: 23.75, lng: 91.65, type: 'state' },
+  { name: 'MIZORAM', lat: 23.10, lng: 92.95, type: 'state' },
+  { name: 'MEGHALAYA', lat: 25.45, lng: 91.35, type: 'state' },
+  { name: 'ASSAM', lat: 26.30, lng: 92.90, type: 'state' },
+  { name: 'NAGALAND', lat: 26.15, lng: 94.45, type: 'state' },
+  { name: 'MANIPUR', lat: 24.60, lng: 93.90, type: 'state' },
 ];
 
 // District civil hospitals & medical relief centers
@@ -191,6 +404,7 @@ interface LandslideMapProps {
   evidenceList?: DisasterEvidenceReport[];
   onOpenEvidenceModal?: () => void;
   simulatedRiskLevel?: 'safe' | 'warning' | 'critical';
+  currentLanguage?: BhuLanguage;
 }
 
 export const LandslideMap: React.FC<LandslideMapProps> = ({
@@ -205,7 +419,9 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   evidenceList = [],
   onOpenEvidenceModal,
   simulatedRiskLevel,
+  currentLanguage = 'en',
 }) => {
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -232,10 +448,13 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const buildingsGroupRef = useRef<L.LayerGroup | null>(null);
   const riskBuffersGroupRef = useRef<L.LayerGroup | null>(null);
   const safeZonesGroupRef = useRef<L.LayerGroup | null>(null);
+  const boundariesGroupRef = useRef<L.LayerGroup | null>(null);
+  const regionalLabelsGroupRef = useRef<L.LayerGroup | null>(null);
   const heatLayerRef = useRef<any>(null);
 
-  // BASE MAP STATE - Default to Terrain Topo (Clean Light GIS Basemap)
-  const [baseMap, setBaseMap] = useState<BaseMapType>('topo');
+  // BASE MAP STATE - Default to Dark Terrain (High-contrast GIS basemap per prompt)
+  const [baseMap, setBaseMap] = useState<BaseMapType>('dark');
+  const [currentZoom, setCurrentZoom] = useState<number>(7);
 
   // HAZARD / ENVIRONMENTAL LAYERS STATE
   const [layerStationPins, setLayerStationPins] = useState<boolean>(true);
@@ -257,13 +476,14 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   const [layerSafeRoutes, setLayerSafeRoutes] = useState<boolean>(true);
   const [layerCommunityHubs, setLayerCommunityHubs] = useState<boolean>(true);
   const [layerRoads, setLayerRoads] = useState<boolean>(true);
-  const [layerVillages, setLayerVillages] = useState<boolean>(true);
+  const [layerVillages, setLayerVillages] = useState<boolean>(false);
   const [layerRivers, setLayerRivers] = useState<boolean>(true);
+  const [layerBoundaries, setLayerBoundaries] = useState<boolean>(true);
   const [layerBuildings, setLayerBuildings] = useState<boolean>(false);
-  const [layerShelters, setLayerShelters] = useState<boolean>(true);
-  const [layerHospitals, setLayerHospitals] = useState<boolean>(true);
-  const [layerCriticalInfra, setLayerCriticalInfra] = useState<boolean>(true);
-  const [showEvidencePins, setShowEvidencePins] = useState<boolean>(true);
+  const [layerShelters, setLayerShelters] = useState<boolean>(false);
+  const [layerHospitals, setLayerHospitals] = useState<boolean>(false);
+  const [layerCriticalInfra, setLayerCriticalInfra] = useState<boolean>(false);
+  const [showEvidencePins, setShowEvidencePins] = useState<boolean>(false);
 
   // UI Dropdown & Legend State
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState<boolean>(false);
@@ -358,6 +578,12 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
       mapInstanceRef.current = map;
       setIsMapReady(true);
+      setCurrentZoom(map.getZoom());
+
+      map.on('zoomend', () => {
+        setCurrentZoom(map.getZoom());
+      });
+
       markersGroupRef.current = L.layerGroup().addTo(map);
       circlesGroupRef.current = L.layerGroup().addTo(map);
       escapeGroupRef.current = L.layerGroup().addTo(map);
@@ -378,6 +604,8 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       buildingsGroupRef.current = L.layerGroup().addTo(map);
       riskBuffersGroupRef.current = L.layerGroup().addTo(map);
       safeZonesGroupRef.current = L.layerGroup().addTo(map);
+      boundariesGroupRef.current = L.layerGroup().addTo(map);
+      regionalLabelsGroupRef.current = L.layerGroup().addTo(map);
 
       L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
     } catch (err) {
@@ -398,7 +626,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     };
   }, []);
 
-  // Update Base Tile Layer
+  // Update Base Tile Layer - Dark Satellite Terrain with Visible Vegetation, Mountains, Water Bodies & Roads
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -412,20 +640,31 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     let tileUrl = '';
     let attribution = '';
     let maxNativeZoom = 18;
+    let tileClassName = '';
+    let hasRefLayers = false;
 
     if (baseMap === 'dark') {
-      tileUrl = 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-      attribution = '&copy; Esri, HERE &copy; OpenStreetMap';
-      maxNativeZoom = 16;
-    } else if (baseMap === 'topo') {
-      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
-      attribution = '&copy; Esri, USGS, NOAA';
+      // Dark Satellite Terrain (Default per prompt specification)
+      // High-resolution real satellite imagery calibrated to ~80% brightness, ~118% contrast, ~115% saturation
+      // Preserves deep green forests (#164E36), lush vegetation (#3F7D3A), dark mountains (#344B35), and blue water bodies
+      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      attribution = '&copy; Esri, Maxar, Earthstar Geographics';
       maxNativeZoom = 18;
+      tileClassName = 'leaflet-tile-dark-satellite';
+      hasRefLayers = true;
     } else if (baseMap === 'satellite') {
+      // Standard Daytime Satellite Imagery
       tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
       attribution = '&copy; Esri, Earthstar Geographics';
       maxNativeZoom = 18;
+      hasRefLayers = true;
+    } else if (baseMap === 'topo') {
+      // Topographic Relief with contours and elevation
+      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+      attribution = '&copy; Esri, USGS, NOAA';
+      maxNativeZoom = 18;
     } else {
+      // Standard Street / OSM
       tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
       attribution = '&copy; OpenStreetMap contributors';
       maxNativeZoom = 19;
@@ -436,7 +675,26 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       maxNativeZoom,
       maxZoom: 19,
       subdomains: 'abc',
+      className: tileClassName,
     }).addTo(map);
+
+    if (hasRefLayers) {
+      // 1. High-contrast cartographic labels & state boundaries overlay (white text with dark halo)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        maxNativeZoom: 18,
+        maxZoom: 19,
+        className: 'leaflet-tile-places-ref',
+        zIndex: 400,
+      }).addTo(map);
+
+      // 2. High-visibility road network & highway shields overlay
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+        maxNativeZoom: 18,
+        maxZoom: 19,
+        className: 'leaflet-tile-places-ref',
+        zIndex: 401,
+      }).addTo(map);
+    }
   }, [baseMap]);
 
   // Filter stations based on search and status
@@ -502,61 +760,82 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
     if (!layerLandslide) return;
 
-    // 1. RENDER STATION PINS
+    // 1. RENDER STATION PINS (Circular pins with white border, colored center, subtle glow, readable white labels with dark shadow)
     if (layerStationPins && layerLandslide) {
       filteredStations.forEach((station) => {
         const { status } = station.riskAssessment || { status: 'moderate' };
         const isSelected = selectedStation?.id === station.id;
 
+        const isExtreme = status === 'critical' && (station.riskAssessment?.riskScore ?? 0) >= 80;
+        const isCritical = status === 'critical' && !isExtreme;
+        const isHigh = status === 'high';
+        const isModerate = status === 'moderate';
+        const isSafe = status === 'safe';
+
         let badgeLabel = 'SAFE';
-        if (status === 'critical') {
+        if (isExtreme) {
+          badgeLabel = 'EXTREME';
+        } else if (isCritical) {
           badgeLabel = 'CRITICAL';
-        } else if (status === 'high') {
+        } else if (isHigh) {
           badgeLabel = 'HIGH';
-        } else if (status === 'moderate') {
+        } else if (isModerate) {
           badgeLabel = 'MODERATE';
         }
 
-        const isSafe = status === 'safe';
+        // Semantic Colors matching prompt palette
+        const centerColor = isExtreme
+          ? '#EC4899' // extreme / magenta
+          : isCritical
+          ? '#EF4444' // critical red
+          : isHigh
+          ? '#F97316' // high orange
+          : isModerate
+          ? '#FACC15' // moderate yellow
+          : '#10B981'; // safe green
+
+        const glowColor = isExtreme
+          ? 'rgba(236, 72, 153, 0.75)'
+          : isCritical
+          ? 'rgba(239, 68, 68, 0.7)'
+          : isHigh
+          ? 'rgba(249, 115, 22, 0.65)'
+          : isModerate
+          ? 'rgba(250, 204, 21, 0.6)'
+          : 'rgba(16, 185, 129, 0.6)';
+
         const placeName = getCleanPlaceName(station);
 
+        // PREVENT LABEL OVERLAPPING:
+        // Show permanent compact badge only if selected, emergency node (critical/extreme), or zoomed in (currentZoom >= 9).
+        // Otherwise, hide by default to prevent overlapping clutter, but display smoothly on hover (group-hover:opacity-100)!
+        const shouldShowLabel = isSelected || isExtreme || isCritical || currentZoom >= 9;
+
         const iconHtml = `
-          <div class="custom-place-tag cursor-pointer" style="transform: translate(-50%, -100%);">
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shadow-md transition-all duration-200 ${
-              isSelected
-                ? 'bg-blue-600 text-white border-2 border-white ring-2 ring-blue-500 scale-110 z-50'
-                : isSafe
-                ? 'bg-white text-slate-800 border-2 border-emerald-500 hover:scale-105'
-                : status === 'critical'
-                ? 'bg-white text-red-900 border-2 border-red-600 hover:scale-105 ring-1 ring-red-200'
-                : status === 'high'
-                ? 'bg-white text-orange-900 border-2 border-orange-500 hover:scale-105'
-                : 'bg-white text-amber-900 border-2 border-amber-500 hover:scale-105'
+          <div class="custom-station-pin cursor-pointer group flex flex-col items-center" style="transform: translate(-50%, -50%);">
+            <!-- Sleek circular marker: white outer border, colored center, subtle glow, small shadow -->
+            <div class="relative flex items-center justify-center">
+              <div class="w-4 h-4 rounded-full border-2 border-white flex items-center justify-center transition-transform group-hover:scale-125 ${
+                isSelected ? 'ring-2 ring-blue-400 scale-125' : ''
+              }"
+                   style="background-color: ${centerColor}; box-shadow: 0 0 8px ${glowColor}, 0 2px 5px rgba(0,0,0,0.65);">
+                <div class="w-1.5 h-1.5 rounded-full bg-white/95"></div>
+              </div>
+              ${
+                isSelected || isCritical || isExtreme
+                  ? `<span class="absolute -inset-1 rounded-full animate-ping opacity-60 pointer-events-none" style="background-color: ${centerColor}"></span>`
+                  : ''
+              }
+            </div>
+
+            <!-- Place Name Label: Non-overlapping, compact, visible on hover or when primary/zoomed in -->
+            <div class="mt-1 pointer-events-none whitespace-nowrap transition-opacity duration-150 ${
+              shouldShowLabel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
             }">
-              <span class="w-2 h-2 rounded-full shrink-0 ${
-                isSafe
-                  ? 'bg-emerald-500'
-                  : status === 'critical'
-                  ? 'bg-red-600 animate-pulse'
-                  : status === 'high'
-                  ? 'bg-orange-500'
-                  : 'bg-amber-500'
-              }"></span>
-              <span class="font-bold tracking-tight text-[11px] ${isSelected ? 'text-white' : 'text-slate-900'}">
+              <span class="px-1.5 py-0.5 rounded text-[9.5px] font-bold font-sans text-white bg-black/75 backdrop-blur-xs border border-white/20 shadow-[0_1.5px_3px_rgba(0,0,0,0.85)] tracking-wide">
                 ${placeName}
               </span>
             </div>
-            <div class="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] ${
-              isSelected
-                ? 'border-t-blue-600'
-                : isSafe
-                ? 'border-t-emerald-500'
-                : status === 'critical'
-                ? 'border-t-red-600'
-                : status === 'high'
-                ? 'border-t-orange-500'
-                : 'border-t-amber-500'
-            } mx-auto -mt-[0.5px]"></div>
           </div>
         `;
 
@@ -570,8 +849,13 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
           const marker = L.marker([station.latitude, station.longitude], {
             icon: customIcon,
-            zIndexOffset: isSelected ? 1000 : status === 'critical' ? 50 : 20,
+            zIndexOffset: isSelected ? 1000 : isExtreme ? 80 : isCritical ? 50 : 20,
           });
+
+          // Native tooltip as backup hover
+          if (!shouldShowLabel) {
+            marker.bindTooltip(placeName, { direction: 'top', offset: [0, -10], opacity: 0.95 });
+          }
 
           const popupHtml = `
             <div class="text-slate-900 font-sans p-2 min-w-[210px]">
@@ -580,9 +864,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                 <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${
                   isSafe
                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : status === 'critical'
+                    : isExtreme
+                    ? 'bg-pink-50 text-pink-800 border border-pink-200'
+                    : isCritical
                     ? 'bg-red-50 text-red-800 border border-red-200'
-                    : status === 'high'
+                    : isHigh
                     ? 'bg-orange-50 text-orange-800 border border-orange-200'
                     : 'bg-amber-50 text-amber-800 border border-amber-200'
                 }">${badgeLabel}</span>
@@ -624,55 +910,95 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       });
     }
 
-    // 2. RENDER RISK HEATMAP (Scientific GIS Color Gradient)
+    // 2. RENDER PROFESSIONAL GIS RISK HEATMAP (Smooth gradients, subtle blending, Agartala bullseye)
     if (layerHeatmap) {
       const heatPoints: [number, number, number][] = [];
 
       filteredStations.forEach((st) => {
-        let weight = 0.5;
+        const isAgartala =
+          (st.name || '').toLowerCase().includes('agartala') ||
+          (st.id || '').includes('agartala') ||
+          (Math.abs(st.latitude - 23.8315) < 0.05 && Math.abs(st.longitude - 91.2868) < 0.05);
+
+        if (isAgartala) {
+          // Specific Agartala Risk Zone:
+          // Center: RED / ORANGE (weight: 0.95)
+          heatPoints.push([st.latitude, st.longitude, 0.95]);
+
+          // Middle concentric ring: ORANGE / YELLOW (weight: 0.62)
+          const midDist = 0.022; // ~2.4km
+          const midCount = 5;
+          for (let i = 0; i < midCount; i++) {
+            const angle = (i / midCount) * Math.PI * 2;
+            heatPoints.push([
+              st.latitude + Math.sin(angle) * midDist,
+              st.longitude + Math.cos(angle) * midDist,
+              0.62,
+            ]);
+          }
+
+          // Outer concentric ring: GREEN / transparent (weight: 0.28)
+          const outerDist = 0.052; // ~5.5km
+          const outerCount = 7;
+          for (let i = 0; i < outerCount; i++) {
+            const angle = (i / outerCount) * Math.PI * 2;
+            heatPoints.push([
+              st.latitude + Math.sin(angle) * outerDist,
+              st.longitude + Math.cos(angle) * outerDist,
+              0.28,
+            ]);
+          }
+          return;
+        }
+
+        // Standard station smooth GIS gradient
+        let weight = 0.45;
         if (heatmapMetric === 'soil_moisture') {
-          weight = Math.min(1.0, Math.max(0.15, (st.telemetry?.soilMoisturePct ?? 50) / 90));
+          weight = Math.min(1.0, Math.max(0.18, (st.telemetry?.soilMoisturePct ?? 50) / 95));
         } else if (heatmapMetric === 'pore_pressure') {
-          weight = Math.min(1.0, Math.max(0.15, (st.telemetry?.poreWaterPressureKpa ?? 18) / 40));
+          weight = Math.min(1.0, Math.max(0.18, (st.telemetry?.poreWaterPressureKpa ?? 18) / 45));
         } else if (heatmapMetric === 'erosion') {
-          weight = Math.min(1.0, Math.max(0.15, (st.slopeAngleDeg ?? 35) / 55));
+          weight = Math.min(1.0, Math.max(0.18, (st.slopeAngleDeg ?? 35) / 58));
         } else {
-          // Default: risk score / classification
           weight =
             st.riskAssessment?.status === 'critical'
-              ? 1.0
+              ? 0.92
               : st.riskAssessment?.status === 'high'
-              ? 0.75
+              ? 0.70
               : st.riskAssessment?.status === 'moderate'
-              ? 0.5
-              : 0.25;
+              ? 0.45
+              : 0.20;
         }
 
         heatPoints.push([st.latitude, st.longitude, weight]);
 
-        // Disperse surrounding points for realistic GIS slope contour coverage
-        const count = weight > 0.7 ? 6 : 3;
-        for (let i = 0; i < count; i++) {
-          const angle = (i / count) * Math.PI * 2;
-          const dist = 0.045;
-          heatPoints.push([st.latitude + Math.sin(angle) * dist, st.longitude + Math.cos(angle) * dist, weight * 0.7]);
+        // Localized surrounding slope dispersion (tight and subtle to keep terrain visible)
+        const subCount = weight > 0.7 ? 3 : 2;
+        for (let i = 0; i < subCount; i++) {
+          const angle = (i / subCount) * Math.PI * 2;
+          const dist = 0.025;
+          heatPoints.push([
+            st.latitude + Math.sin(angle) * dist,
+            st.longitude + Math.cos(angle) * dist,
+            weight * 0.65,
+          ]);
         }
       });
 
       if (isHeatPluginReady && typeof (L as any).heatLayer === 'function') {
         try {
           const heat = (L as any).heatLayer(heatPoints, {
-            radius: 42,
-            blur: 26,
+            radius: 28,
+            blur: 20,
             maxZoom: 16,
             max: 1.0,
-            minOpacity: 0.38,
+            minOpacity: 0.28,
             gradient: {
-              0.0: '#10b981', // green = low
-              0.35: '#84cc16', // light green
-              0.55: '#eab308', // yellow = moderate
-              0.75: '#f97316', // orange = high
-              1.0: '#ef4444', // red = critical
+              0.15: '#10B981', // SAFE: transparent -> green
+              0.42: '#FACC15', // MODERATE: yellow
+              0.66: '#F97316', // HIGH: orange
+              0.86: '#EF4444', // CRITICAL: red
+              1.0: '#EC4899',  // EXTREME: magenta
             },
           });
           heat.addTo(map);
@@ -682,7 +1008,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         }
       }
     }
-  }, [filteredStations, layerStationPins, layerLandslide, layerHeatmap, heatmapMetric, selectedStation?.id, isHeatPluginReady]);
+  }, [filteredStations, layerStationPins, layerLandslide, layerHeatmap, heatmapMetric, selectedStation?.id, isHeatPluginReady, currentZoom]);
 
   // RENDER RISK BUFFER ZONES AROUND STATIONS
   useEffect(() => {
@@ -758,7 +1084,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     });
   }, [layerFlood]);
 
-  // 3. RENDER RIVERS LAYER
+  // 3. RENDER RIVERS LAYER (Bright Cyan/Blue #06B6D4, Major 2.5-3.5px, Minor 1.8-2.0px)
   useEffect(() => {
     const map = mapInstanceRef.current;
     const riversGroup = riversGroupRef.current;
@@ -769,19 +1095,20 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
     RIVER_SYSTEMS.forEach((river) => {
       const polyline = L.polyline(river.coordinates, {
-        color: '#0284c7',
-        weight: 3.5,
-        opacity: 0.85,
+        color: '#06B6D4',
+        weight: river.weight || 2.5,
+        opacity: 0.9,
+        className: 'glow-river',
       });
 
       polyline.bindPopup(`
         <div class="text-slate-900 font-sans p-1.5 min-w-[200px]">
-          <div class="font-bold text-xs text-sky-800 flex items-center gap-1.5 mb-1">
+          <div class="font-bold text-xs text-cyan-800 flex items-center gap-1.5 mb-1">
             <span>💧</span>
             <span>${river.name}</span>
           </div>
           <div class="text-[11px] text-slate-600">${river.state}</div>
-          <div class="text-[10px] text-slate-700 mt-1">Water Telemetry: <strong>${river.waterLevel}</strong></div>
+          <div class="text-[10px] text-cyan-900 mt-1 font-semibold">Water Telemetry: <strong>${river.waterLevel}</strong></div>
         </div>
       `);
 
@@ -789,7 +1116,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     });
   }, [layerRivers]);
 
-  // 4. RENDER ROADS / HIGHWAY RISK SEGMENTS
+  // 4. RENDER ROADS / HIGHWAY RISK SEGMENTS (#F59E0B for major highways)
   useEffect(() => {
     const map = mapInstanceRef.current;
     const highwayGroup = highwayGroupRef.current;
@@ -801,12 +1128,12 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
     HIGHWAY_RISK_SEGMENTS.forEach((segment) => {
       const isCritical = segment.overallRisk === 'emergency' || segment.riskScorePct > 70;
       const isModerate = segment.overallRisk === 'warning' || segment.riskScorePct > 40;
-      const lineColor = isCritical ? '#ef4444' : isModerate ? '#f59e0b' : '#10b981';
+      const lineColor = isCritical ? '#EF4444' : isModerate ? '#F59E0B' : '#F59E0B';
 
       const polyline = L.polyline(segment.coordinates, {
         color: lineColor,
         weight: isCritical ? 4.5 : 3.5,
-        opacity: 0.85,
+        opacity: 0.88,
         dashArray: isCritical ? '6, 6' : undefined,
       });
 
@@ -829,6 +1156,62 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       highwayGroup.addLayer(polyline);
     });
   }, [layerRoads]);
+
+  // 4B. RENDER STATE & DISTRICT BOUNDARIES LAYER (Purple/Violet #A855F7, 1-2px, semi-transparent)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const boundariesGroup = boundariesGroupRef.current;
+    if (!map || !boundariesGroup) return;
+
+    boundariesGroup.clearLayers();
+    if (!layerBoundaries) return;
+
+    STATE_DISTRICT_BOUNDARIES.forEach((boundary) => {
+      const polyline = L.polyline(boundary.coordinates, {
+        color: '#A855F7',
+        weight: 1.5,
+        opacity: 0.72,
+        dashArray: '5, 4',
+        className: 'glow-boundary',
+      });
+
+      polyline.bindTooltip(`
+        <div class="font-sans text-[11px] font-bold p-1 text-purple-900">
+          🏛️ ${boundary.name}
+        </div>
+      `, { sticky: true });
+
+      boundariesGroup.addLayer(polyline);
+    });
+  }, [layerBoundaries]);
+
+  // 4C. RENDER REGIONAL TERRITORY WATERMARKS (Purple state watermarks, only at overview zoom with boundary layer)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const regionalLabelsGroup = regionalLabelsGroupRef.current;
+    if (!map || !regionalLabelsGroup) return;
+
+    regionalLabelsGroup.clearLayers();
+    if (!layerBoundaries || currentZoom >= 9) return;
+
+    REGIONAL_MAP_LABELS.forEach((item) => {
+      const customIcon = L.divIcon({
+        html: `
+          <div class="custom-regional-label pointer-events-none select-none whitespace-nowrap" style="transform: translate(-50%, -50%);">
+            <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] tracking-widest text-purple-200 bg-black/50 border border-purple-400/30 shadow-[0_1.5px_3.5px_rgba(0,0,0,0.85)]">
+              ${item.name}
+            </span>
+          </div>
+        `,
+        className: 'custom-regional-label',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+
+      const marker = L.marker([item.lat, item.lng], { icon: customIcon, interactive: false, zIndexOffset: -10 });
+      regionalLabelsGroup.addLayer(marker);
+    });
+  }, [layerBoundaries, currentZoom]);
 
   // 5. RENDER HOSPITALS LAYER
   useEffect(() => {
@@ -1022,13 +1405,14 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       const isHigh = zone.category === 'high';
       const isModerate = zone.category === 'moderate';
 
+      // Color palette matching prompt specifications: extreme -> #EC4899, red -> #EF4444, orange -> #F97316, yellow -> #FACC15
       const color = isExtreme
-        ? '#ef4444' // vivid red
+        ? '#EC4899' // extreme magenta: #EC4899
         : isHigh
-        ? '#f97316' // vivid orange
+        ? '#EF4444' // red: #EF4444
         : isModerate
-        ? '#eab308' // golden amber
-        : '#10b981'; // emerald green
+        ? '#F97316' // orange: #F97316
+        : '#FACC15'; // yellow: #FACC15
 
       const polygon = L.polygon(zone.coordinates, {
         color,
@@ -1101,53 +1485,55 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       });
       riskZonesGroup.addLayer(polygon);
 
-      // CENTER BEACON BADGE MARKER (Visible at all zoom levels!)
-      const lats = zone.coordinates.map((c) => c[0]);
-      const lngs = zone.coordinates.map((c) => c[1]);
-      const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
-      const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+      // CENTER BEACON BADGE MARKER (Shown at zoom >= 9 or for extreme hazard zones)
+      if (currentZoom >= 9 || isExtreme) {
+        const lats = zone.coordinates.map((c) => c[0]);
+        const lngs = zone.coordinates.map((c) => c[1]);
+        const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+        const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
 
-      const zoneIcon = L.divIcon({
-        html: `
-          <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black ${
-              isExtreme
-                ? 'bg-rose-950/95 text-rose-200 border-2 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]'
-                : isHigh
-                ? 'bg-orange-950/95 text-orange-200 border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                : isModerate
-                ? 'bg-amber-950/95 text-amber-200 border-2 border-amber-500 shadow-md'
-                : 'bg-emerald-950/95 text-emerald-200 border-2 border-emerald-500 shadow-md'
-            } shadow-2xl hover:scale-110 transition-transform whitespace-nowrap">
-              <span class="w-2 h-2 rounded-full ${isExtreme ? 'bg-rose-500 animate-ping' : isHigh ? 'bg-orange-400 animate-pulse' : isModerate ? 'bg-amber-400' : 'bg-emerald-400'} shrink-0"></span>
-              <span>${isExtreme ? '🚨 EXTREME' : isHigh ? '⚠️ HIGH' : isModerate ? '⚡ MOD' : '🟢 LOW'}: ${zone.name.split(' ')[0]}</span>
-              <span class="text-[9px] font-mono px-1 rounded bg-black/50">FS ${zone.safetyFactor}</span>
+        const zoneIcon = L.divIcon({
+          html: `
+            <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
+              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black ${
+                isExtreme
+                  ? 'bg-rose-950/95 text-rose-200 border-2 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)]'
+                  : isHigh
+                  ? 'bg-orange-950/95 text-orange-200 border border-orange-500 shadow-xs'
+                  : isModerate
+                  ? 'bg-amber-950/95 text-amber-200 border border-amber-500 shadow-xs'
+                  : 'bg-emerald-950/95 text-emerald-200 border border-emerald-500 shadow-xs'
+              } shadow-lg hover:scale-105 transition-transform whitespace-nowrap">
+                <span class="w-1.5 h-1.5 rounded-full ${isExtreme ? 'bg-rose-500 animate-ping' : isHigh ? 'bg-orange-400' : isModerate ? 'bg-amber-400' : 'bg-emerald-400'} shrink-0"></span>
+                <span>${isExtreme ? '🚨 EXTREME' : isHigh ? '⚠️ HIGH' : isModerate ? '⚡ MOD' : '🟢 LOW'}: ${zone.name.split(' ')[0]}</span>
+                <span class="text-[8.5px] font-mono px-1 rounded bg-black/60">FS ${zone.safetyFactor}</span>
+              </div>
             </div>
-          </div>
-        `,
-        className: 'custom-risk-zone-icon',
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      });
+          `,
+          className: 'custom-risk-zone-icon',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
 
-      const centerMarker = L.marker([centerLat, centerLng], { icon: zoneIcon, zIndexOffset: isExtreme ? 400 : 250 });
-      centerMarker.bindPopup(popupHtml);
-      centerMarker.on('popupopen', () => {
-        const btn = document.getElementById(`focus-zone-route-${zone.id}`);
-        if (btn) {
-          btn.onclick = () => {
-            setLayerSafeRoutes(true);
-            centerMarker.closePopup();
-            const route = SAFE_EVACUATION_ROUTES.find((r) => r.id === zone.recommendedSafeRouteId);
-            if (route && route.coordinates[0]) {
-              map.flyTo(route.coordinates[0], 11, { duration: 1.2 });
-            }
-          };
-        }
-      });
-      riskZonesGroup.addLayer(centerMarker);
+        const centerMarker = L.marker([centerLat, centerLng], { icon: zoneIcon, zIndexOffset: isExtreme ? 400 : 250 });
+        centerMarker.bindPopup(popupHtml);
+        centerMarker.on('popupopen', () => {
+          const btn = document.getElementById(`focus-zone-route-${zone.id}`);
+          if (btn) {
+            btn.onclick = () => {
+              setLayerSafeRoutes(true);
+              centerMarker.closePopup();
+              const route = SAFE_EVACUATION_ROUTES.find((r) => r.id === zone.recommendedSafeRouteId);
+              if (route && route.coordinates[0]) {
+                map.flyTo(route.coordinates[0], 11, { duration: 1.2 });
+              }
+            };
+          }
+        });
+        riskZonesGroup.addLayer(centerMarker);
+      }
     });
-  }, [layerRiskZones, riskZoneFilter, isMapReady]);
+  }, [layerRiskZones, riskZoneFilter, isMapReady, currentZoom]);
 
   // 10. RENDER SAFE EVACUATION ROUTES & HIGH-RIDGE BYPASSES
   useEffect(() => {
@@ -1226,37 +1612,17 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       });
       safeRoutesGroup.addLayer(mainLine);
 
-      // Starting Checkpoint Marker
-      const startCoord = route.coordinates[0];
-      if (startCoord) {
-        const checkIcon = L.divIcon({
-          html: `
-            <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black bg-white text-emerald-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>🛡️ ${route.corridorCode} START</span>
-              </div>
-            </div>
-          `,
-          className: 'custom-safe-route-marker',
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-        });
-        const startMarker = L.marker(startCoord, { icon: checkIcon, zIndexOffset: 350 });
-        startMarker.bindPopup(popupHtml);
-        safeRoutesGroup.addLayer(startMarker);
-      }
-
-      // Midpoint Corridor Pill Marker
-      if (route.coordinates.length > 2) {
-        const midIdx = Math.floor(route.coordinates.length / 2);
-        const midCoord = route.coordinates[midIdx];
-        if (midCoord) {
-          const midIcon = L.divIcon({
+      // Render checkpoint badge markers when zoomed in (currentZoom >= 9) to keep overview clean
+      if (currentZoom >= 9) {
+        // Starting Checkpoint Marker
+        const startCoord = route.coordinates[0];
+        if (startCoord) {
+          const checkIcon = L.divIcon({
             html: `
               <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-                <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-white text-teal-800 border border-teal-400 shadow-xs whitespace-nowrap hover:scale-105 transition-transform">
-                  <span>🛣️ ${route.name.split('–')[0].trim()} • ${route.distanceKm}km</span>
+                <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8.5px] font-black bg-white text-emerald-800 border border-emerald-500 shadow-xs whitespace-nowrap hover:scale-105 transition-transform">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>🛡️ ${route.corridorCode} START</span>
                 </div>
               </div>
             `,
@@ -1264,34 +1630,57 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             iconSize: [0, 0],
             iconAnchor: [0, 0],
           });
-          const midMarker = L.marker(midCoord, { icon: midIcon, zIndexOffset: 320 });
-          midMarker.bindPopup(popupHtml);
-          safeRoutesGroup.addLayer(midMarker);
+          const startMarker = L.marker(startCoord, { icon: checkIcon, zIndexOffset: 350 });
+          startMarker.bindPopup(popupHtml);
+          safeRoutesGroup.addLayer(startMarker);
+        }
+
+        // Midpoint Corridor Pill Marker
+        if (route.coordinates.length > 2) {
+          const midIdx = Math.floor(route.coordinates.length / 2);
+          const midCoord = route.coordinates[midIdx];
+          if (midCoord) {
+            const midIcon = L.divIcon({
+              html: `
+                <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
+                  <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-black bg-white text-teal-800 border border-teal-400 shadow-xs whitespace-nowrap hover:scale-105 transition-transform">
+                    <span>🛣️ ${route.name.split('–')[0].trim()} • ${route.distanceKm}km</span>
+                  </div>
+                </div>
+              `,
+              className: 'custom-safe-route-marker',
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            });
+            const midMarker = L.marker(midCoord, { icon: midIcon, zIndexOffset: 320 });
+            midMarker.bindPopup(popupHtml);
+            safeRoutesGroup.addLayer(midMarker);
+          }
+        }
+
+        // Safe Destination Marker at End of Route
+        const endCoord = route.coordinates[route.coordinates.length - 1];
+        if (endCoord) {
+          const destIcon = L.divIcon({
+            html: `
+              <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
+                <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[8.5px] font-black bg-white text-emerald-800 border border-emerald-500 shadow-xs whitespace-nowrap hover:scale-105 transition-transform">
+                  <span>🏁</span>
+                  <span>SAFE DESTINATION: ${route.connectedHub.split(' ')[0]}</span>
+                </div>
+              </div>
+            `,
+            className: 'custom-safe-dest-marker',
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+          });
+          const destMarker = L.marker(endCoord, { icon: destIcon, zIndexOffset: 350 });
+          destMarker.bindPopup(popupHtml);
+          safeRoutesGroup.addLayer(destMarker);
         }
       }
-
-      // Safe Destination Marker at End of Route
-      const endCoord = route.coordinates[route.coordinates.length - 1];
-      if (endCoord) {
-        const destIcon = L.divIcon({
-          html: `
-            <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black bg-white text-emerald-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
-                <span>🏁</span>
-                <span>SAFE DESTINATION: ${route.connectedHub.split(' ')[0]}</span>
-              </div>
-            </div>
-          `,
-          className: 'custom-safe-dest-marker',
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-        });
-        const destMarker = L.marker(endCoord, { icon: destIcon, zIndexOffset: 350 });
-        destMarker.bindPopup(popupHtml);
-        safeRoutesGroup.addLayer(destMarker);
-      }
     });
-  }, [layerSafeRoutes, onOpenEscapeModal, isMapReady]);
+  }, [layerSafeRoutes, onOpenEscapeModal, isMapReady, currentZoom]);
 
   // RENDER DEDICATED SAFE ZONES (Clear Translucent Green Polygons, Borders & SAFE ZONE Labels)
   useEffect(() => {
@@ -1332,62 +1721,64 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       });
       safeZonesGroup.addLayer(safeCircle);
 
-      // 3. Clear "SAFE ZONE" Label Marker
-      const labelIcon = L.divIcon({
-        html: `
-          <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black bg-white text-emerald-800 border-2 border-emerald-500 shadow-md whitespace-nowrap hover:scale-105 transition-transform">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>🛡️ SAFE ZONE: ${hub.name.split(' ')[0]}</span>
-              <span class="text-[9px] px-1 rounded bg-emerald-50 text-emerald-900 border border-emerald-300">Cap ${hub.safeCapacityPeople.toLocaleString()}</span>
+      // 3. Clear "SAFE ZONE" Label Marker (Displayed at zoom >= 9 to keep overview clear)
+      if (currentZoom >= 9) {
+        const labelIcon = L.divIcon({
+          html: `
+            <div class="cursor-pointer" style="transform: translate(-50%, -50%);">
+              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black bg-white text-emerald-800 border border-emerald-500 shadow-xs whitespace-nowrap hover:scale-105 transition-transform">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>🛡️ SAFE ZONE: ${hub.name.split(' ')[0]}</span>
+                <span class="text-[8.5px] px-1 rounded bg-emerald-50 text-emerald-900 border border-emerald-300">Cap ${hub.safeCapacityPeople.toLocaleString()}</span>
+              </div>
             </div>
-          </div>
-        `,
-        className: 'custom-safe-zone-icon',
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      });
+          `,
+          className: 'custom-safe-zone-icon',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
 
-      const marker = L.marker(hub.coordinates, { icon: labelIcon, zIndexOffset: 340 });
+        const marker = L.marker(hub.coordinates, { icon: labelIcon, zIndexOffset: 340 });
 
-      const popupHtml = `
-        <div class="text-slate-900 font-sans p-2.5 min-w-[240px]">
-          <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-200">
-            <div class="flex items-center gap-1.5 truncate">
-              <span class="text-emerald-600 font-black text-sm">🛡️</span>
-              <span class="font-bold text-xs text-slate-900 truncate">SAFE ZONE: ${hub.name}</span>
+        const popupHtml = `
+          <div class="text-slate-900 font-sans p-2.5 min-w-[240px]">
+            <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-200">
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="text-emerald-600 font-black text-sm">🛡️</span>
+                <span class="font-bold text-xs text-slate-900 truncate">SAFE ZONE: ${hub.name}</span>
+              </div>
+              <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300">
+                SAFE HAVEN
+              </span>
             </div>
-            <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300">
-              SAFE HAVEN
-            </span>
+            <div class="text-[11px] text-slate-600 mb-2">${hub.district}, ${hub.state} • Elev: ${hub.elevationM}m</div>
+            <div class="grid grid-cols-2 gap-1.5 text-[11px] mb-2 bg-emerald-50/70 border border-emerald-200 p-2 rounded-lg">
+              <div><span class="text-slate-500">Designated Cap:</span> <strong>${hub.safeCapacityPeople.toLocaleString()}</strong></div>
+              <div><span class="text-slate-500">Ration Days:</span> <strong>${hub.supplies.foodRationDays} Days</strong></div>
+              <div><span class="text-slate-500">Water Supply:</span> <strong>${hub.supplies.waterSource}</strong></div>
+              <div><span class="text-slate-500">Medical Post:</span> <strong>${hub.supplies.medicalAid}</strong></div>
+            </div>
+            <button id="zoom-safe-zone-${hub.id}" class="w-full text-center py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors shadow-xs">
+              Zoom to Safe Zone Perimeter
+            </button>
           </div>
-          <div class="text-[11px] text-slate-600 mb-2">${hub.district}, ${hub.state} • Elev: ${hub.elevationM}m</div>
-          <div class="grid grid-cols-2 gap-1.5 text-[11px] mb-2 bg-emerald-50/70 border border-emerald-200 p-2 rounded-lg">
-            <div><span class="text-slate-500">Designated Cap:</span> <strong>${hub.safeCapacityPeople.toLocaleString()}</strong></div>
-            <div><span class="text-slate-500">Ration Days:</span> <strong>${hub.supplies.foodRationDays} Days</strong></div>
-            <div><span class="text-slate-500">Water Supply:</span> <strong>${hub.supplies.waterSource}</strong></div>
-            <div><span class="text-slate-500">Medical Post:</span> <strong>${hub.supplies.medicalAid}</strong></div>
-          </div>
-          <button id="zoom-safe-zone-${hub.id}" class="w-full text-center py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition-colors shadow-xs">
-            Zoom to Safe Zone Perimeter
-          </button>
-        </div>
-      `;
+        `;
 
-      marker.bindPopup(popupHtml);
-      marker.on('popupopen', () => {
-        const btn = document.getElementById(`zoom-safe-zone-${hub.id}`);
-        if (btn) {
-          btn.onclick = () => {
-            marker.closePopup();
-            map.flyTo(hub.coordinates, 13, { duration: 1.2 });
-          };
-        }
-      });
+        marker.bindPopup(popupHtml);
+        marker.on('popupopen', () => {
+          const btn = document.getElementById(`zoom-safe-zone-${hub.id}`);
+          if (btn) {
+            btn.onclick = () => {
+              marker.closePopup();
+              map.flyTo(hub.coordinates, 13, { duration: 1.2 });
+            };
+          }
+        });
 
-      safeZonesGroup.addLayer(marker);
+        safeZonesGroup.addLayer(marker);
+      }
     });
-  }, [layerSafeZones, isMapReady]);
+  }, [layerSafeZones, isMapReady, currentZoom]);
 
   // 11. RENDER COMMUNITY HUBS & SAFE ASSEMBLY PERIMETERS
   useEffect(() => {
@@ -1722,269 +2113,119 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
   return (
     <div
       id="landslide-map-wrapper"
-      className="relative isolate z-0 w-full h-full min-h-[420px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-[#F8FAFC]"
+      className="relative isolate z-0 w-full h-full min-h-[420px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-[#121c17]"
     >
       {/* Map Canvas Element */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* TOP-LEFT CONTROLS: Search Bar & Focus Place & Quick Toggles */}
-      <div className="absolute top-3 left-3 z-[1000] pointer-events-none flex flex-col gap-2 max-w-[calc(100%-140px)] sm:max-w-xl">
-        {/* Row 1: Search & Place Selector & Fit Bounds */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Search Input */}
-          <div className="flex items-center bg-white/95 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-sm w-32 sm:w-44 pointer-events-auto">
-            <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
-            <input
-              id="map-search-input"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search station or area..."
-              className="bg-transparent text-xs text-slate-900 placeholder-slate-400 focus:outline-none w-full min-w-0 font-medium"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="text-xs text-slate-400 hover:text-slate-700 ml-1 px-1 cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Compact Select Place */}
-          <div className="bg-white/95 border border-slate-200 rounded-xl px-2.5 py-1 shadow-sm flex items-center gap-1.5 pointer-events-auto max-w-[140px] sm:max-w-[200px]">
-            <span className="text-[9px] font-mono font-bold text-blue-600 uppercase tracking-wider shrink-0 hidden sm:inline">
-              STATION:
-            </span>
-            <select
-              value={selectedStation?.id || ''}
-              onChange={(e) => {
-                const found = stations.find((s) => s.id === e.target.value);
-                if (found) onSelectStation(found);
-              }}
-              className="bg-transparent text-xs text-slate-800 font-bold focus:outline-none cursor-pointer w-full min-w-0 truncate"
-            >
-              {stations.map((st) => {
-                const clean = getCleanPlaceName(st);
-                const region = st.region ? st.region.split(',')[0].replace(/District/i, '').trim() : '';
-                return (
-                  <option key={st.id} value={st.id} className="bg-white text-slate-900">
-                    {clean} {region ? `(${region})` : ''}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Fit / Recenter Button */}
-          <button
-            type="button"
-            onClick={fitAllStations}
-            className="p-2 bg-white/95 border border-slate-200 hover:border-blue-400 hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm pointer-events-auto transition-colors cursor-pointer shrink-0"
-            title="Fit All Monitored Stations"
-          >
-            <LocateFixed className="w-3.5 h-3.5 text-blue-600" />
-          </button>
-        </div>
-
-        {/* Row 2: Prominent Quick Toggle Badges for Safe Routes, Safe Zones & Risk Zones */}
-        <div className="flex items-center gap-1.5 flex-wrap pointer-events-auto">
-          {/* Safe Routes Toggle */}
-          <button
-            type="button"
-            onClick={() => setLayerSafeRoutes((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shadow-xs cursor-pointer ${
-              layerSafeRoutes
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-                : 'bg-white/95 text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-            title="Click to toggle Safe Evacuation Corridors on Map"
-          >
-            <Route className="w-3 h-3 text-emerald-600 shrink-0" />
-            <span className="whitespace-nowrap">Safe Routes ({SAFE_EVACUATION_ROUTES.length})</span>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerSafeRoutes ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-          </button>
-
-          {/* Safe Zones Toggle */}
-          <button
-            type="button"
-            onClick={() => setLayerSafeZones((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shadow-xs cursor-pointer ${
-              layerSafeZones
-                ? 'bg-teal-50 text-teal-800 border border-teal-300'
-                : 'bg-white/95 text-slate-600 border border-slate-200 hover:bg-slate-50'
-            }`}
-            title="Click to toggle Safe Havens & Muster Perimeters on Map"
-          >
-            <ShieldCheck className="w-3 h-3 text-teal-600 shrink-0" />
-            <span className="whitespace-nowrap">Safe Zones ({COMMUNITY_HUBS.length})</span>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerSafeZones ? 'bg-teal-500 animate-pulse' : 'bg-slate-300'}`} />
-          </button>
-
-          {/* Risk Zones Toggle & Severity Filter */}
-          <div className="flex items-center bg-white/95 border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+      {/* TOP-LEFT MAIN CONTROLS: Search, Station Selector, Current Location / GPS */}
+      <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2.5 flex-wrap max-w-[calc(100%-180px)]">
+        {/* 1. Search Station / Area */}
+        <div className="flex items-center h-11 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[14px] px-3.5 shadow-sm hover:border-slate-300 transition-all w-48 sm:w-60 md:w-72">
+          <Search className="w-4 h-4 text-blue-600 mr-2 shrink-0" />
+          <input
+            id="map-search-input"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={t.mapSearchPlaceholder}
+            className="bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none w-full min-w-0 font-medium"
+          />
+          {searchQuery && (
             <button
               type="button"
-              onClick={() => setLayerRiskZones((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
-                layerRiskZones ? 'text-amber-900 bg-amber-50' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-              title="Click to toggle Multi-Tier Risk Zones on Map"
+              onClick={() => onSearchChange('')}
+              className="text-xs text-slate-400 hover:text-slate-700 ml-1 px-1 cursor-pointer"
             >
-              <AlertOctagon className="w-3 h-3 text-amber-500 shrink-0" />
-              <span className="whitespace-nowrap">Risk Zones ({GEOSPATIAL_RISK_ZONES.length})</span>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerRiskZones ? 'bg-amber-500' : 'bg-slate-300'}`} />
+              ✕
             </button>
-            {layerRiskZones && (
-              <select
-                value={riskZoneFilter}
-                onChange={(e) => setRiskZoneFilter(e.target.value as any)}
-                className="bg-white text-[10px] font-bold text-slate-700 px-1.5 py-1 border-l border-slate-200 focus:outline-none cursor-pointer"
-                title="Filter Geospatial Risk Zones by severity"
-              >
-                <option value="all">All (17)</option>
-                <option value="extreme">🔴 Extreme (5)</option>
-                <option value="high">🟠 High (4)</option>
-                <option value="moderate">🟡 Mod (4)</option>
-                <option value="low">🟢 Low (4)</option>
-              </select>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Row 3: Direct Quick Jump to Any Geospatial Risk Zone, Safe Route, or Safe Haven */}
-        <div className="flex items-center gap-1.5 pointer-events-auto">
-          <div className="bg-white/95 border border-slate-200 hover:border-blue-400 rounded-xl px-2.5 py-1 shadow-sm flex items-center gap-1.5 w-full max-w-[280px] sm:max-w-xs transition-all">
-            <span className="text-[10px] font-mono font-bold text-blue-600 shrink-0">
-              🎯 FOCUS:
-            </span>
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                const val = e.target.value;
-                if (!val) return;
-                const map = mapInstanceRef.current;
-                if (!map) return;
-
-                if (val.startsWith('zone:')) {
-                  const zoneId = val.replace('zone:', '');
-                  const zone = GEOSPATIAL_RISK_ZONES.find((z) => z.id === zoneId);
-                  if (zone && zone.coordinates[0]) {
-                    setLayerRiskZones(true);
-                    const lats = zone.coordinates.map((c) => c[0]);
-                    const lngs = zone.coordinates.map((c) => c[1]);
-                    const cLat = lats.reduce((a, b) => a + b, 0) / lats.length;
-                    const cLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
-                    map.flyTo([cLat, cLng], 12, { duration: 1.2 });
-                  }
-                } else if (val.startsWith('route:')) {
-                  const routeId = val.replace('route:', '');
-                  const route = SAFE_EVACUATION_ROUTES.find((r) => r.id === routeId);
-                  if (route && route.coordinates[0]) {
-                    setLayerSafeRoutes(true);
-                    map.flyTo(route.coordinates[0], 11, { duration: 1.2 });
-                  }
-                } else if (val.startsWith('hub:')) {
-                  const hubId = val.replace('hub:', '');
-                  const hub = COMMUNITY_HUBS.find((h) => h.id === hubId);
-                  if (hub) {
-                    setLayerSafeZones(true);
-                    map.flyTo(hub.coordinates, 13, { duration: 1.2 });
-                  }
-                }
-              }}
-              className="bg-transparent text-xs text-slate-800 font-semibold focus:outline-none cursor-pointer w-full min-w-0 truncate"
-            >
-              <option value="" className="bg-white text-slate-500">
-                Jump to Risk Zone / Safe Route / Haven...
-              </option>
-              <optgroup label="🚨 Extreme Risk Zones" className="bg-white text-rose-700">
-                {GEOSPATIAL_RISK_ZONES.filter((z) => z.category === 'extreme').map((z) => (
-                  <option key={z.id} value={`zone:${z.id}`} className="bg-white text-rose-700">
-                    🔴 {z.name} ({z.state})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="⚠️ High Risk Zones" className="bg-white text-orange-700">
-                {GEOSPATIAL_RISK_ZONES.filter((z) => z.category === 'high').map((z) => (
-                  <option key={z.id} value={`zone:${z.id}`} className="bg-white text-orange-700">
-                    🟠 {z.name} ({z.state})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="⚡ Moderate & Low Risk Zones" className="bg-white text-amber-700">
-                {GEOSPATIAL_RISK_ZONES.filter((z) => z.category === 'moderate' || z.category === 'low').map((z) => (
-                  <option key={z.id} value={`zone:${z.id}`} className="bg-white text-amber-700">
-                    {z.category === 'moderate' ? '🟡' : '🟢'} {z.name} ({z.state})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="🛡️ Safe Evacuation Routes" className="bg-white text-emerald-700">
-                {SAFE_EVACUATION_ROUTES.map((r) => (
-                  <option key={r.id} value={`route:${r.id}`} className="bg-white text-emerald-700">
-                    🛡️ {r.name} ({r.distanceKm} km)
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="🏛️ Community Safe Havens" className="bg-white text-teal-700">
-                {COMMUNITY_HUBS.map((h) => (
-                  <option key={h.id} value={`hub:${h.id}`} className="bg-white text-teal-700">
-                    🏛️ {h.name} (Cap {h.safeCapacityPeople.toLocaleString()})
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
+        {/* 2. Station Selector: "STATION: Agartala (Tripura) ▼" */}
+        <div className="relative flex items-center h-11 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[14px] px-3.5 shadow-sm hover:border-slate-300 transition-all max-w-[220px] sm:max-w-[270px]">
+          <span className="text-[10px] font-mono font-bold text-blue-600 uppercase tracking-wider mr-1.5 shrink-0">
+            {t.stationLabel || 'STATION:'}
+          </span>
+          <span className="text-xs text-slate-800 font-bold truncate pr-5">
+            {selectedStation
+              ? `${getCleanPlaceName(selectedStation)} (${selectedStation.region ? selectedStation.region.split(',')[0].replace(/District/i, '').trim() : 'Tripura'})`
+              : 'Agartala (Tripura)'}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-3 pointer-events-none shrink-0" />
+          <select
+            value={selectedStation?.id || ''}
+            onChange={(e) => {
+              const found = stations.find((s) => s.id === e.target.value);
+              if (found) onSelectStation(found);
+            }}
+            aria-label="Station Selector"
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+          >
+            {stations.map((st) => {
+              const clean = getCleanPlaceName(st);
+              const region = st.region ? st.region.split(',')[0].replace(/District/i, '').trim() : '';
+              return (
+                <option key={st.id} value={st.id} className="bg-white text-slate-900 font-sans">
+                  {clean} {region ? `(${region})` : ''}
+                </option>
+              );
+            })}
+          </select>
         </div>
+
+        {/* 3. Current Location / GPS button with circular blue location icon */}
+        <button
+          type="button"
+          onClick={() => {
+            const map = mapInstanceRef.current;
+            if (!map) return;
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  map.flyTo([pos.coords.latitude, pos.coords.longitude], 12, { duration: 1.2 });
+                },
+                () => {
+                  fitAllStations();
+                },
+                { timeout: 4000 }
+              );
+            } else {
+              fitAllStations();
+            }
+          }}
+          className="flex items-center justify-center h-11 w-11 bg-white/95 backdrop-blur-md border border-slate-200/90 hover:border-blue-400 hover:bg-blue-50/50 text-blue-600 rounded-[14px] shadow-sm transition-all cursor-pointer shrink-0 active:scale-95 group"
+          title="Current Location / GPS"
+          aria-label="Current Location / GPS"
+        >
+          <div className="w-6 h-6 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+            <LocateFixed className="w-4 h-4 text-blue-600" />
+          </div>
+        </button>
       </div>
 
       {/* TOP-RIGHT CONTROLS: Map Layers Button & Floating Dropdown */}
-      <div className="absolute top-3 right-3 z-[1100] flex flex-col items-end gap-2">
-        <div className="flex items-center gap-2">
-          {/* Main "Map Layers" Floating Button */}
-          <button
-            ref={layerBtnRef}
-            id="map-layers-trigger-btn"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsLayerPanelOpen(!isLayerPanelOpen);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 border border-slate-200 hover:border-blue-500 hover:bg-white text-xs font-bold text-slate-800 shadow-sm cursor-pointer transition-all active:scale-95"
-            title="Open GIS & Hazard Map Layers Selector"
-          >
-            <Layers className="w-4 h-4 text-blue-600" />
-            <span className="hidden sm:inline font-sans">Map Layers</span>
-            <span className="sm:hidden font-sans">Layers</span>
-            <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${
-                isLayerPanelOpen ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-
-          {/* Zoom Buttons Group */}
-          <div className="flex items-center bg-white/95 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-            <button
-              type="button"
-              onClick={() => mapInstanceRef.current?.zoomIn()}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" />
-            </button>
-            <div className="w-[1px] h-4 bg-slate-200" />
-            <button
-              type="button"
-              onClick={() => mapInstanceRef.current?.zoomOut()}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+      <div className="absolute top-4 right-4 z-[1100] flex flex-col items-end gap-2">
+        {/* 4. Main "Map Layers" Floating Button */}
+        <button
+          ref={layerBtnRef}
+          id="map-layers-trigger-btn"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsLayerPanelOpen(!isLayerPanelOpen);
+          }}
+          className="flex items-center gap-2 h-11 px-4 rounded-[14px] bg-white/95 backdrop-blur-md border border-slate-200/90 hover:border-blue-500 hover:bg-white text-xs font-bold text-slate-800 shadow-sm cursor-pointer transition-all active:scale-95"
+          title="Open GIS & Hazard Map Layers Selector"
+        >
+          <Layers className="w-4 h-4 text-blue-600" />
+          <span className="font-sans">{t.mapLayers}</span>
+          <ChevronDown
+            className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${
+              isLayerPanelOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
 
         {/* FLOATING LAYER-SELECTION PANEL */}
         {isLayerPanelOpen && (
@@ -2020,10 +2261,10 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
               <div className="grid grid-cols-2 gap-1.5">
                 {(
                   [
-                    { id: 'topo', label: 'Terrain Topo', icon: Layers },
-                    { id: 'satellite', label: 'Satellite', icon: Globe },
-                    { id: 'osm', label: 'Standard OSM', icon: Globe },
-                    { id: 'dark', label: 'Dark Canvas', icon: Globe },
+                    { id: 'satellite', label: t.baseSatellite || 'Satellite', icon: Globe },
+                    { id: 'topo', label: t.baseTerrain || 'Terrain', icon: Layers },
+                    { id: 'osm', label: t.baseStreet || 'Street', icon: Globe },
+                    { id: 'dark', label: 'Dark Terrain', icon: Globe },
                   ] as const
                 ).map((base) => {
                   const Icon = base.icon;
@@ -2061,7 +2302,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-600" />
                     <div>
-                      <span className="font-bold text-slate-900 block">Safe Zones</span>
+                      <span className="font-bold text-slate-900 block">{t.layerSafeZones || 'Safe Zones'}</span>
                       <span className="text-[10px] text-slate-500">Muster perimeters &amp; havens</span>
                     </div>
                   </div>
@@ -2073,14 +2314,14 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                   />
                 </label>
 
-                {/* Risk Heatmap & Metric Selection */}
+                {/* Landslide Risk Heatmap & Metric Selection */}
                 <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                   <label className="flex items-center justify-between cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Flame className="w-4 h-4 text-amber-500" />
                       <div>
-                        <span className="font-bold text-slate-900 block">Risk Heatmap</span>
-                        <span className="text-[10px] text-slate-500">Scientific GIS color density</span>
+                        <span className="font-bold text-slate-900 block">{t.landslideRisk || 'Landslide Risk'}</span>
+                        <span className="text-[10px] text-slate-500">Scientific GIS hazard density</span>
                       </div>
                     </div>
                     <input
@@ -2112,7 +2353,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                   <div className="flex items-center gap-2">
                     <Route className="w-4 h-4 text-emerald-600" />
                     <div>
-                      <span className="font-bold text-slate-900 block">Safe Routes</span>
+                      <span className="font-bold text-slate-900 block">{t.layerSafeRoutes || 'Safe Routes'}</span>
                       <span className="text-[10px] text-slate-500">Ridge bypasses &amp; all-clear corridors</span>
                     </div>
                   </div>
@@ -2158,12 +2399,12 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                   />
                 </label>
 
-                {/* Flood Layer */}
+                {/* Flood Risk Layer */}
                 <label className="flex items-center justify-between p-2 rounded-xl bg-cyan-50/50 border border-cyan-200 hover:border-cyan-400 cursor-pointer">
                   <div className="flex items-center gap-2">
                     <Waves className="w-4 h-4 text-cyan-600" />
                     <div>
-                      <span className="font-bold text-slate-900 block">Flood Layer</span>
+                      <span className="font-bold text-slate-900 block">Flood Risk</span>
                       <span className="text-[10px] text-slate-500">Hydraulic inundation perimeters</span>
                     </div>
                   </div>
@@ -2175,13 +2416,47 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
                   />
                 </label>
 
+                {/* River Corridors Layer */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-cyan-50/40 border border-cyan-200 hover:border-cyan-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-1 rounded-full bg-[#06B6D4] shadow-xs" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">River Corridors</span>
+                      <span className="text-[10px] text-slate-500">Cyan waterways: Haora, Brahmaputra, Gomati</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerRivers}
+                    onChange={(e) => setLayerRivers(e.target.checked)}
+                    className="w-4 h-4 rounded text-cyan-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
+                {/* State & District Boundaries Layer */}
+                <label className="flex items-center justify-between p-2 rounded-xl bg-purple-50/40 border border-purple-200 hover:border-purple-400 cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-0.5 rounded-full bg-[#A855F7] border-t border-dashed border-[#A855F7] shadow-xs" />
+                    <div>
+                      <span className="font-bold text-slate-900 block">State Boundaries</span>
+                      <span className="text-[10px] text-slate-500">Purple perimeter lines: Tripura, Mizoram, Assam</span>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={layerBoundaries}
+                    onChange={(e) => setLayerBoundaries(e.target.checked)}
+                    className="w-4 h-4 rounded text-purple-600 focus:ring-0 cursor-pointer"
+                  />
+                </label>
+
                 {/* NH Corridors */}
                 <label className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-amber-400 cursor-pointer">
                   <div className="flex items-center gap-2">
                     <Milestone className="w-4 h-4 text-amber-600" />
                     <div>
                       <span className="font-bold text-slate-900 block">NH Corridors</span>
-                      <span className="text-[10px] text-slate-500">Highways NH-10, NH-29, NH-102</span>
+                      <span className="text-[10px] text-slate-500">Highways NH-8, NH-10, NH-29</span>
                     </div>
                   </div>
                   <input
@@ -2318,6 +2593,29 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         )}
       </div>
 
+      {/* 5. RIGHT SIDE: Zoom Controls [ + ] [ − ] */}
+      <div className="absolute top-20 right-4 z-[1000] flex flex-col items-center bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[14px] overflow-hidden shadow-sm">
+        <button
+          type="button"
+          onClick={() => mapInstanceRef.current?.zoomIn()}
+          className="w-10 h-10 flex items-center justify-center text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors cursor-pointer"
+          title="Zoom In"
+          aria-label="Zoom In"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+        </button>
+        <div className="w-6 h-[1px] bg-slate-200/80" />
+        <button
+          type="button"
+          onClick={() => mapInstanceRef.current?.zoomOut()}
+          className="w-10 h-10 flex items-center justify-center text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors cursor-pointer"
+          title="Zoom Out"
+          aria-label="Zoom Out"
+        >
+          <Minus className="w-4 h-4 stroke-[2.5]" />
+        </button>
+      </div>
+
       {/* FLOATING RISK LEGEND ON MAP (BOTTOM-RIGHT) */}
       <div
         id="map-floating-risk-legend"
@@ -2342,53 +2640,75 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
 
         {/* Landslide & Geospatial Risk Zones Legend */}
         {activeLegendHazard === 'landslide' && (
-          <div className="space-y-1.5 text-[11px]">
+          <div className="space-y-2 text-[11px]">
+            {/* Colored circles: SAFE, MODERATE, HIGH, CRITICAL, EXTREME */}
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-rose-700 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
-                  <span className="truncate">EXTREME RISK</span>
+                <span className="flex items-center gap-1.5 text-slate-800 font-bold truncate">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] border border-white shadow-2xs shrink-0" />
+                  <span className="truncate">{t.metricSafe || 'SAFE'}</span>
                 </span>
-                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS &lt; 1.0</span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS &gt; 1.5</span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-orange-700 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
-                  <span className="truncate">HIGH RISK</span>
-                </span>
-                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS 1.0 – 1.2</span>
-              </div>
-              <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-amber-700 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span className="truncate">MODERATE</span>
+                <span className="flex items-center gap-1.5 text-slate-800 font-bold truncate">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FACC15] border border-white shadow-2xs shrink-0" />
+                  <span className="truncate">{t.metricModerate || 'MODERATE'}</span>
                 </span>
                 <span className="text-slate-500 font-mono text-[10px] shrink-0">FS 1.2 – 1.5</span>
               </div>
               <div className="flex items-center justify-between gap-2 min-w-0">
-                <span className="flex items-center gap-1.5 text-emerald-700 font-bold truncate">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="truncate">LOW / SAFE SHIELD</span>
+                <span className="flex items-center gap-1.5 text-slate-800 font-bold truncate">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F97316] border border-white shadow-2xs shrink-0" />
+                  <span className="truncate">{t.metricHigh || 'HIGH'}</span>
                 </span>
-                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS &gt; 1.5</span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS 1.0 – 1.2</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <span className="flex items-center gap-1.5 text-slate-800 font-bold truncate">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] border border-white shadow-2xs shrink-0" />
+                  <span className="truncate">{t.metricCritical || 'CRITICAL'}</span>
+                </span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS 0.85 – 1.0</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <span className="flex items-center gap-1.5 text-slate-800 font-bold truncate">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#EC4899] border border-white shadow-2xs animate-pulse shrink-0" />
+                  <span className="truncate">{t.metricExtreme || 'EXTREME'}</span>
+                </span>
+                <span className="text-slate-500 font-mono text-[10px] shrink-0">FS &lt; 0.85</span>
               </div>
             </div>
 
-            {/* Geospatial Lifelines */}
-            <div className="pt-1.5 border-t border-slate-200 space-y-1 text-[10px]">
-              <div className="flex items-center justify-between gap-2 text-emerald-800 font-semibold min-w-0">
+            {/* Line features: Green line = Safe Route, Purple line = Boundary, Blue line = River, Orange line = Road */}
+            <div className="pt-2 border-t border-slate-200 space-y-1.5 text-[10px]">
+              <div className="flex items-center justify-between gap-2 text-slate-700 font-semibold min-w-0">
                 <span className="flex items-center gap-1.5 truncate">
-                  <span className="w-3.5 h-0.5 bg-emerald-500 border-t border-dashed border-emerald-300 shrink-0" />
-                  <span className="truncate">Safe Evacuation Route</span>
+                  <span className="w-4 h-1 rounded-full bg-[#10B981] shadow-2xs shrink-0" />
+                  <span className="truncate">Green line = Safe Route</span>
                 </span>
-                <span className="font-mono text-[9px] text-emerald-700 shrink-0">Ridge Bypass</span>
+                <span className="font-mono text-[9px] text-emerald-700 shrink-0">Evacuation</span>
               </div>
-              <div className="flex items-center justify-between gap-2 text-teal-800 font-semibold min-w-0">
+              <div className="flex items-center justify-between gap-2 text-slate-700 font-semibold min-w-0">
                 <span className="flex items-center gap-1.5 truncate">
-                  <span className="text-[10px] shrink-0">🏛️</span>
-                  <span className="truncate">Community Safe Haven</span>
+                  <span className="w-4 h-0.5 rounded-full bg-[#A855F7] border-t border-dashed border-[#A855F7] shadow-2xs shrink-0" />
+                  <span className="truncate">Purple line = Boundary</span>
                 </span>
-                <span className="font-mono text-[9px] text-teal-700 shrink-0">Muster Hub</span>
+                <span className="font-mono text-[9px] text-purple-700 shrink-0">State / Dist</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-slate-700 font-semibold min-w-0">
+                <span className="flex items-center gap-1.5 truncate">
+                  <span className="w-4 h-1 rounded-full bg-[#06B6D4] shadow-2xs shrink-0" />
+                  <span className="truncate">Blue line = River</span>
+                </span>
+                <span className="font-mono text-[9px] text-cyan-700 shrink-0">Waterway</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-slate-700 font-semibold min-w-0">
+                <span className="flex items-center gap-1.5 truncate">
+                  <span className="w-4 h-1 rounded-full bg-[#F59E0B] shadow-2xs shrink-0" />
+                  <span className="truncate">Orange line = Road</span>
+                </span>
+                <span className="font-mono text-[9px] text-amber-700 shrink-0">Highway</span>
               </div>
             </div>
           </div>

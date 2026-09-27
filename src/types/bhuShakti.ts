@@ -1,4 +1,14 @@
-export type BhuLanguage = 'en' | 'as' | 'kha' | 'lus' | 'mni';
+export type BhuLanguage =
+  | 'en'
+  | 'te'
+  | 'hi'
+  | 'as'
+  | 'bn'
+  | 'ne'
+  | 'mni'
+  | 'kha'
+  | 'lus'
+  | 'brx';
 
 export type SensingNodeMode = 'physical' | 'virtual';
 

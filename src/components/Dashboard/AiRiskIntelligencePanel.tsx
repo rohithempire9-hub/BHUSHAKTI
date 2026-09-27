@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { LandslideStation } from '../../types/landslide';
+import { BhuLanguage } from '../../types/bhuShakti';
+import { TRANSLATIONS } from '../../utils/translations';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -26,15 +28,18 @@ import {
 
 interface AiRiskIntelligencePanelProps {
   station: LandslideStation | null;
+  currentLanguage?: BhuLanguage;
   onOpenSmsModal: () => void;
   onOpenEscapeModal?: () => void;
 }
 
 export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = ({
   station,
+  currentLanguage = 'en',
   onOpenSmsModal,
   onOpenEscapeModal,
 }) => {
+  const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'hill_cut' | 'glacier' | 'escape'>('overview');
   const [smsSentSuccess, setSmsSentSuccess] = useState<string | null>(null);
 
@@ -122,87 +127,103 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
     } catch {}
   };
 
-  // Telemetry items with values, units, status and trends
+  // Telemetry items with compact readable names, translated labels and status texts
   const telemetryMetrics = [
     {
-      label: 'Temperature',
+      key: 'temperature',
+      label: t.sensorTemperature,
       value: station.telemetry?.temperatureC ?? 18.4,
       unit: '°C',
-      status: (station.telemetry?.temperatureC ?? 18) > 28 ? 'Elevated' : 'Normal',
-      statusColor: (station.telemetry?.temperatureC ?? 18) > 28 ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-700',
+      status: (station.telemetry?.temperatureC ?? 18) > 28 ? t.statusElevated : t.statusNormal,
+      statusColor: (station.telemetry?.temperatureC ?? 18) > 28 ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-slate-50 text-slate-700 border-slate-200',
       trend: '→ Stable',
       icon: Thermometer,
-      iconColor: 'text-orange-500'
+      iconColor: 'text-orange-500',
+      iconBg: 'bg-orange-50 border-orange-200/70',
     },
     {
-      label: 'Soil Moisture',
+      key: 'soil_moisture',
+      label: t.sensorSoilMoisture,
       value: station.telemetry?.soilMoisturePct ?? 68,
       unit: '%',
-      status: (station.telemetry?.soilMoisturePct ?? 68) > 75 ? 'Critical' : (station.telemetry?.soilMoisturePct ?? 68) > 60 ? 'High' : 'Normal',
-      statusColor: (station.telemetry?.soilMoisturePct ?? 68) > 75 ? 'bg-red-50 text-red-700' : (station.telemetry?.soilMoisturePct ?? 68) > 60 ? 'bg-orange-50 text-orange-700' : 'bg-emerald-50 text-emerald-700',
+      status: (station.telemetry?.soilMoisturePct ?? 68) > 75 ? t.statusCritical : (station.telemetry?.soilMoisturePct ?? 68) > 60 ? t.statusHigh : t.statusNormal,
+      statusColor: (station.telemetry?.soilMoisturePct ?? 68) > 75 ? 'bg-red-50 text-red-700 border-red-200' : (station.telemetry?.soilMoisturePct ?? 68) > 60 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-cyan-50 text-cyan-800 border-cyan-200',
       trend: '↑ +3.2%',
       icon: Droplets,
-      iconColor: 'text-blue-500'
+      iconColor: 'text-cyan-600',
+      iconBg: 'bg-cyan-50 border-cyan-200/70',
     },
     {
-      label: 'Pore Pressure',
+      key: 'pore_pressure',
+      label: t.sensorPorePressure,
       value: station.telemetry?.poreWaterPressureKpa ?? 24.5,
       unit: 'kPa',
-      status: (station.telemetry?.poreWaterPressureKpa ?? 24) > 30 ? 'High' : 'Watch',
-      statusColor: (station.telemetry?.poreWaterPressureKpa ?? 24) > 30 ? 'bg-orange-50 text-orange-700' : 'bg-slate-100 text-slate-700',
+      status: (station.telemetry?.poreWaterPressureKpa ?? 24) > 30 ? t.statusHigh : t.statusWatch,
+      statusColor: (station.telemetry?.poreWaterPressureKpa ?? 24) > 30 ? 'bg-purple-50 text-purple-800 border-purple-200' : 'bg-slate-50 text-slate-700 border-slate-200',
       trend: '↑ +1.1',
       icon: Activity,
-      iconColor: 'text-indigo-500'
+      iconColor: 'text-purple-600',
+      iconBg: 'bg-purple-50 border-purple-200/70',
     },
     {
-      label: 'Rainfall Rate',
+      key: 'rainfall',
+      label: t.sensorRainfall,
       value: station.telemetry?.rainfallRateMmH ?? 12.4,
       unit: 'mm/h',
-      status: (station.telemetry?.rainfallRateMmH ?? 12) > 20 ? 'Torrential' : (station.telemetry?.rainfallRateMmH ?? 12) > 8 ? 'Active' : 'Light',
-      statusColor: (station.telemetry?.rainfallRateMmH ?? 12) > 20 ? 'bg-red-50 text-red-700' : 'bg-sky-50 text-sky-700',
+      status: (station.telemetry?.rainfallRateMmH ?? 12) > 20 ? t.statusTorrential : (station.telemetry?.rainfallRateMmH ?? 12) > 8 ? t.statusActive : t.statusLight,
+      statusColor: (station.telemetry?.rainfallRateMmH ?? 12) > 20 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200',
       trend: '↑ +4 mm',
       icon: CloudRain,
-      iconColor: 'text-sky-500'
+      iconColor: 'text-blue-600',
+      iconBg: 'bg-blue-50 border-blue-200/70',
     },
     {
-      label: 'Rainfall 24h',
-      value: station.telemetry?.rainfall24hMm ?? 48.2,
-      unit: 'mm',
-      status: (station.telemetry?.rainfall24hMm ?? 48) > 60 ? 'Heavy' : 'Moderate',
-      statusColor: (station.telemetry?.rainfall24hMm ?? 48) > 60 ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700',
-      trend: '↑ +12 mm',
-      icon: CloudRain,
-      iconColor: 'text-blue-600'
-    },
-    {
-      label: 'Vibration',
+      key: 'vibration',
+      label: t.sensorVibration,
       value: (station.telemetry as any)?.vibrationMmS ?? 1.8,
       unit: 'mm/s',
-      status: ((station.telemetry as any)?.vibrationMmS ?? 1.8) > 2.5 ? 'Alert' : 'Normal',
-      statusColor: ((station.telemetry as any)?.vibrationMmS ?? 1.8) > 2.5 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700',
+      status: ((station.telemetry as any)?.vibrationMmS ?? 1.8) > 2.5 ? t.statusAlert : t.statusStable,
+      statusColor: ((station.telemetry as any)?.vibrationMmS ?? 1.8) > 2.5 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200',
       trend: '→ 0.02',
       icon: Activity,
-      iconColor: 'text-amber-500'
+      iconColor: 'text-emerald-600',
+      iconBg: 'bg-emerald-50 border-emerald-200/70',
     },
     {
-      label: 'Displacement',
-      value: (station.telemetry as any)?.displacementMm ?? 14.2,
-      unit: 'mm',
-      status: ((station.telemetry as any)?.displacementMm ?? 14) > 20 ? 'Critical' : 'Creep',
-      statusColor: ((station.telemetry as any)?.displacementMm ?? 14) > 20 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700',
-      trend: '↑ +0.8 mm',
-      icon: Navigation,
-      iconColor: 'text-rose-500'
+      key: 'wind_speed',
+      label: t.sensorWindSpeed,
+      value: (station.telemetry as any)?.windSpeedKmh ?? 22.4,
+      unit: 'km/h',
+      status: ((station.telemetry as any)?.windSpeedKmh ?? 22) > 40 ? t.statusGusty : t.statusCalm,
+      statusColor: 'bg-teal-50 text-teal-800 border-teal-200',
+      trend: '→ 22 km/h',
+      icon: Wind,
+      iconColor: 'text-teal-600',
+      iconBg: 'bg-teal-50 border-teal-200/70',
     },
     {
-      label: 'Tilt',
+      key: 'tilt',
+      label: t.sensorTilt,
       value: (station.telemetry as any)?.tiltAngleDeg ?? 3.4,
       unit: '°',
-      status: ((station.telemetry as any)?.tiltAngleDeg ?? 3) > 5 ? 'Warning' : 'Normal',
-      statusColor: ((station.telemetry as any)?.tiltAngleDeg ?? 3) > 5 ? 'bg-orange-50 text-orange-700' : 'bg-slate-100 text-slate-700',
+      status: ((station.telemetry as any)?.tiltAngleDeg ?? 3) > 5 ? t.statusWarning : t.statusNormal,
+      statusColor: ((station.telemetry as any)?.tiltAngleDeg ?? 3) > 5 ? 'bg-pink-50 text-pink-800 border-pink-200' : 'bg-slate-50 text-slate-700 border-slate-200',
       trend: '→ 0.1°',
       icon: Compass,
-      iconColor: 'text-purple-500'
+      iconColor: 'text-pink-600',
+      iconBg: 'bg-pink-50 border-pink-200/70',
+    },
+    {
+      key: 'rainfall_24h',
+      label: t.sensor24hRainfall,
+      value: station.telemetry?.rainfall24hMm ?? 48.2,
+      unit: 'mm',
+      status: (station.telemetry?.rainfall24hMm ?? 48) > 60 ? t.statusHeavy : t.statusModerate,
+      statusColor: (station.telemetry?.rainfall24hMm ?? 48) > 60 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200',
+      trend: '↑ +12 mm',
+      icon: CloudRain,
+      iconColor: 'text-blue-600',
+      iconBg: 'bg-blue-50 border-blue-200/70',
     },
   ];
 
@@ -212,10 +233,10 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
       <div className="min-w-0">
         <div className="flex items-center justify-between mb-1 min-w-0">
           <span className="text-[11px] font-bold tracking-wider uppercase text-blue-700 font-mono truncate">
-            AI RISK INTELLIGENCE
+            {t.aiRiskIntelligence}
           </span>
           <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-mono font-bold shrink-0">
-            LIVE SENSORS
+            {t.liveSensors}
           </span>
         </div>
 
@@ -226,59 +247,59 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
 
         <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2 min-w-0 overflow-hidden">
           <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-          <span className="truncate">Physics-Informed Geotechnical Engine</span>
+          <span className="truncate">{t.physicsEngine}</span>
           <span>•</span>
-          <span className="shrink-0">IMD Synced</span>
+          <span className="shrink-0">{t.imdSynced}</span>
           <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 text-[9px] font-bold shrink-0 border border-emerald-200">
             ONLINE
           </span>
         </div>
       </div>
 
-      {/* Sub navigation pills */}
-      <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs min-w-0">
+      {/* Sub navigation pills: Modern with Blue Gradient on Selected */}
+      <div className="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 text-xs min-w-0">
         <button
           onClick={() => setActiveSubTab('overview')}
-          className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all ${
+          className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all text-center ${
             activeSubTab === 'overview'
-              ? 'bg-white text-blue-700 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-blue-700 hover:bg-white/80'
           }`}
         >
-          Overview
+          {t.tabOverview}
         </button>
         <button
           onClick={() => setActiveSubTab('hill_cut')}
           className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1 ${
             activeSubTab === 'hill_cut'
-              ? 'bg-white text-amber-700 shadow-xs'
-              : 'text-slate-600 hover:text-amber-800'
+              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-amber-800 hover:bg-amber-50/50'
           }`}
         >
-          <Mountain className="w-3 h-3 text-amber-600" />
-          Hill Cuts
+          <Mountain className="w-3 h-3 text-amber-500" />
+          <span>{t.tabHillCut}</span>
         </button>
         <button
           onClick={() => setActiveSubTab('glacier')}
           className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1 ${
             activeSubTab === 'glacier'
-              ? 'bg-white text-sky-700 shadow-xs'
-              : 'text-slate-600 hover:text-sky-800'
+              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-sky-800 hover:bg-sky-50/50'
           }`}
         >
-          <Snowflake className="w-3 h-3 text-sky-600" />
-          Glaciers
+          <Snowflake className="w-3 h-3 text-sky-500" />
+          <span>{t.tabGlacier}</span>
         </button>
         <button
           onClick={() => setActiveSubTab('escape')}
           className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1 ${
             activeSubTab === 'escape'
-              ? 'bg-white text-emerald-700 shadow-xs'
-              : 'text-slate-600 hover:text-emerald-800'
+              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-emerald-800 hover:bg-emerald-50/50'
           }`}
         >
-          <Navigation className="w-3 h-3 text-emerald-600" />
-          Safe Route
+          <Navigation className="w-3 h-3 text-emerald-500" />
+          <span>{t.tabEscape}</span>
         </button>
       </div>
 
@@ -287,23 +308,47 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
         <div className="space-y-4">
           {/* Gauge and Quick Metrics */}
           <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
-            {/* Circular Gauge */}
+            {/* Circular Gauge: Smooth Blue -> Cyan -> Green visual progression for stable conditions */}
             <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 128 128">
+                <defs>
+                  {/* Stable Condition: Smooth Blue -> Cyan -> Green progression */}
+                  <linearGradient id="riskProgressionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#2563EB" />
+                    <stop offset="50%" stopColor="#06B6D4" />
+                    <stop offset="100%" stopColor="#10B981" />
+                  </linearGradient>
+                  {/* Warning Condition */}
+                  <linearGradient id="riskWarningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#F59E0B" />
+                    <stop offset="100%" stopColor="#EA580C" />
+                  </linearGradient>
+                  {/* Critical Condition */}
+                  <linearGradient id="riskCriticalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#EF4444" />
+                    <stop offset="100%" stopColor="#DC2626" />
+                  </linearGradient>
+                </defs>
                 <circle
                   cx="64"
                   cy="64"
                   r={radius}
                   className="stroke-slate-200"
-                  strokeWidth="12"
+                  strokeWidth="11"
                   fill="transparent"
                 />
                 <circle
                   cx="64"
                   cy="64"
                   r={radius}
-                  stroke={riskStrokeColor}
-                  strokeWidth="12"
+                  stroke={
+                    riskScore <= 35
+                      ? 'url(#riskProgressionGradient)'
+                      : riskScore <= 65
+                      ? 'url(#riskWarningGradient)'
+                      : 'url(#riskCriticalGradient)'
+                  }
+                  strokeWidth="11"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
                   strokeLinecap="round"
@@ -312,11 +357,11 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-black font-mono tracking-tight text-slate-900">
+                <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight text-slate-900">
                   {riskScore}%
                 </span>
                 <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">
-                  Landslide Risk
+                  {t.landslideRisk}
                 </span>
               </div>
             </div>
@@ -324,7 +369,7 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
             {/* Core Geotechnical Summary */}
             <div className="flex-1 space-y-2 text-xs">
               <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                <div className="text-[10px] text-slate-500 font-medium">Factor of Safety (FS)</div>
+                <div className="text-[10px] text-slate-500 font-medium">{t.factorOfSafety}</div>
                 <div
                   className={`font-mono font-black text-sm ${
                     station.riskAssessment.safetyFactor < 1.0
@@ -342,14 +387,14 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
               </div>
 
               <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                <div className="text-[10px] text-slate-500 font-medium">Pore Water Pressure</div>
+                <div className="text-[10px] text-slate-500 font-medium">{t.poreWaterPressure}</div>
                 <div className="font-mono font-black text-sm text-slate-900">
                   {station.telemetry.poreWaterPressureKpa.toFixed(1)} <span className="text-[10px] text-slate-500">kPa</span>
                 </div>
               </div>
 
               <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                <div className="text-[10px] text-slate-500 font-medium">Live 24h Rain Accumulation</div>
+                <div className="text-[10px] text-slate-500 font-medium">{t.live24hRain}</div>
                 <div className="font-mono font-black text-sm text-blue-700">
                   {station.telemetry.rainfall24hMm.toFixed(1)} <span className="text-[10px] text-slate-500">mm</span>
                 </div>
@@ -357,32 +402,47 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
             </div>
           </div>
 
-          {/* 8-Metric Scientific Sensor Telemetry Grid */}
-          <div className="space-y-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono px-0.5">
-              Live Sensor Telemetry
+          {/* 8-Metric Scientific Sensor Telemetry Grid (Desktop: 4 cols x 2 rows, No Truncation, min-height 120px) */}
+          <div className="space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono px-0.5">
+              {t.liveSensorTelemetry}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div
+              className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3"
+              style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
+            >
               {telemetryMetrics.map((m) => {
                 const Icon = m.icon;
                 return (
                   <div
-                    key={m.label}
-                    className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between"
+                    key={m.key}
+                    className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all flex flex-col justify-between min-h-[120px]"
                   >
-                    <div className="flex items-center justify-between gap-1 text-[10px] text-slate-500 font-semibold mb-1">
-                      <span className="truncate">{m.label}</span>
-                      <Icon className={`w-3 h-3 shrink-0 ${m.iconColor}`} />
+                    <div className="flex items-start justify-between gap-1 mb-1.5 min-w-0">
+                      <span
+                        className="text-[11px] sm:text-[11.5px] font-bold text-slate-700 leading-tight"
+                        style={{
+                          whiteSpace: 'normal',
+                          overflow: 'visible',
+                          textOverflow: 'unset',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {m.label}
+                      </span>
+                      <div className={`p-1 rounded-md border shrink-0 ${m.iconBg || 'bg-slate-50 border-slate-200'}`}>
+                        <Icon className={`w-3 h-3 ${m.iconColor}`} />
+                      </div>
                     </div>
-                    <div className="font-mono font-black text-sm text-slate-900">
+                    <div className="font-mono font-black text-sm sm:text-base text-slate-900 my-auto">
                       {typeof m.value === 'number' ? m.value.toFixed(1) : m.value}
-                      <span className="text-[10px] text-slate-500 font-normal ml-0.5">{m.unit}</span>
+                      <span className="text-[10.5px] text-slate-500 font-normal ml-0.5">{m.unit}</span>
                     </div>
-                    <div className="flex items-center justify-between text-[9px] mt-1 pt-1 border-t border-slate-200/60">
-                      <span className={`px-1 py-0.2 rounded font-bold ${m.statusColor}`}>
+                    <div className="flex items-center justify-between text-[9px] sm:text-[9.5px] pt-1.5 border-t border-slate-100 mt-1">
+                      <span className={`px-1.5 py-0.5 rounded-md font-bold border ${m.statusColor}`}>
                         {m.status}
                       </span>
-                      <span className="text-slate-500 font-mono">{m.trend}</span>
+                      <span className="text-slate-500 font-mono font-medium">{m.trend}</span>
                     </div>
                   </div>
                 );
