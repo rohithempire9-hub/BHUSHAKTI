@@ -17,8 +17,9 @@
     "@geoman-io/leaflet-geoman-free": "^2.20.1",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
-    "@vitejs/plugin-react": "^5.0.4",
     "@types/leaflet.heat": "^0.2.5",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.19.0",
@@ -29,6 +30,7 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1",
+    "three": "^0.186.1",
     "vite": "^6.2.3"
   },
   "devDependencies": {

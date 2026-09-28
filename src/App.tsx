@@ -645,7 +645,12 @@ export default function App() {
 
           {/* VIEW 5: 3D DIGITAL TWIN (DISASTER KINEMATICS & TERRAIN PARTICLES) */}
           {currentNavSection === 'disaster_3d' && (
-            <DigitalTwin3DView />
+            <DigitalTwin3DView
+              selectedStation={selectedStation}
+              onNavigate={(sec) => setCurrentNavSection(sec)}
+              onOpenSmsModal={() => setMassSosModalOpen(true)}
+              onOpenEscapeModal={() => setCurrentNavSection('emergency_response')}
+            />
           )}
 
           {/* VIEW 5B: WHAT-IF SCENARIO & INTERVENTION SIMULATOR */}
