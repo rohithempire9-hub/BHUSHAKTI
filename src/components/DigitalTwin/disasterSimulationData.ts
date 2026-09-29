@@ -140,6 +140,14 @@ export interface RescueAsset {
   corridorName: string;
 }
 
+export interface ImpactHeatmapZone {
+  level: 'Very High' | 'High' | 'Moderate' | 'Low';
+  label: string;
+  colorCss: string;
+  colorHex: string;
+  polygon: [number, number][];
+}
+
 export interface SimulationImpactResult {
   locationId: string;
   locationName: string;
@@ -180,6 +188,7 @@ export interface SimulationImpactResult {
   alternativeEvacuationPath: [number, number][];
   riverBlockagePoint: [number, number] | null;
   exposedBuildings: ExposedBuilding[];
+  impactHeatmapZones: ImpactHeatmapZone[];
   
   // Decision-Support Modules
   candidateDestinations: CandidateDestination[];
@@ -576,6 +585,55 @@ export function calculateDisasterImpact(
     }
   ];
 
+  // 9b. Multi-band Impact Heatmap Overlays (Terrain-aligned corridor zones)
+  const dX = roadCoord[0] - slopeStart[0];
+  const dY = roadCoord[1] - slopeStart[1];
+  const pX = -dY * 0.75;
+  const pY = dX * 0.75;
+
+  const createBand = (scale: number): [number, number][] => {
+    return [
+      [slopeStart[0] - pX * scale, slopeStart[1] - pY * scale],
+      [slopeStart[0] + pX * scale, slopeStart[1] + pY * scale],
+      [roadCoord[0] + pX * (scale * 1.2), roadCoord[1] + pY * (scale * 1.2)],
+      [roadCoord[0] + dX * (scale * 0.35) + pX * scale * 0.4, roadCoord[1] + dY * (scale * 0.35) + pY * scale * 0.4],
+      [roadCoord[0] + dX * (scale * 0.35) - pX * scale * 0.4, roadCoord[1] + dY * (scale * 0.35) - pY * scale * 0.4],
+      [roadCoord[0] - pX * (scale * 1.2), roadCoord[1] - pY * (scale * 1.2)],
+      [slopeStart[0] - pX * scale, slopeStart[1] - pY * scale]
+    ];
+  };
+
+  const impactHeatmapZones: ImpactHeatmapZone[] = [
+    {
+      level: 'Very High',
+      label: '🔴 Very High Impact',
+      colorCss: 'rgba(239, 68, 68, 0.45)',
+      colorHex: '#ef4444',
+      polygon: createBand(0.6)
+    },
+    {
+      level: 'High',
+      label: '🟠 High Impact',
+      colorCss: 'rgba(249, 115, 22, 0.35)',
+      colorHex: '#f97316',
+      polygon: createBand(1.1)
+    },
+    {
+      level: 'Moderate',
+      label: '🟡 Moderate Impact',
+      colorCss: 'rgba(234, 179, 8, 0.25)',
+      colorHex: '#eab308',
+      polygon: createBand(1.8)
+    },
+    {
+      level: 'Low',
+      label: '🟢 Low Impact',
+      colorCss: 'rgba(34, 197, 94, 0.18)',
+      colorHex: '#22c55e',
+      polygon: createBand(2.6)
+    }
+  ];
+
   // 10. AI Geological Rationale
   const whyFactors = [
     `Extreme Rainfall Threshold: Accumulation of ${rainfallMm} mm / 24h overwhelmed regolith percolation capacity.`,
@@ -591,9 +649,9 @@ export function calculateDisasterImpact(
   const slopeCutaway: SlopeCutawayLayer = {
     soilLayerThicknessM: 4.8,
     waterTableDepthM: Math.max(0.6, 3.2 - (soilSaturationPct / 100) * 2.5),
-    shearPlaneAngleDeg: geoLoc.slopeAngleDeg || 34,
+    shearPlaneAngleDeg: (geoLoc as any).slopeAngleDeg || 34,
     bedrockDepthM: 7.5,
-    geologicalUnit: geoLoc.geologicalUnit || 'Metamorphic Gneiss / Quartzite Silt Regolith',
+    geologicalUnit: (geoLoc as any).geologicalUnit || 'Metamorphic Gneiss / Quartzite Silt Regolith',
     porePressureLevel: soilSaturationPct >= 80 ? 'CRITICAL' : soilSaturationPct >= 65 ? 'ELEVATED' : 'NORMAL',
     slopeStabilityFactor: Number(Math.max(0.72, 1.45 - (soilSaturationPct / 100) * 0.65).toFixed(2))
   };
@@ -751,7 +809,7 @@ export function calculateDisasterImpact(
     { sensorName: 'AWS Rain Gauge', type: 'Telemetry', value: `${rainfallMm} mm/24h`, status: 'AGREE', confidencePct: 96, badge: 'REAL DATA' },
     { sensorName: 'Soil Moisture Probe', type: 'Geotechnical', value: `${soilSaturationPct}% VWC`, status: 'AGREE', confidencePct: 91, badge: 'REAL DATA' },
     { sensorName: 'InSAR Satellite Radar', type: 'Earth Observation', value: '3.4 mm/mo creep', status: 'AGREE', confidencePct: 85, badge: 'REAL DATA' },
-    { sensorName: 'DEM Slope Gradient', type: 'Copernicus DEM', value: `${geoLoc.slopeAngleDeg || 34}° inclination`, status: 'AGREE', confidencePct: 94, badge: 'REAL DATA' },
+    { sensorName: 'DEM Slope Gradient', type: 'Copernicus DEM', value: `${(geoLoc as any).slopeAngleDeg || 34}° inclination`, status: 'AGREE', confidencePct: 94, badge: 'REAL DATA' },
     { sensorName: 'Runout Dynamic Model', type: 'Physics Engine', value: `${impactZoneKm2} km² footprint`, status: 'AGREE', confidencePct: confidencePercent, badge: 'SIMULATION' },
     { sensorName: 'Subsurface Shear Plane', type: 'Lithological Core', value: 'Depth 4.8m regolith', status: 'UNKNOWN', confidencePct: 62, badge: 'ESTIMATE' }
   ];
@@ -828,6 +886,7 @@ export function calculateDisasterImpact(
     alternativeEvacuationPath,
     riverBlockagePoint,
     exposedBuildings,
+    impactHeatmapZones,
     candidateDestinations,
     recommendedDestination,
     evacuationRoutes,

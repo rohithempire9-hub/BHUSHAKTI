@@ -6,6 +6,7 @@ import { evaluateLandslideRisk } from './src/services/mlRiskEngine';
 import { fetchOriginalWeatherForStation, syncStationWithLiveWeather } from './src/services/realWeatherService';
 import type { SensorTelemetry, LandslideStation } from './src/types/landslide';
 import { handleBhuShaktiApi } from './src/services/bhuShaktiApiHandlers';
+import { processCopilotQuery } from './src/services/copilotBackendService';
 
 const app = express();
 app.use(express.json({ limit: '100kb' }));
@@ -326,6 +327,17 @@ app.post(['/api/v1/alerts/broadcast-polygon', '/api/alerts/broadcast-polygon'], 
   } catch (err: any) {
     console.error('[Server Polygon Alert Error]', err);
     return res.status(500).json({ error: err?.message || 'Broadcast polygon failed' });
+  }
+});
+
+// Grounded Multilingual Copilot AI Endpoint
+app.post('/api/copilot', async (req, res) => {
+  try {
+    const response = await processCopilotQuery(req.body);
+    return res.json(response);
+  } catch (err: any) {
+    console.error('[Copilot Server Error]', err);
+    return res.status(500).json({ error: err?.message || 'Copilot query processing failed' });
   }
 });
 

@@ -883,18 +883,30 @@ export default function App() {
         onClose={() => setCopilotModalOpen(false)}
         stations={stations}
         selectedStation={selectedStation}
+        onSelectStation={(st) => setSelectedStation(st)}
         onNavigateSection={(sec) => setCurrentNavSection(sec)}
+        currentLanguage={currentLanguage}
+        onLanguageChange={(lang) => setCurrentLanguage(lang as any)}
+        onStartSimulation={() => setCurrentNavSection('disaster_3d')}
+        onResetSimulation={() => {}}
+        onToggleMapLayer={() => setCurrentNavSection('risk_map')}
       />
 
       {/* FLOATING ACTION BUTTON TO OPEN BHUSHAKTI COPILOT FROM ANY SCREEN */}
       <button
         id="floating-copilot-trigger"
-        onClick={() => setCopilotModalOpen(true)}
-        className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/50 border border-blue-300/40 ring-2 ring-indigo-400/20 flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
-        title="Open AI Decision Support Copilot"
+        onClick={() => setCopilotModalOpen((prev) => !prev)}
+        className={`fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full text-white font-bold text-xs shadow-xl border flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer ${
+          copilotModalOpen
+            ? 'bg-slate-900 border-slate-700 shadow-slate-900/50'
+            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-indigo-600/30 hover:shadow-indigo-600/50 border-blue-300/40 ring-2 ring-indigo-400/20'
+        }`}
+        title={copilotModalOpen ? 'Minimize Copilot' : 'Open AI Decision Support Copilot'}
       >
         <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
-        <span className="tracking-wide font-sans font-black">BHUSHAKTI COPILOT</span>
+        <span className="tracking-wide font-sans font-black">
+          {copilotModalOpen ? 'CLOSE COPILOT' : 'BHUSHAKTI COPILOT'}
+        </span>
         <span className="px-2 py-0.5 rounded-full bg-white/20 text-[9px] font-mono font-bold border border-white/30 backdrop-blur-xs">
           AI
         </span>

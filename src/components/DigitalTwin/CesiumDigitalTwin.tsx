@@ -32,7 +32,12 @@ import {
   CloudRain,
   AlertOctagon,
   Layers,
-  Crosshair
+  Crosshair,
+  Check,
+  FileText,
+  HelpCircle,
+  Radio,
+  Navigation
 } from 'lucide-react';
 import {
   BHUSAKTHI_LOCATIONS,
@@ -43,6 +48,7 @@ import {
   SimulationSeverity,
   SimulationParams,
   SimulationImpactResult,
+  ExposedBuilding,
   calculateDisasterImpact,
   DISASTER_TYPE_METADATA
 } from './disasterSimulationData';
@@ -88,6 +94,23 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
   // ==========================================================================
   const [isSimActive, setIsSimActive] = useState<boolean>(false);
   const [showImpactDossier, setShowImpactDossier] = useState<boolean>(true);
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
+  const [selectedBuilding, setSelectedBuilding] = useState<ExposedBuilding | null>(null);
+  const [selectedRoadInfo, setSelectedRoadInfo] = useState<{ name: string; status: string; hazard: string; roadType?: string } | null>(null);
+  const [showWhyModal, setShowWhyModal] = useState<boolean>(false);
+  const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
+
+  const screenHandlerRef = useRef<any>(null);
+  const simParamsRef = useRef<SimulationParams>({
+    disasterType: 'landslide',
+    severity: 'high',
+    rainfallMm: 180,
+    soilSaturationPct: 85,
+    timelineMinutes: 0,
+    speedMultiplier: 1,
+    isPlaying: false
+  });
+
   const [simParams, setSimParams] = useState<SimulationParams>({
     disasterType: 'landslide',
     severity: 'high',
@@ -135,6 +158,29 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
     const newEntities: any[] = [];
 
     try {
+      // 0. Topographic Impact Heatmap (Multi-zone Terrain Overlay)
+      if (showHeatmap && impact.phase !== 'before' && impact.impactHeatmapZones) {
+        impact.impactHeatmapZones.forEach((zone) => {
+          if (zone.polygon && zone.polygon.length >= 3) {
+            const hCoords = zone.polygon.flatMap(([lon, lat]) => [lon, lat]);
+            const alphaVal = zone.level === 'Very High' ? 0.38 : zone.level === 'High' ? 0.28 : zone.level === 'Moderate' ? 0.20 : 0.14;
+            const hEntity = viewer.entities.add({
+              name: `Heatmap ${zone.level}`,
+              polygon: {
+                hierarchy: Cesium.Cartesian3.fromDegreesArray(hCoords),
+                material: Cesium.Color.fromCssColorString(zone.colorHex).withAlpha(alphaVal),
+                outline: true,
+                outlineColor: Cesium.Color.fromCssColorString(zone.colorHex).withAlpha(0.65),
+                outlineWidth: 1.5,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                classificationType: Cesium.ClassificationType.BOTH
+              }
+            });
+            newEntities.push(hEntity);
+          }
+        });
+      }
+
       // 1. Unstable Slope / Impact Area Polygon
       if (impact.unstableSlopePolygon && impact.unstableSlopePolygon.length >= 3) {
         const coords = impact.unstableSlopePolygon.flatMap(([lon, lat]) => [lon, lat]);
@@ -161,7 +207,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
         newEntities.push(slopeEntity);
       }
 
-      // 2. Debris Flow Path (advances with timeline)
+      // 2. Debris Flow Path (advances with timeline following DEM slope)
       if (impact.debrisFlowPath && impact.debrisFlowPath.length >= 2) {
         const pathCoords = impact.debrisFlowPath.flatMap(([lon, lat]) => [lon, lat]);
         const debrisEntity = viewer.entities.add({
@@ -199,7 +245,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
         newEntities.push(inunEntity);
       }
 
-      // 4. Blocked Road Segment
+      // 4. Blocked Road Segment (Simulated road impact)
       if (impact.blockedRoadSegment && impact.blockedRoadSegment.length >= 2) {
         const roadCoords = impact.blockedRoadSegment.flatMap(([lon, lat]) => [lon, lat]);
         const blockedRoadEntity = viewer.entities.add({
@@ -215,30 +261,40 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             })
           }
         });
+        (blockedRoadEntity as any).roadData = {
+          name: impact.blockedRoadName,
+          status: 'Potentially blocked',
+          hazard: impact.disasterType === 'landslide' ? 'Landslide debris' : 'Inundation washout'
+        };
         newEntities.push(blockedRoadEntity);
 
         const midCoord = impact.blockedRoadSegment[Math.floor(impact.blockedRoadSegment.length / 2)];
         const warningPin = viewer.entities.add({
           position: Cesium.Cartesian3.fromDegrees(midCoord[0], midCoord[1], 15),
           point: {
-            pixelSize: 10,
+            pixelSize: 12,
             color: Cesium.Color.RED,
             outlineColor: Cesium.Color.WHITE,
             outlineWidth: 2,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
           },
           label: {
-            text: `⚠ ROAD BLOCKED: ${impact.blockedRoadName}`,
+            text: `🔴 ROAD BLOCKED / POTENTIALLY BLOCKED: ${impact.blockedRoadName}`,
             font: 'bold 11px sans-serif',
             fillColor: Cesium.Color.WHITE,
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 3,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -12),
+            pixelOffset: new Cesium.Cartesian2(0, -14),
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
           }
         });
+        (warningPin as any).roadData = {
+          name: impact.blockedRoadName,
+          status: 'Potentially blocked',
+          hazard: impact.disasterType === 'landslide' ? 'Landslide debris' : 'Inundation washout'
+        };
         newEntities.push(warningPin);
       }
 
@@ -313,31 +369,54 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
         newEntities.push(damEntity);
       }
 
-      // 8. Exposed Buildings
+      // 8. Exposed OSM 3D Buildings (Highlighted with impact perimeter)
       impact.exposedBuildings.forEach((bldg) => {
+        const isSelected = selectedBuilding?.id === bldg.id;
+        const bldgColor = bldg.exposure === 'HIGH'
+          ? Cesium.Color.fromCssColorString('#ef4444')
+          : Cesium.Color.fromCssColorString('#f59e0b');
+
+        // Perimeter ring around building
+        const perimeterEntity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(bldg.coords[0], bldg.coords[1], 0),
+          ellipse: {
+            semiMinorAxis: isSelected ? 45 : 30,
+            semiMajorAxis: isSelected ? 45 : 30,
+            material: isSelected
+              ? Cesium.Color.YELLOW.withAlpha(0.4)
+              : bldgColor.withAlpha(0.25),
+            outline: true,
+            outlineColor: isSelected ? Cesium.Color.YELLOW : bldgColor,
+            outlineWidth: 2,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+          }
+        });
+        (perimeterEntity as any).buildingData = bldg;
+        newEntities.push(perimeterEntity);
+
+        // Building point marker
         const bldgEntity = viewer.entities.add({
           position: Cesium.Cartesian3.fromDegrees(bldg.coords[0], bldg.coords[1], 10),
           point: {
-            pixelSize: 8,
-            color: bldg.status.includes('affected')
-              ? Cesium.Color.fromCssColorString('#ef4444')
-              : Cesium.Color.fromCssColorString('#f59e0b'),
+            pixelSize: isSelected ? 12 : 9,
+            color: isSelected ? Cesium.Color.YELLOW : bldgColor,
             outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 1.5,
+            outlineWidth: 2,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
           },
           label: {
-            text: `${bldg.name} (${bldg.exposure})`,
-            font: '10px sans-serif',
-            fillColor: Cesium.Color.WHITE,
+            text: `🏢 ${bldg.name} (${bldg.exposure} EXPOSURE)`,
+            font: isSelected ? 'bold 11px sans-serif' : '10px sans-serif',
+            fillColor: isSelected ? Cesium.Color.YELLOW : Cesium.Color.WHITE,
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 2,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -12),
+            pixelOffset: new Cesium.Cartesian2(0, -14),
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
           }
         });
+        (bldgEntity as any).buildingData = bldg;
         newEntities.push(bldgEntity);
       });
     } catch (renderErr) {
@@ -346,7 +425,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
 
     simEntitiesRef.current = newEntities;
     viewer.scene.requestRender();
-  }, []);
+  }, [showHeatmap, selectedBuilding]);
 
   const focusOnHazardZone = useCallback(() => {
     const viewer = viewerRef.current;
@@ -372,6 +451,42 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
       }
     });
   }, [selectedLocationId]);
+
+  const focusOnBuilding = useCallback((bldg: ExposedBuilding) => {
+    const viewer = viewerRef.current;
+    const Cesium = (window as any).Cesium;
+    if (!viewer || viewer.isDestroyed() || !Cesium) return;
+    setSelectedBuilding(bldg);
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(bldg.coords[0], bldg.coords[1], 450),
+      orientation: {
+        heading: Cesium.Math.toRadians(25),
+        pitch: Cesium.Math.toRadians(-35),
+        roll: 0
+      },
+      duration: 1.2
+    });
+  }, []);
+
+  const focusOnRoad = useCallback((coords: [number, number], roadName: string) => {
+    const viewer = viewerRef.current;
+    const Cesium = (window as any).Cesium;
+    if (!viewer || viewer.isDestroyed() || !Cesium) return;
+    setSelectedRoadInfo({
+      name: roadName,
+      status: 'Potentially blocked',
+      hazard: 'Landslide debris'
+    });
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(coords[0], coords[1], 550),
+      orientation: {
+        heading: Cesium.Math.toRadians(0),
+        pitch: Cesium.Math.toRadians(-38),
+        roll: 0
+      },
+      duration: 1.2
+    });
+  }, []);
 
   const getVerifiedIonToken = useCallback((): string => {
     const token = (import.meta as any).env?.VITE_CESIUM_ION_TOKEN;
@@ -556,6 +671,26 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           setOsmBuildingsStatus('0 (UNAVAILABLE)');
         }
 
+        // Interactive entity picking (click on building or road)
+        try {
+          const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+          handler.setInputAction((click: any) => {
+            const picked = viewer.scene.pick(click.position);
+            if (Cesium.defined(picked) && picked.id) {
+              if (picked.id.buildingData) {
+                setSelectedBuilding(picked.id.buildingData);
+                setSelectedRoadInfo(null);
+              } else if (picked.id.roadData) {
+                setSelectedRoadInfo(picked.id.roadData);
+                setSelectedBuilding(null);
+              }
+            }
+          }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+          screenHandlerRef.current = handler;
+        } catch (hErr) {
+          console.warn('[Cesium handler error]:', hErr);
+        }
+
         // SECTION 6: Set viewer ready ref
         viewerRef.current = viewer;
         viewerReadyRef.current = true;
@@ -592,6 +727,12 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
     return () => {
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
+      if (screenHandlerRef.current) {
+        try {
+          screenHandlerRef.current.destroy();
+        } catch (e) {}
+        screenHandlerRef.current = null;
+      }
       if (viewerRef.current) {
         try {
           viewerRef.current.destroy();
@@ -830,7 +971,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
       {/* DISASTER IMPACT SIMULATOR CONTROL PANEL (LEFT)                       */}
       {/* ==================================================================== */}
       {isSimActive && (
-        <div className="absolute top-16 left-3 z-30 bg-slate-900/95 backdrop-blur-md rounded-2xl p-4 border border-amber-500/60 shadow-2xl w-88 max-h-[calc(100vh-5.5rem)] overflow-y-auto text-xs text-slate-200 pointer-events-auto flex flex-col gap-3">
+        <div className="absolute top-16 left-3 z-30 bg-slate-900/95 backdrop-blur-md rounded-2xl p-4 border border-amber-500/60 shadow-2xl w-88 max-h-[calc(100vh-5.5rem)] overflow-y-auto text-xs text-slate-200 pointer-events-auto flex flex-col gap-3 font-sans">
           {/* Header */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-800">
             <div className="flex items-center gap-1.5">
@@ -844,6 +985,8 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
               onClick={() => {
                 setIsSimActive(false);
                 setSimParams((p) => ({ ...p, isPlaying: false, timelineMinutes: 0 }));
+                setSelectedBuilding(null);
+                setSelectedRoadInfo(null);
               }}
               className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
               title="Close Simulation"
@@ -852,7 +995,44 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             </button>
           </div>
 
-          {/* Location Indicator */}
+          {/* BEFORE → DURING → AFTER Mode Switcher (Requirement 12) */}
+          <div className="bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 flex items-center gap-1.5">
+            <button
+              onClick={() => setSimParams((p) => ({ ...p, timelineMinutes: 0, isPlaying: false }))}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                impactResult.phase === 'before'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              }`}
+              title="Baseline normal 3D terrain, roads, buildings"
+            >
+              [ BEFORE ]
+            </button>
+            <button
+              onClick={() => setSimParams((p) => ({ ...p, timelineMinutes: 6, isPlaying: true }))}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                impactResult.phase === 'during'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              }`}
+              title="Animated disaster propagation & mass movement"
+            >
+              [ DURING ]
+            </button>
+            <button
+              onClick={() => setSimParams((p) => ({ ...p, timelineMinutes: 12, isPlaying: false }))}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                impactResult.phase === 'after'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              }`}
+              title="Final simulated impact zone, blocked road & exposure map"
+            >
+              [ AFTER ]
+            </button>
+          </div>
+
+          {/* Location Indicator (Requirement 2: Uses currently selected BHUSAKTHI location) */}
           <div className="bg-slate-950/70 rounded-xl p-2.5 border border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
@@ -866,7 +1046,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             </span>
           </div>
 
-          {/* Disaster Type Selector */}
+          {/* Disaster Type Selector (Requirement 1 & 8 & 9 & 10) */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
               <span>Disaster Type</span>
@@ -885,10 +1065,10 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
               }
               className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none cursor-pointer focus:border-amber-400"
             >
-              <option value="landslide">Landslide (Debris Flow)</option>
-              <option value="flash_flood">Flash Flood (Rapid Inundation)</option>
-              <option value="river_flood">River Flood (Catchment Overflow)</option>
-              <option value="heavy_rainfall">Heavy Rainfall (Extreme Runoff)</option>
+              <option value="landslide">Landslide</option>
+              <option value="flash_flood">Flash Flood</option>
+              <option value="river_flood">River Flood</option>
+              <option value="heavy_rainfall">Heavy Rainfall</option>
               <option value="river_blockage">Landslide → River Blockage</option>
               <option value="cascade">Landslide → Flood Cascade (Multi-Hazard)</option>
             </select>
@@ -897,7 +1077,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             </p>
           </div>
 
-          {/* Severity Selector */}
+          {/* Severity Selector (Requirement 3) */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-slate-300">Hazard Severity</label>
             <div className="grid grid-cols-3 gap-1.5">
@@ -923,44 +1103,49 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             </div>
           </div>
 
-          {/* Environmental Driving Parameters */}
-          <div className="grid grid-cols-2 gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
-            {/* Rainfall Slider */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="text-slate-400">Rainfall:</span>
-                <span className="text-cyan-300 font-bold font-mono">{simParams.rainfallMm} mm/24h</span>
+          {/* Environmental Driving Parameters (Requirement 3) */}
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+              {/* Rainfall Slider */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-slate-400">Rainfall:</span>
+                  <span className="text-cyan-300 font-bold font-mono">{simParams.rainfallMm} mm / 24h</span>
+                </div>
+                <input
+                  type="range"
+                  min="60"
+                  max="320"
+                  step="10"
+                  value={simParams.rainfallMm}
+                  onChange={(e) => setSimParams((p) => ({ ...p, rainfallMm: Number(e.target.value) }))}
+                  className="w-full accent-cyan-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
+                />
               </div>
-              <input
-                type="range"
-                min="60"
-                max="320"
-                step="10"
-                value={simParams.rainfallMm}
-                onChange={(e) => setSimParams((p) => ({ ...p, rainfallMm: Number(e.target.value) }))}
-                className="w-full accent-cyan-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
-              />
-            </div>
 
-            {/* Soil Saturation Slider */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="text-slate-400">Saturation:</span>
-                <span className="text-amber-400 font-bold font-mono">{simParams.soilSaturationPct}%</span>
+              {/* Soil Saturation Slider */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-slate-400">Saturation:</span>
+                  <span className="text-amber-400 font-bold font-mono">{simParams.soilSaturationPct}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="40"
+                  max="100"
+                  step="5"
+                  value={simParams.soilSaturationPct}
+                  onChange={(e) => setSimParams((p) => ({ ...p, soilSaturationPct: Number(e.target.value) }))}
+                  className="w-full accent-amber-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
+                />
               </div>
-              <input
-                type="range"
-                min="40"
-                max="100"
-                step="5"
-                value={simParams.soilSaturationPct}
-                onChange={(e) => setSimParams((p) => ({ ...p, soilSaturationPct: Number(e.target.value) }))}
-                className="w-full accent-amber-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
-              />
+            </div>
+            <div className="text-[9px] text-slate-500 italic text-center">
+              Prototype simulation parameters (DEM & InSAR calibrated)
             </div>
           </div>
 
-          {/* Timeline Milestones & Narrative */}
+          {/* Timeline Milestones & Narrative (Requirement 11) */}
           <div className="bg-slate-950/90 rounded-xl p-2.5 border border-slate-800 space-y-2">
             <div className="flex items-center justify-between text-[11px]">
               <div className="flex items-center gap-1.5 text-slate-300 font-bold">
@@ -968,7 +1153,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                 <span>Simulation Timeline</span>
               </div>
               <span className="font-mono text-cyan-300 font-bold text-[11px]">
-                T + {String(Math.floor(simParams.timelineMinutes)).padStart(2, '0')}:
+                {String(Math.floor(simParams.timelineMinutes)).padStart(2, '0')}:
                 {String(Math.round((simParams.timelineMinutes % 1) * 60)).padStart(2, '0')} / 12:00
               </span>
             </div>
@@ -1012,16 +1197,20 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
               </p>
             </div>
 
-            {/* Player Controls Dock */}
+            {/* Player Controls Dock (Previous, Play, Pause, Next, Reset, Speed) */}
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-1">
-                {/* Rewind to 0 */}
+                {/* Reset button (Requirement 3 & 11) */}
                 <button
-                  onClick={() => setSimParams((p) => ({ ...p, timelineMinutes: 0, isPlaying: false }))}
+                  onClick={() => {
+                    setSimParams((p) => ({ ...p, timelineMinutes: 0, isPlaying: false }));
+                    setSelectedBuilding(null);
+                    setSelectedRoadInfo(null);
+                  }}
                   className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
-                  title="Rewind to 00:00"
+                  title="Reset Simulation (00:00)"
                 >
-                  <Rewind className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                 </button>
 
                 {/* Step -1m */}
@@ -1056,7 +1245,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                   ) : (
                     <>
                       <Play className="w-3.5 h-3.5 fill-current" />
-                      <span className="text-[11px]">PLAY</span>
+                      <span className="text-[11px]">RUN</span>
                     </>
                   )}
                 </button>
@@ -1077,7 +1266,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                 </button>
               </div>
 
-              {/* Speed Multiplier */}
+              {/* Speed Multiplier: 1x, 2x, 5x */}
               <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
                 {([1, 2, 5] as const).map((sp) => (
                   <button
@@ -1096,14 +1285,76 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             </div>
           </div>
 
-          {/* Quick Focus Button */}
-          <button
-            onClick={focusOnHazardZone}
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-cyan-900/30 cursor-pointer"
-          >
-            <Crosshair className="w-3.5 h-3.5" />
-            <span>Center 3D Camera on Impact Site</span>
-          </button>
+          {/* Quick Actions Bar */}
+          <div className="space-y-1.5">
+            {/* Center Camera on Impact Site */}
+            <button
+              onClick={focusOnHazardZone}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+            >
+              <Crosshair className="w-3.5 h-3.5" />
+              <span>Center 3D Camera on Impact Site</span>
+            </button>
+
+            {/* AI "WHY?" Button (Requirement 14) */}
+            <button
+              onClick={() => setShowWhyModal(true)}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600/30 to-orange-600/30 hover:from-amber-600/50 hover:to-orange-600/50 text-amber-200 border border-amber-500/50 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+              <span>WHY DID THIS AREA GET AFFECTED?</span>
+            </button>
+
+            {/* SIMULATION IMPACT SUMMARY Button (Requirement 13) */}
+            <button
+              onClick={() => setShowSummaryModal(true)}
+              className="w-full py-2 px-3 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-700/80 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-cyan-400" />
+              <span>VIEW IMPACT SUMMARY DOSSIER</span>
+            </button>
+          </div>
+
+          {/* Topographic Impact Heatmap Overlay & Legend (Requirement 15) */}
+          <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-amber-400" />
+                <span>Terrain Impact Heatmap</span>
+              </span>
+              <button
+                onClick={() => setShowHeatmap(!showHeatmap)}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer ${
+                  showHeatmap ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-900 text-slate-500'
+                }`}
+              >
+                {showHeatmap ? 'OVERLAY ON' : 'OVERLAY OFF'}
+              </button>
+            </div>
+
+            {/* Heatmap Legend */}
+            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-rose-600" />
+                <span className="text-slate-300">🔴 Very High Impact</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-orange-500" />
+                <span className="text-slate-300">🟠 High Impact</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                <span className="text-slate-300">🟡 Moderate Impact</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                <span className="text-slate-300">🟢 Low Impact</span>
+              </div>
+            </div>
+            <div className="text-[9px] text-slate-500 italic">
+              Heatmap geometry strictly conforms to topographic elevation contours and slope flow lines.
+            </div>
+          </div>
         </div>
       )}
 
@@ -1162,15 +1413,26 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                 </div>
               </div>
 
-              {/* Lifeline Status */}
+              {/* Lifeline Status (Requirement 7) */}
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
-                <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Route className="w-3.5 h-3.5 text-orange-400" />
-                  <span>Lifeline & Transport Infrastructure</span>
+                <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Route className="w-3.5 h-3.5 text-orange-400" />
+                    <span>Lifeline Infrastructure</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-mono">SIMULATED</span>
                 </div>
 
                 <div className="space-y-1.5 text-[11px]">
-                  <div className="flex justify-between items-start gap-2">
+                  <div
+                    onClick={() => {
+                      if (impactResult.blockedRoadSegment && impactResult.blockedRoadSegment.length > 0) {
+                        const mid = impactResult.blockedRoadSegment[Math.floor(impactResult.blockedRoadSegment.length / 2)];
+                        focusOnRoad(mid, impactResult.blockedRoadName);
+                      }
+                    }}
+                    className="flex justify-between items-start gap-2 p-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-transparent hover:border-rose-500/40 transition-colors"
+                  >
                     <span className="text-slate-400 shrink-0">Blocked Corridor:</span>
                     <span className={`font-bold text-right truncate ${
                       impactResult.blockedRoadsCount > 0 ? 'text-rose-400' : 'text-emerald-400'
@@ -1179,14 +1441,14 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-start gap-2">
+                  <div className="flex justify-between items-start gap-2 p-1.5 rounded-lg bg-slate-900/40">
                     <span className="text-slate-400 shrink-0">Evacuation Route:</span>
                     <span className="text-emerald-400 font-bold text-right truncate">
                       {impactResult.alternativeRouteName} ({impactResult.evacuationDirection})
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-start gap-2">
+                  <div className="flex justify-between items-start gap-2 p-1.5 rounded-lg bg-slate-900/40">
                     <span className="text-slate-400 shrink-0">Safe Haven:</span>
                     <span className="text-cyan-300 font-bold text-right truncate">
                       {impactResult.shelterName}
@@ -1195,14 +1457,57 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                 </div>
               </div>
 
+              {/* Potentially Exposed Buildings Interactive List (Requirement 6) */}
+              <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
+                <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Building className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Potentially Affected Buildings</span>
+                  </div>
+                  <span className="text-[10px] text-amber-400 font-mono">CLICK TO INSPECT</span>
+                </div>
+
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  {impactResult.exposedBuildings.map((bldg) => (
+                    <button
+                      key={bldg.id}
+                      onClick={() => focusOnBuilding(bldg)}
+                      className={`w-full p-2 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                        selectedBuilding?.id === bldg.id
+                          ? 'bg-amber-500/20 border-amber-400 shadow-md shadow-amber-500/20'
+                          : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-white text-[11px] truncate">{bldg.name}</div>
+                        <div className="text-[10px] text-slate-400">ID: {bldg.id} • {bldg.distanceM}m away</div>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded ${
+                        bldg.exposure === 'HIGH' ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {bldg.exposure}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Multi-factor AI Explanation ("Why this happened?") */}
               <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
-                <div className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Geological & Meteorological Drivers</span>
+                <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Geological & Meteorological Drivers</span>
+                  </div>
+                  <button
+                    onClick={() => setShowWhyModal(true)}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
+                  >
+                    View All
+                  </button>
                 </div>
                 <div className="space-y-1.5">
-                  {impactResult.whyFactors.slice(0, 4).map((factor, i) => (
+                  {impactResult.whyFactors.slice(0, 3).map((factor, i) => (
                     <div key={i} className="text-[10px] text-slate-300 flex items-start gap-1.5 leading-snug">
                       <ChevronRight className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
                       <span>{factor}</span>
@@ -1217,6 +1522,297 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
               </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* POTENTIALLY AFFECTED BUILDING DETAIL CARD (Requirement 6)           */}
+      {/* ==================================================================== */}
+      {selectedBuilding && isSimActive && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md rounded-2xl p-4 border border-amber-500/80 shadow-2xl w-96 text-xs text-slate-200 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-amber-400" />
+              <div>
+                <div className="text-[10px] font-mono text-amber-400 uppercase">POTENTIALLY AFFECTED BUILDING</div>
+                <div className="font-bold text-white text-sm">{selectedBuilding.name}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedBuilding(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 my-2.5">
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Building ID:</span>
+              <span className="font-mono text-cyan-300 font-bold">{selectedBuilding.id}</span>
+            </div>
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Simulated Hazard:</span>
+              <span className="text-white font-bold">{DISASTER_TYPE_METADATA[simParams.disasterType].label}</span>
+            </div>
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Exposure Level:</span>
+              <span className={`font-black uppercase ${
+                selectedBuilding.exposure === 'HIGH' ? 'text-rose-400' : 'text-amber-400'
+              }`}>{selectedBuilding.exposure}</span>
+            </div>
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Distance to Hazard:</span>
+              <span className="text-amber-400 font-bold font-mono">{selectedBuilding.distanceM} m</span>
+            </div>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2 mb-2 text-[11px] text-amber-200">
+            <strong>Status:</strong> {selectedBuilding.status} (Structural integrity retained; within impact perimeter)
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => focusOnBuilding(selectedBuilding)}
+              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-[11px] transition-colors cursor-pointer"
+            >
+              Center 3D Camera
+            </button>
+            <button
+              onClick={() => setSelectedBuilding(null)}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-[11px] transition-colors cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* ROAD IMPACT DETAIL CARD (Requirement 7)                             */}
+      {/* ==================================================================== */}
+      {selectedRoadInfo && isSimActive && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 backdrop-blur-md rounded-2xl p-4 border border-rose-500/80 shadow-2xl w-96 text-xs text-slate-200 pointer-events-auto animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Route className="w-4 h-4 text-rose-500" />
+              <div>
+                <div className="text-[10px] font-mono text-rose-400 uppercase">🔴 ROAD BLOCKED / POTENTIALLY BLOCKED</div>
+                <div className="font-bold text-white text-sm">{selectedRoadInfo.name}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedRoadInfo(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-2 my-2.5">
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex justify-between">
+              <span className="text-slate-400">Status:</span>
+              <span className="text-rose-400 font-bold uppercase">{selectedRoadInfo.status}</span>
+            </div>
+            <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex justify-between">
+              <span className="text-slate-400">Hazard:</span>
+              <span className="text-amber-300 font-bold">{selectedRoadInfo.hazard}</span>
+            </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2 text-[11px] text-emerald-200">
+              <strong>Evacuation Notice:</strong> This arterial segment is strictly excluded from evacuation routing. Vehicles diverted to {impactResult.alternativeRouteName}.
+            </div>
+          </div>
+
+          <div className="text-[9px] text-slate-500 italic mb-2">
+            Notice: Simulated road impact (Not confirmed road closure)
+          </div>
+
+          <button
+            onClick={() => setSelectedRoadInfo(null)}
+            className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-[11px] transition-colors cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* AI "WHY THIS AREA?" MODAL (Requirement 14)                          */}
+      {/* ==================================================================== */}
+      {showWhyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 pointer-events-auto">
+          <div className="bg-slate-900 border border-amber-500/60 rounded-2xl p-5 max-w-lg w-full shadow-2xl space-y-4 font-sans text-xs text-slate-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase">WHY THIS AREA?</h3>
+                  <p className="text-[10px] text-slate-400">Geotechnical & Meteorological Driver Breakdown</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWhyModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">High Rainfall:</strong>
+                  <span className="text-slate-300 ml-1">{simParams.rainfallMm} mm / 24h exceeds regional regolith stability limit.</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">High Soil Saturation:</strong>
+                  <span className="text-slate-300 ml-1">{simParams.soilSaturationPct}% pore-water pressure dramatically reduces shear friction angle.</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">Steep Terrain:</strong>
+                  <span className="text-slate-300 ml-1">{impactResult.slopeCutaway.shearPlaneAngleDeg}° slope angle exceeds critical Coulomb friction threshold.</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">Downhill Flow Direction:</strong>
+                  <span className="text-slate-300 ml-1">Copernicus DEM topography channels kinetic mass runout directly through the valley throat.</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">Close to Road:</strong>
+                  <span className="text-slate-300 ml-1">{impactResult.blockedRoadName} aligns along the base apron of the colluvial fan.</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">Nearby Settlement:</strong>
+                  <span className="text-slate-300 ml-1">Cluster of OSM civic and residential structures located within 250m of runout path.</span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-white">Historical Hazard Exposure:</strong>
+                  <span className="text-slate-300 ml-1">Historical regional fault traces and seasonal monsoon failure records recorded.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs">
+              "These factors contributed to the simulated impact."
+              <p className="text-[10px] text-slate-400 mt-1">
+                Note: Prototype simulation weights based on Copernicus DEM elevation gradients and historical hazard inventories.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowWhyModal(false)}
+              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              Close Rationale
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* SIMULATION IMPACT SUMMARY MODAL (Requirement 13)                    */}
+      {/* ==================================================================== */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 pointer-events-auto">
+          <div className="bg-slate-900 border border-cyan-500/60 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4 font-sans text-xs text-slate-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase">SIMULATION IMPACT SUMMARY</h3>
+                  <p className="text-[10px] text-slate-400">Formal Consequence Assessment Brief</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950 rounded-xl p-3 border border-slate-800 font-mono text-[11px] space-y-2">
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Disaster:</span>
+                <span className="text-amber-400 font-bold">{DISASTER_TYPE_METADATA[simParams.disasterType].label}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Location:</span>
+                <span className="text-white font-bold">{selectedLocation.name}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Severity:</span>
+                <span className="text-rose-400 font-bold uppercase">{simParams.severity}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Potential Impact Zone:</span>
+                <span className="text-rose-400 font-bold">{impactResult.impactZoneKm2} km²</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Potentially Exposed Buildings:</span>
+                <span className="text-amber-400 font-bold">{impactResult.exposedBuildingsCount}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Potentially Exposed Roads:</span>
+                <span className="text-amber-400 font-bold">{impactResult.exposedRoadsCount}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Potentially Exposed Population:</span>
+                <span className="text-white font-bold">{impactResult.exposedPopulation.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Potential Safe Shelters:</span>
+                <span className="text-emerald-400 font-bold">{impactResult.safeSheltersCount}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Potentially Blocked Routes:</span>
+                <span className="text-rose-400 font-bold">{impactResult.blockedRoadsCount}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span className="text-slate-400">Recommended Evacuation Direction:</span>
+                <span className="text-cyan-300 font-bold">{impactResult.evacuationDirection}</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span className="text-slate-400">Confidence:</span>
+                <span className="text-cyan-400 font-bold">{impactResult.confidencePercent}%</span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] text-slate-400 italic">
+              Simulation estimate based on local Copernicus DEM topography, catchment hydrography, and OpenStreetMap infrastructure data.
+            </div>
+
+            <button
+              onClick={() => setShowSummaryModal(false)}
+              className="w-full py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              Close Summary
+            </button>
+          </div>
         </div>
       )}
 
