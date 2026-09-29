@@ -1,13 +1,10 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, setDoc, doc, serverTimestamp } from 'firebase/firestore';
-import firebaseConfigData from '../../firebase-applet-config.json';
+import { collection, getDocs, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { getFirestoreDb, isFirebaseAvailable } from './firebase';
 import type { LandslideStation } from '../types/landslide';
 
-const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfigData) : getApp();
-const db = getFirestore(firebaseApp, (firebaseConfigData as any).firestoreDatabaseId || '(default)');
-
-const HISTORY_INTERVAL_MS = 30_000;
+const HISTORY_INTERVAL_MS = 60_000;
 let running = false;
+let failCount = 0;
 
 function getRiskScore(station: LandslideStation): number {
   const risk = station.riskAssessment as any;
@@ -21,14 +18,24 @@ function getRiskStatus(station: LandslideStation): string {
 
 async function persistHistory() {
   if (running) return;
+  const db = getFirestoreDb();
+  if (!db || !isFirebaseAvailable() || failCount >= 3) return;
   running = true;
 
   try {
-    const snapshot = await getDocs(collection(db, 'stations'));
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 3000)
+    );
+    const snapshot = await Promise.race([
+      getDocs(collection(db, 'stations')),
+      timeoutPromise
+    ]);
+    if (!snapshot || snapshot.empty) return;
+
     const writes: Promise<unknown>[] = [];
     const recordedAt = Date.now();
 
-    snapshot.forEach((stationDoc) => {
+    snapshot.forEach((stationDoc: any) => {
       const station = stationDoc.data() as LandslideStation;
       if (!station.id || !station.telemetry || !station.riskAssessment) return;
 
@@ -73,9 +80,9 @@ async function persistHistory() {
     });
 
     await Promise.all(writes);
-    console.log(`[BhuShakti History] Persisted ${snapshot.size} station histories`);
-  } catch (error) {
-    console.warn('[BhuShakti History] Non-fatal Firestore history error:', error);
+    failCount = 0;
+  } catch (_error) {
+    failCount++;
   } finally {
     running = false;
   }

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LandslideStation } from '../../types/landslide';
 import { BhuNavSection } from '../Navigation/BhuShaktiSidebar';
 import { CesiumDigitalTwin } from './CesiumDigitalTwin';
-import { REAL_GEOSPATIAL_LOCATIONS } from './realGeospatialData';
+import { BHUSAKTHI_LOCATIONS, BHUSAKTHI_LOCATIONS_LIST } from '../../data/bhusakthiLocations';
 
 interface DigitalTwin3DViewProps {
   selectedStation?: LandslideStation | null;
@@ -13,31 +13,32 @@ interface DigitalTwin3DViewProps {
 
 export const DigitalTwin3DView: React.FC<DigitalTwin3DViewProps> = ({
   selectedStation,
-  onNavigate,
   onOpenSmsModal,
   onOpenEscapeModal,
 }) => {
-  // Default to Tawang as requested in acceptance criteria
-  const [selectedLocationId, setSelectedLocationId] = useState<string>('tawang');
+  // Default to Agartala as authoritative initial location
+  const [selectedLocationId, setSelectedLocationId] = useState<string>('agartala');
 
-  // Synchronize with external station selection if user clicks on dashboard/map
+  // Synchronize ONLY when external station selection changes
+  const prevStationRef = useRef<LandslideStation | null | undefined>(selectedStation);
   useEffect(() => {
-    if (selectedStation) {
+    if (selectedStation && selectedStation !== prevStationRef.current) {
+      prevStationRef.current = selectedStation;
       const stationNameLower = selectedStation.name.toLowerCase();
-      const matchKey = Object.keys(REAL_GEOSPATIAL_LOCATIONS).find(
-        (key) =>
-          stationNameLower.includes(key) ||
-          key.includes(stationNameLower) ||
-          (selectedStation.state && selectedStation.state.toLowerCase().includes(key))
+      const matchLoc = BHUSAKTHI_LOCATIONS_LIST.find(
+        (loc) =>
+          stationNameLower.includes(loc.id) ||
+          loc.id.includes(stationNameLower) ||
+          (selectedStation.state && selectedStation.state.toLowerCase().includes(loc.state.toLowerCase()))
       );
-      if (matchKey && matchKey !== selectedLocationId) {
-        setSelectedLocationId(matchKey);
+      if (matchLoc) {
+        setSelectedLocationId(matchLoc.id);
       }
     }
-  }, [selectedStation, selectedLocationId]);
+  }, [selectedStation]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="viewer-wrapper absolute inset-0 w-full h-full overflow-hidden">
       <CesiumDigitalTwin
         selectedLocationId={selectedLocationId}
         onLocationChange={(locId) => setSelectedLocationId(locId)}

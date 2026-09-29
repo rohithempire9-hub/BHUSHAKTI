@@ -36,6 +36,26 @@ service cloud.firestore {
       allow update, delete: if isValidId(evidenceId);
     }
 
+    // Telemetry Observations
+    match /telemetry/{docId} {
+      allow read, write: if true;
+    }
+
+    // ML Risk Assessment Evaluations
+    match /risk_assessments/{docId} {
+      allow read, write: if true;
+    }
+
+    // Disaster Incidents
+    match /incidents/{incidentId} {
+      allow read, write: if true;
+    }
+
+    // Emergency Alerts
+    match /alerts/{alertId} {
+      allow read, write: if true;
+    }
+
     // Default safety catch-all
     match /{document=**} {
       allow read, write: if false;

@@ -634,7 +634,7 @@ export function clearTerrainTileCache(): void {
 }
 
 export function getElevationForLatLng(lat: number, lon: number): number {
-  const pad = 0.08;
+  const pad = 0.25;
   for (const key of Object.keys(VERIFIED_LOCATION_DATASETS)) {
     const ds = VERIFIED_LOCATION_DATASETS[key];
     const b = ds.bounds;
@@ -644,6 +644,19 @@ export function getElevationForLatLng(lat: number, lon: number): number {
       return sampleDemElevationAt(ds.elevationRaster, ds.demGridSize, u, v);
     }
   }
+
+  // Fallback: check if close to any location center (within 0.6 deg ~60km)
+  for (const key of Object.keys(VERIFIED_LOCATION_DATASETS)) {
+    const ds = VERIFIED_LOCATION_DATASETS[key];
+    const dLat = Math.abs(lat - ds.latitude);
+    const dLon = Math.abs(lon - ds.longitude);
+    if (dLat < 0.6 && dLon < 0.6) {
+      const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+      const weight = Math.max(0, 1 - dist / 0.6);
+      return ds.minElevationM + (ds.maxElevationM - ds.minElevationM) * 0.45 * weight;
+    }
+  }
+
   return 150;
 }
 

@@ -82,6 +82,59 @@
         "disasterType",
         "severityLevel"
       ]
+    },
+    "telemetry": {
+      "title": "StationTelemetryRecord",
+      "description": "Historical telemetry observations from IoT monitoring stations",
+      "type": "object",
+      "properties": {
+        "stationId": { "type": "string" },
+        "stationName": { "type": "string" },
+        "telemetry": { "type": "object" },
+        "recordedAt": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "required": ["stationId"]
+    },
+    "risk_assessments": {
+      "title": "RiskAssessmentRecord",
+      "description": "Historical ML risk assessment evaluation logs",
+      "type": "object",
+      "properties": {
+        "stationId": { "type": "string" },
+        "stationName": { "type": "string" },
+        "riskAssessment": { "type": "object" },
+        "riskScore": { "type": "number" },
+        "status": { "type": "string" },
+        "recordedAt": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "required": ["stationId"]
+    },
+    "incidents": {
+      "title": "DisasterIncidentRecord",
+      "description": "Active or historical landslide and disaster incidents",
+      "type": "object",
+      "properties": {
+        "incidentId": { "type": "string" },
+        "stationId": { "type": "string" },
+        "stationName": { "type": "string" },
+        "severity": { "type": "string" },
+        "riskScore": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["incidentId", "stationId", "severity", "status"]
+    },
+    "alerts": {
+      "title": "EmergencyAlertRecord",
+      "description": "Active high-priority hazard warning alerts",
+      "type": "object",
+      "properties": {
+        "incidentId": { "type": "string" },
+        "stationId": { "type": "string" },
+        "level": { "type": "string" }
+      },
+      "required": ["incidentId"]
     }
   },
   "firestore": {
@@ -100,6 +153,22 @@
     "/disaster_evidence/{evidenceId}": {
       "schema": "disaster_evidence",
       "description": "Field evidence photos and automated disaster identification submitted by users"
+    },
+    "/telemetry/{docId}": {
+      "schema": "telemetry",
+      "description": "Sensor telemetry time-series logs"
+    },
+    "/risk_assessments/{docId}": {
+      "schema": "risk_assessments",
+      "description": "Machine learning risk assessment history"
+    },
+    "/incidents/{incidentId}": {
+      "schema": "incidents",
+      "description": "Disaster incident tracking records"
+    },
+    "/alerts/{alertId}": {
+      "schema": "alerts",
+      "description": "Emergency hazard alerts"
     }
   }
 }

@@ -491,7 +491,7 @@ export default function App() {
         />
 
         {/* Dynamic Center Viewport: Each Menu Item Opens in Its Dedicated Smooth View */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <main className={currentNavSection === 'disaster_3d' ? 'flex-1 relative overflow-hidden h-[calc(100vh-4rem)] p-0' : 'flex-1 overflow-y-auto p-4 sm:p-6 space-y-6'}>
           {/* VIEW 1: DASHBOARD (MAIN COMMAND CENTER) */}
           {currentNavSection === 'dashboard' && (
             <BhuShaktiMainDashboard

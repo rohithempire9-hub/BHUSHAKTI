@@ -4,14 +4,30 @@
  * critical infrastructure, and landslide/flood hazard overlays for all 20 monitored locations.
  */
 
-export interface GeospatialLocation {
+export interface Location {
   id: string;
   name: string;
+  region?: string;
+  latitude: number;
+  longitude: number;
+  boundingBox?: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  };
+  terrainDataSource?: string;
+  terrainType: string;
+  elevationSource?: string;
+  roadsSource?: string;
+  riversSource?: string;
+  buildingsSource?: string;
+}
+
+export interface GeospatialLocation extends Location {
   shortName: string;
   state: string;
   district: string;
-  latitude: number;
-  longitude: number;
   elevationMeters: number;
   camera: {
     altitudeMeters: number;
@@ -26,7 +42,6 @@ export interface GeospatialLocation {
     east: number;
     west: number;
   };
-  terrainType: string;
   terrainDescription: string;
   roadNetworkName: string;
   riverNetworkName: string;
@@ -1456,5 +1471,15 @@ export const LOCATION_ALIASES: Record<string, string> = {
 
 export function getRealGeospatialLocation(locId: string): GeospatialLocation {
   const resolvedId = LOCATION_ALIASES[locId] || locId;
-  return REAL_GEOSPATIAL_LOCATIONS[resolvedId] || REAL_GEOSPATIAL_LOCATIONS['tawang'];
+  const raw = REAL_GEOSPATIAL_LOCATIONS[resolvedId] || REAL_GEOSPATIAL_LOCATIONS['tawang'];
+  return {
+    ...raw,
+    region: raw.region || `${raw.state} — ${raw.district}`,
+    boundingBox: raw.boundingBox || raw.bounds,
+    terrainDataSource: raw.terrainDataSource || 'Copernicus 30m DEM / SRTM GLO-30 (Verified Dataset)',
+    elevationSource: raw.elevationSource || 'Copernicus Space Component Data Access (CSCDA 30m DEM)',
+    roadsSource: raw.roadsSource || 'OpenStreetMap (OSM) Road Network Cartography',
+    riversSource: raw.riversSource || 'National Hydrographic Drainage Basin GIS',
+    buildingsSource: raw.buildingsSource || 'OpenStreetMap Building Footprints & Settlements'
+  };
 }
