@@ -1,4 +1,44 @@
 import * as THREE from 'three';
+import {
+  LocationGeographicProfile,
+  LocationElevationResult,
+  GEOGRAPHIC_LOCATIONS,
+  getGeographicLocationById,
+} from './geospatialDataService';
+import {
+  LocationBounds,
+  LocationFeatureDataset,
+  TerrainDemResult,
+  VERIFIED_LOCATION_DATASETS,
+  getLocationFeatureDataset,
+  sampleDemElevationAt,
+  getTerrainCacheKey,
+} from './locationDemStore';
+
+function distanceToPolyline(px: number, pz: number, coords: [number, number][]): number {
+  if (!coords || coords.length === 0) return 999;
+  if (coords.length === 1) return Math.hypot(px - coords[0][0], pz - coords[0][1]);
+  let minDist = 999;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const x1 = coords[i][0];
+    const z1 = coords[i][1];
+    const x2 = coords[i + 1][0];
+    const z2 = coords[i + 1][1];
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const lenSq = dx * dx + dz * dz;
+    let dist = 999;
+    if (lenSq === 0) {
+      dist = Math.hypot(px - x1, pz - z1);
+    } else {
+      const t = Math.max(0, Math.min(1, ((px - x1) * dx + (pz - z1) * dz) / lenSq));
+      dist = Math.hypot(px - (x1 + t * dx), pz - (z1 + t * dz));
+    }
+    if (dist < minDist) minDist = dist;
+  }
+  return minDist;
+}
+
 
 export type CameraViewName =
   | 'OVERVIEW'
@@ -32,6 +72,8 @@ export interface LayerVisibility {
   sensors?: boolean;
   warningSigns?: boolean;
   riskHeatmap?: boolean;
+  landslideRisk?: boolean;
+  floodRisk?: boolean;
   powerLines?: boolean;
   safetyRoutes?: boolean;
   labels?: boolean;
@@ -172,7 +214,14 @@ export class DisasterTwinEngine {
   private telemetryTowerGroup!: THREE.Group;
   private evacuationRouteGroup!: THREE.Group;
   private riskVolumeMesh!: THREE.Mesh;
+  private landslideRiskMesh!: THREE.Mesh;
+  private floodRiskMesh!: THREE.Mesh;
   private contourMesh!: THREE.LineSegments;
+  private backdropMountainMesh!: THREE.Mesh;
+  private currentLocationProfile: LocationGeographicProfile = GEOGRAPHIC_LOCATIONS[19]; // Default Tawang
+  private currentDemData: LocationElevationResult | null = null;
+  private roadSignPostMesh?: THREE.Mesh;
+  private roadSignBoardMesh?: THREE.Mesh;
 
   // 3D IoT Sensor Beacons & Signs
   private tiltmeterRipples!: THREE.Mesh;
@@ -241,10 +290,10 @@ export class DisasterTwinEngine {
     this.onEntitySelectedCallback = onSelectEntity;
     this.clock = new THREE.Clock();
 
-    // Scene with atmospheric fog
+    // Scene with realistic Himalayan atmospheric sky & horizon fog
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0e1726);
-    this.scene.fog = new THREE.FogExp2(0x0e1726, 0.0035);
+    this.scene.background = new THREE.Color(0x6e96be);
+    this.scene.fog = new THREE.FogExp2(0x88a9c8, 0.0028);
 
     // Camera
     const aspect = container.clientWidth / Math.max(1, container.clientHeight);
@@ -261,7 +310,7 @@ export class DisasterTwinEngine {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.18;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
@@ -269,6 +318,7 @@ export class DisasterTwinEngine {
     // Build scene architecture
     this.setupLighting();
     this.buildHighDetailMountainTerrain();
+    this.buildBackdropMountains();
     this.buildContourLines();
     this.buildInstancedForestVegetation();
     this.buildHighwayNH13AndBridges();
@@ -279,6 +329,7 @@ export class DisasterTwinEngine {
     this.buildLandslideKinematicsAndDebrisLayers();
     this.buildSafeEvacuationRoutes();
     this.build3DRiskVolumesAndOverlays();
+    this.buildConformalRiskLayers();
     this.buildTelemetrySensorsAndBoreholes();
     this.buildDynamicWarningSigns();
     this.buildVolumetricClouds();
@@ -291,21 +342,25 @@ export class DisasterTwinEngine {
   // LIGHTING & ENVIRONMENT
   // -------------------------------------------------------------
   private setupLighting(): void {
-    this.ambientLight = new THREE.AmbientLight(0xd4e2ff, 0.65);
+    // Soft sky ambient fill
+    this.ambientLight = new THREE.AmbientLight(0xd4e5f7, 0.72);
     this.scene.add(this.ambientLight);
 
-    this.hemiLight = new THREE.HemisphereLight(0xfff5ea, 0x1f3448, 0.85);
-    this.hemiLight.position.set(0, 120, 0);
+    // Atmospheric hemisphere: warm sunlight above, deep forest bounce below
+    this.hemiLight = new THREE.HemisphereLight(0xfff7ed, 0x223620, 0.88);
+    this.hemiLight.position.set(0, 150, 0);
     this.scene.add(this.hemiLight);
 
-    this.dirLight = new THREE.DirectionalLight(0xfff2db, 1.8);
-    this.dirLight.position.set(75, 95, 55);
+    // Warm golden-hour mountain sun casting crisp, soft shadows into gullies and valleys
+    this.dirLight = new THREE.DirectionalLight(0xfff6ea, 2.2);
+    this.dirLight.position.set(85, 120, 60);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.width = 2048;
     this.dirLight.shadow.mapSize.height = 2048;
-    this.dirLight.shadow.camera.near = 10;
-    this.dirLight.shadow.camera.far = 300;
-    const d = 85;
+    this.dirLight.shadow.bias = -0.0004;
+    this.dirLight.shadow.camera.near = 15;
+    this.dirLight.shadow.camera.far = 380;
+    const d = 110;
     this.dirLight.shadow.camera.left = -d;
     this.dirLight.shadow.camera.right = d;
     this.dirLight.shadow.camera.top = d;
@@ -319,43 +374,77 @@ export class DisasterTwinEngine {
   }
 
   // -------------------------------------------------------------
-  // ULTRA-DETAILED MOUNTAINOUS TERRAIN ELEVATION FIELD
+  // LOCATION-SPECIFIC 3D GEOGRAPHIC TERRAIN ELEVATION PIPELINE
   // -------------------------------------------------------------
   public getTerrainHeight(x: number, z: number): number {
-    // 1. Primary Western Mountain Massif (Spine at x = -28)
-    const ridgeX = -28;
-    const distToSpine = Math.abs(x - ridgeX);
-    const primaryRidge = Math.max(0, 42 - distToSpine * 0.85) * Math.cos(z * 0.035);
+    return this.calculateLocationTerrainHeight(x, z, this.currentLocationProfile, this.currentDemData);
+  }
 
-    // 2. Secondary Northern Range Peak (Tawang Crags)
-    const northPeak = Math.max(0, 38 - Math.hypot(x + 18, z + 45) * 0.72);
+  private calculateLocationTerrainHeight(
+    x: number,
+    z: number,
+    loc: LocationGeographicProfile,
+    dem: LocationElevationResult | null
+  ): number {
+    const ds = getLocationFeatureDataset(loc.id);
+    const u = Math.min(1, Math.max(0, (x + 110) / 220));
+    const v = Math.min(1, Math.max(0, (z + 110) / 220));
 
-    // 3. Southern Serrated Ridge
-    const southRidge = Math.max(0, 32 - Math.hypot(x + 22, z - 50) * 0.65);
+    // 1. Location-specific elevation raster (from live Copernicus DEM or verified Copernicus/SRTM raster)
+    const elevations = (dem && dem.elevations && dem.elevations.length >= 64)
+      ? dem.elevations
+      : ds.elevationRaster;
 
-    // 4. Vulnerable Slide Chute / Colluvial Gully (x: -24 to -4, z: -18 to 18)
-    let gullyTrough = 0;
-    if (x > -26 && x < -3 && z > -20 && z < 20) {
-      const wx = Math.sin(((x + 26) / 23) * Math.PI);
-      const wz = Math.sin(((z + 20) / 40) * Math.PI);
-      gullyTrough = wx * wz * 4.2;
+    const minM = (dem && dem.minElevationM !== undefined) ? dem.minElevationM : ds.minElevationM;
+    const maxM = (dem && dem.maxElevationM !== undefined) ? dem.maxElevationM : ds.maxElevationM;
+    const reliefM = Math.max(12, maxM - minM);
+
+    // 2. High-precision bicubic/hermite sampling of the location's DEM raster
+    const rawElevM = sampleDemElevationAt(elevations, 8, u, v);
+    const normElev = Math.max(0, Math.min(1, (rawElevM - minM) / reliefM));
+
+    // 3. Scale vertical relief proportionally to the real geographic relief of the location
+    let targetRelief = 26.0;
+    if (loc.category === 'FLOODPLAIN_ISLAND' || reliefM < 50) {
+      // Majuli: very flat Brahmaputra river island (relief is only ~28m above water)
+      targetRelief = 1.6;
+    } else if (loc.category === 'LOWER_RELIEF_TRIPURA' || reliefM < 90) {
+      // Agartala: gentle low relief plain (~53m relief)
+      targetRelief = 4.2;
+    } else if (loc.category === 'RAINFALL_PLATEAU') {
+      // Cherrapunji / Umiam: High sandstone tableland with abrupt canyon gorge drop
+      targetRelief = 20.0;
+    } else {
+      // High mountain ranges: Gangtok, Tawang, Aizawl, Kohima, Wayanad, Chamoli
+      targetRelief = Math.min(50, Math.max(14.0, (reliefM / 2400) * 44 * (loc.engineProfile?.elevationScale || 1.0)));
     }
 
-    // 5. River Gorge & Winding Drainage Valley (center at x approx 16 + sine)
-    const riverCenter = 16 + Math.sin(z * 0.048) * 8.5;
-    const distToRiver = Math.abs(x - riverCenter);
-    const riverGorge = Math.max(0, 22 - distToRiver * 0.7);
+    let h = 2.4 + normElev * targetRelief;
 
-    // 6. Rolling Terraces (Village Plateau on eastern flank)
-    const plateau = Math.sin((x - 30) * 0.07) * Math.cos(z * 0.05) * 4.5 + 8.5;
+    // 4. Subtle micro-geomorphic roughness scaled by cliffSteepness (preserves real DEM macro shape while adding crisp rock/soil texture)
+    const ruggedFactor = (loc.engineProfile?.cliffSteepness || 1.0) * Math.min(1.0, reliefM / 1000);
+    if (loc.category !== 'FLOODPLAIN_ISLAND') {
+      const microNoise =
+        (Math.sin(x * 0.18 + z * 0.14) * 0.45 +
+         Math.cos(x * 0.32 - z * 0.28) * 0.25) * ruggedFactor;
+      h += microNoise;
+    } else {
+      // Alluvial sandbar ripples for Majuli
+      const sandbarMounds = (Math.sin(u * 14.0) * 0.25 + Math.cos(v * 10.0) * 0.2) * 0.5;
+      h += sandbarMounds;
+    }
 
-    // 7. Micro-drainage channels & fractured scree noise
-    const screeNoise =
-      Math.sin(x * 0.15) * Math.cos(z * 0.15) * 2.8 +
-      Math.sin(x * 0.32 + 1.5) * Math.cos(z * 0.28) * 1.2;
+    // 5. Location-specific river valley carving following the location's real river polyline
+    const distRiver = distanceToPolyline(x, z, ds.riverCoords);
+    const riverWidth = loc.category === 'FLOODPLAIN_ISLAND' ? 18.0 : 12.0 * (loc.engineProfile?.riverBedWidth || 1.0);
+    if (distRiver < riverWidth) {
+      const t = distRiver / riverWidth; // 0 at center, 1 at bank
+      const carveFactor = Math.pow(1 - t, 1.8);
+      const bedH = loc.category === 'FLOODPLAIN_ISLAND' ? 2.15 : 3.2;
+      h = h * (1 - carveFactor * 0.75) + bedH * (carveFactor * 0.75);
+    }
 
-    const baseH = Math.max(2.2, primaryRidge + northPeak * 0.7 + southRidge * 0.6 - gullyTrough - riverGorge * 0.85 + plateau + screeNoise);
-    return Math.max(1.8, baseH);
+    return Math.max(2.15, h);
   }
 
   // Get slope angle (in degrees) at coordinate (x, z)
@@ -371,9 +460,43 @@ export class DisasterTwinEngine {
     return (slopeRad * 180) / Math.PI;
   }
 
+  private createTerrainDetailTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.CanvasTexture(canvas);
+
+    ctx.fillStyle = '#7a7f72';
+    ctx.fillRect(0, 0, 512, 512);
+
+    const imgData = ctx.getImageData(0, 0, 512, 512);
+    const data = imgData.data;
+
+    for (let y = 0; y < 512; y++) {
+      const striation = Math.sin(y * 0.14) * 16 + Math.sin(y * 0.38) * 9;
+      for (let x = 0; x < 512; x++) {
+        const idx = (y * 512 + x) * 4;
+        const noise = (Math.random() - 0.5) * 26 + Math.sin(x * 0.18 + y * 0.08) * 12;
+        const val = Math.max(0, Math.min(255, 128 + striation + noise));
+        data[idx] = val * 0.96;
+        data[idx + 1] = val * 1.02;
+        data[idx + 2] = val * 0.92;
+        data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(16, 16);
+    return texture;
+  }
+
   private buildHighDetailMountainTerrain(): void {
-    const size = 180;
-    const segments = 140; // High mesh fidelity
+    const size = 220;
+    const segments = 160; // High mesh fidelity
     const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
     geometry.rotateX(-Math.PI / 2);
 
@@ -391,27 +514,107 @@ export class DisasterTwinEngine {
 
       const slope = this.getSlopeAngle(x, z);
 
-      // Color mapping based on visual mode & geology
+      // Multi-criteria natural geological shading
       if (y < 4.2) {
         // Riverbed gravel / alluvial silt
-        col.setRGB(0.32, 0.35, 0.38);
+        col.setRGB(0.34, 0.38, 0.38);
       } else if (x > -26 && x < -4 && z > -18 && z < 18) {
         // Colluvial slide zone: weathered reddish-brown clay & unstable schist
-        col.setRGB(0.58, 0.36, 0.22);
-      } else if (slope > 38) {
-        // Escarpment / Cliffs: steep exposed rock
-        col.setRGB(0.44, 0.42, 0.4);
-      } else if (y < 16) {
-        // Alpine forest canopy & meadows
-        const varG = 0.28 + Math.sin(x * 0.25) * 0.06;
-        col.setRGB(0.16, 0.38 + varG * 0.15, 0.2);
-      } else if (y < 28) {
+        col.setRGB(0.58, 0.35, 0.22);
+      } else if (slope > 42) {
+        // Sheer Escarpment & Cliffs: dark jagged rock & slate
+        const rockTint = 0.36 + Math.sin(x * 0.2 + z * 0.15) * 0.04;
+        col.setRGB(rockTint, rockTint * 0.96, rockTint * 0.92);
+      } else if (y > 38) {
+        // High altitude granite ridge & cold rock with snow pockets
+        const snowPockets = (1 - Math.abs(Math.sin(x * 0.12))) * 0.15;
+        const tint = 0.82 + snowPockets;
+        col.setRGB(tint, tint * 0.97, Math.min(1.0, tint * 1.05));
+      } else if (slope > 28) {
         // Sub-alpine scree & weathered brown stone
-        col.setRGB(0.5, 0.44, 0.38);
+        col.setRGB(0.48, 0.44, 0.38);
+      } else if (y < 18) {
+        // Lush valley & alpine forest canopy
+        const varG = 0.28 + Math.sin(x * 0.25) * 0.06;
+        col.setRGB(0.14, 0.38 + varG * 0.14, 0.18);
       } else {
-        // High altitude granite ridge & cold stone
-        const tint = 0.6 + Math.cos(z * 0.18) * 0.08;
-        col.setRGB(tint, tint * 0.96, tint * 1.04);
+        // Mid-elevation montane forest & alpine meadows
+        col.setRGB(0.22, 0.42, 0.24);
+      }
+
+      // Micro ambient-shadowing for concave depressions
+      const ao = Math.min(1.0, 0.88 + y * 0.0035);
+      col.multiplyScalar(ao);
+
+      colors[i * 3] = col.r;
+      colors[i * 3 + 1] = col.g;
+      colors[i * 3 + 2] = col.b;
+    }
+
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.computeVertexNormals();
+
+    const detailTex = this.createTerrainDetailTexture();
+
+    const material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      map: detailTex,
+      bumpMap: detailTex,
+      bumpScale: 0.85,
+      roughness: 0.86,
+      metalness: 0.06,
+      flatShading: false,
+    });
+
+    this.terrainMesh = new THREE.Mesh(geometry, material);
+    this.terrainMesh.receiveShadow = true;
+    this.terrainMesh.castShadow = true;
+    this.terrainMesh.userData = { entityId: 'mountain_corridor' };
+    this.scene.add(this.terrainMesh);
+  }
+
+  // -------------------------------------------------------------
+  // DISTANT HIMALAYAN HORIZON BACKDROP (Eliminates flat cut plane)
+  // -------------------------------------------------------------
+  private buildBackdropMountains(): void {
+    const ringRadiusInner = 105;
+    const ringRadiusOuter = 360;
+    const segmentsTheta = 96;
+    const segmentsRad = 12;
+
+    const geometry = new THREE.RingGeometry(ringRadiusInner, ringRadiusOuter, segmentsTheta, segmentsRad);
+    geometry.rotateX(-Math.PI / 2);
+
+    const pos = geometry.attributes.position;
+    const count = pos.count;
+    const colors = new Float32Array(count * 3);
+    const col = new THREE.Color();
+
+    for (let i = 0; i < count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const dist = Math.hypot(x, z);
+      const angle = Math.atan2(z, x);
+
+      // Blend factor from inner terrain boundary to distant ring
+      const blend = Math.min(1, Math.max(0, (dist - ringRadiusInner) / 45));
+
+      // Majestic panoramic mountain ridges encircling the horizon
+      const peakNoise =
+        Math.abs(Math.sin(angle * 7)) * 55 +
+        Math.abs(Math.cos(angle * 13)) * 32 +
+        Math.sin(angle * 29) * 14;
+
+      const falloff = Math.max(0, 1 - Math.pow(Math.abs(dist - 235) / 125, 2));
+      const h = Math.max(0, peakNoise * falloff * blend);
+      pos.setY(i, h);
+
+      if (h > 45) {
+        col.setRGB(0.88, 0.92, 0.96); // Distant snow summits
+      } else if (h > 24) {
+        col.setRGB(0.46, 0.52, 0.60); // Slate blue granite ridges
+      } else {
+        col.setRGB(0.30, 0.42, 0.38); // Deep forest foothills
       }
 
       colors[i * 3] = col.r;
@@ -424,16 +627,14 @@ export class DisasterTwinEngine {
 
     const material = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.85,
-      metalness: 0.1,
+      roughness: 0.92,
+      metalness: 0.05,
       flatShading: false,
     });
 
-    this.terrainMesh = new THREE.Mesh(geometry, material);
-    this.terrainMesh.receiveShadow = true;
-    this.terrainMesh.castShadow = true;
-    this.terrainMesh.userData = { entityId: 'mountain_corridor' };
-    this.scene.add(this.terrainMesh);
+    this.backdropMountainMesh = new THREE.Mesh(geometry, material);
+    this.backdropMountainMesh.receiveShadow = true;
+    this.scene.add(this.backdropMountainMesh);
   }
 
   // -------------------------------------------------------------
@@ -620,6 +821,8 @@ export class DisasterTwinEngine {
       new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.4 })
     );
     signBoard.position.set(-16.5, this.getTerrainHeight(-16.5, -45) + 2.6, -45);
+    this.roadSignPostMesh = signPost;
+    this.roadSignBoardMesh = signBoard;
     this.roadGroup.add(signPost, signBoard);
 
     // Concrete Bridge Piers over gorge
@@ -1059,6 +1262,192 @@ export class DisasterTwinEngine {
     this.impactZonePerimeter = new THREE.Mesh(perimeterGeom, perimeterMat);
     this.impactZonePerimeter.position.set(30, 6.5, -6);
     this.scene.add(this.impactZonePerimeter);
+  }
+
+  // -------------------------------------------------------------
+  // BHUSAKTHI AI CONFORMAL TERRAIN RISK OVERLAYS (LANDSLIDE & FLOOD)
+  // Conforms accurately to terrain elevations, slope angles & river hydrology
+  // LOW -> Green, MODERATE -> Yellow, HIGH -> Orange, VERY HIGH -> Red
+  // -------------------------------------------------------------
+  private buildConformalRiskLayers(): void {
+    const size = 220;
+    const segments = 160;
+
+    // 1. LANDSLIDE SUSCEPTIBILITY OVERLAY (Follows mountain slope gradient & shear zones)
+    const lsGeom = new THREE.PlaneGeometry(size, size, segments, segments);
+    lsGeom.rotateX(-Math.PI / 2);
+    const lsPos = lsGeom.attributes.position;
+    const lsCount = lsPos.count;
+    const lsColors = new Float32Array(lsCount * 3);
+    const lsAlpha = new Float32Array(lsCount);
+    const col = new THREE.Color();
+
+    for (let i = 0; i < lsCount; i++) {
+      const x = lsPos.getX(i);
+      const z = lsPos.getZ(i);
+      const y = this.getTerrainHeight(x, z);
+      lsPos.setY(i, y + 0.12);
+
+      const slope = this.getSlopeAngle(x, z);
+      const inColluvialGully = x > -28 && x < -2 && z > -22 && z < 22;
+
+      // Classification based on slope & shear geometry:
+      if (inColluvialGully && slope > 28) {
+        // High-shear colluvial gully fracture: VERY HIGH (Red)
+        col.setRGB(0.94, 0.27, 0.27);
+        lsAlpha[i] = 0.88;
+      } else if (slope >= 42) {
+        // Sheer mountain crests & escarpments: VERY HIGH (Red)
+        col.setRGB(0.94, 0.27, 0.27);
+        lsAlpha[i] = 0.88;
+      } else if (slope >= 32) {
+        // High steepness talus slopes: HIGH (Orange)
+        col.setRGB(0.98, 0.45, 0.09);
+        lsAlpha[i] = 0.82;
+      } else if (slope >= 22) {
+        // Moderate slope gradients: MODERATE (Yellow)
+        col.setRGB(0.92, 0.70, 0.03);
+        lsAlpha[i] = 0.72;
+      } else if (slope >= 14 && y > 6.0) {
+        // Low slope transition: LOW (Green)
+        col.setRGB(0.13, 0.77, 0.37);
+        lsAlpha[i] = 0.58;
+      } else {
+        // Flat alluvial plains & river valley floor: unpainted
+        col.setRGB(0.13, 0.77, 0.37);
+        lsAlpha[i] = 0.0;
+      }
+
+      lsColors[i * 3] = col.r;
+      lsColors[i * 3 + 1] = col.g;
+      lsColors[i * 3 + 2] = col.b;
+    }
+
+    lsGeom.setAttribute('color', new THREE.BufferAttribute(lsColors, 3));
+    lsGeom.setAttribute('aAlpha', new THREE.BufferAttribute(lsAlpha, 1));
+    lsGeom.computeVertexNormals();
+
+    const lsMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uOpacity: { value: 0.75 },
+      },
+      vertexShader: `
+        attribute float aAlpha;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          vColor = color;
+          vAlpha = aAlpha;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uOpacity;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          if (vAlpha <= 0.01) discard;
+          gl_FragColor = vec4(vColor, vAlpha * uOpacity);
+        }
+      `,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+
+    this.landslideRiskMesh = new THREE.Mesh(lsGeom, lsMaterial);
+    this.landslideRiskMesh.visible = false; // Default OFF
+    this.landslideRiskMesh.userData = { entityId: 'landslide_risk_layer', name: 'Landslide Susceptibility Layer' };
+    this.scene.add(this.landslideRiskMesh);
+
+    // 2. FLOOD SUSCEPTIBILITY OVERLAY (Follows low-lying areas, river gorge & floodplains)
+    const flGeom = new THREE.PlaneGeometry(size, size, segments, segments);
+    flGeom.rotateX(-Math.PI / 2);
+    const flPos = flGeom.attributes.position;
+    const flCount = flPos.count;
+    const flColors = new Float32Array(flCount * 3);
+    const flAlpha = new Float32Array(flCount);
+
+    for (let i = 0; i < flCount; i++) {
+      const x = flPos.getX(i);
+      const z = flPos.getZ(i);
+      const y = this.getTerrainHeight(x, z);
+      flPos.setY(i, y + 0.12);
+
+      const riverCenter = 16 + Math.sin(z * 0.048) * 8.5 + Math.cos(z * 0.09) * 2.2;
+      const distToRiver = Math.abs(x - riverCenter);
+      const slope = this.getSlopeAngle(x, z);
+
+      // Hydrological classification:
+      if (distToRiver < 5.0 || y < 4.2) {
+        // Active River Channel / Floodway: VERY HIGH (Red)
+        col.setRGB(0.94, 0.27, 0.27);
+        flAlpha[i] = 0.88;
+      } else if (distToRiver < 10.5 && y < 7.2) {
+        // Immediate Inundation Plain: HIGH (Orange)
+        col.setRGB(0.98, 0.45, 0.09);
+        flAlpha[i] = 0.82;
+      } else if (distToRiver < 18.0 && y < 10.5 && slope < 22) {
+        // Secondary Flood Terrace: MODERATE (Yellow)
+        col.setRGB(0.92, 0.70, 0.03);
+        flAlpha[i] = 0.72;
+      } else if (distToRiver < 28.0 && y < 14.0 && slope < 16) {
+        // Peripheral Basin Flats: LOW (Green)
+        col.setRGB(0.13, 0.77, 0.37);
+        flAlpha[i] = 0.58;
+      } else {
+        // Mountain slopes / high ridges: unpainted
+        col.setRGB(0.13, 0.77, 0.37);
+        flAlpha[i] = 0.0;
+      }
+
+      flColors[i * 3] = col.r;
+      flColors[i * 3 + 1] = col.g;
+      flColors[i * 3 + 2] = col.b;
+    }
+
+    flGeom.setAttribute('color', new THREE.BufferAttribute(flColors, 3));
+    flGeom.setAttribute('aAlpha', new THREE.BufferAttribute(flAlpha, 1));
+    flGeom.computeVertexNormals();
+
+    const flMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uOpacity: { value: 0.75 },
+      },
+      vertexShader: `
+        attribute float aAlpha;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          vColor = color;
+          vAlpha = aAlpha;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uOpacity;
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          if (vAlpha <= 0.01) discard;
+          gl_FragColor = vec4(vColor, vAlpha * uOpacity);
+        }
+      `,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+
+    this.floodRiskMesh = new THREE.Mesh(flGeom, flMaterial);
+    this.floodRiskMesh.visible = false; // Default OFF
+    this.floodRiskMesh.userData = { entityId: 'flood_risk_layer', name: 'Flood Susceptibility Layer' };
+    this.scene.add(this.floodRiskMesh);
   }
 
   // -------------------------------------------------------------
@@ -1505,6 +1894,8 @@ export class DisasterTwinEngine {
     if (this.sensorGroup) this.sensorGroup.visible = layers.sensors !== false;
     if (this.warningSignGroup) this.warningSignGroup.visible = layers.warningSigns !== false;
     if (this.contourMesh) this.contourMesh.visible = !!layers.contours;
+    if (this.landslideRiskMesh) this.landslideRiskMesh.visible = !!layers.landslideRisk;
+    if (this.floodRiskMesh) this.floodRiskMesh.visible = !!layers.floodRisk;
   }
 
   // -------------------------------------------------------------
@@ -1562,6 +1953,563 @@ export class DisasterTwinEngine {
     this.camera.position.lerp(targetPos, 0.04);
     this.cameraTarget.lerp(targetLook, 0.04);
     this.camera.lookAt(this.cameraTarget);
+  }
+
+  public zoomIn(): void {
+    this.isCinematicTour = false;
+    this.cameraDistance = Math.max(28, this.cameraDistance * 0.82);
+    this.updateCameraOrbit();
+  }
+
+  public zoomOut(): void {
+    this.isCinematicTour = false;
+    this.cameraDistance = Math.min(260, this.cameraDistance * 1.22);
+    this.updateCameraOrbit();
+  }
+
+  public resetCamera(): void {
+    this.isCinematicTour = false;
+    this.animateCameraTo(CAMERA_PRESETS.OVERVIEW.pos, CAMERA_PRESETS.OVERVIEW.target);
+  }
+
+  public tiltCamera(mode?: 'topo' | 'oblique' | 'profile'): void {
+    this.isCinematicTour = false;
+    if (mode === 'topo') {
+      this.animateCameraTo(new THREE.Vector3(0, 135, 0.01), new THREE.Vector3(0, 0, 0));
+    } else if (mode === 'profile') {
+      this.animateCameraTo(new THREE.Vector3(95, 22, 95), new THREE.Vector3(0, 10, 0));
+    } else {
+      this.animateCameraTo(CAMERA_PRESETS.OVERVIEW.pos, CAMERA_PRESETS.OVERVIEW.target);
+    }
+  }
+
+  // -------------------------------------------------------------
+  // LOCATION-SPECIFIC RIVER COURSE & HYDROLOGY
+  // -------------------------------------------------------------
+  private getRiverPointsForLocation(loc: LocationGeographicProfile): THREE.Vector3[] {
+    const ds = getLocationFeatureDataset(loc.id);
+    const coords = ds.riverCoords;
+    const curvePoints = coords.map((c) => {
+      const rx = c[0];
+      const rz = c[1];
+      const ry = loc.category === 'FLOODPLAIN_ISLAND' ? 2.15 : 3.25;
+      return new THREE.Vector3(rx, ry, rz);
+    });
+
+    const catmull = new THREE.CatmullRomCurve3(curvePoints);
+    const numSamples = 40;
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i <= numSamples; i++) {
+      const t = i / numSamples;
+      const pt = catmull.getPoint(t);
+      points.push(new THREE.Vector3(pt.x, loc.category === 'FLOODPLAIN_ISLAND' ? 2.15 : 3.25, pt.z));
+    }
+    return points;
+  }
+
+  // -------------------------------------------------------------
+  // LOCATION-SPECIFIC ROAD ALIGNMENT & TOPOGRAPHY
+  // -------------------------------------------------------------
+  private getRoadPointsForLocation(loc: LocationGeographicProfile): THREE.Vector3[] {
+    const ds = getLocationFeatureDataset(loc.id);
+    const coords = ds.roadCoords;
+    const curvePoints = coords.map((c) => {
+      const rx = c[0];
+      const rz = c[1];
+      const ry = this.getTerrainHeight(rx, rz) + 0.35;
+      return new THREE.Vector3(rx, ry, rz);
+    });
+
+    const catmull = new THREE.CatmullRomCurve3(curvePoints);
+    const numSamples = 50;
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i <= numSamples; i++) {
+      const t = i / numSamples;
+      const pt = catmull.getPoint(t);
+      const groundH = this.getTerrainHeight(pt.x, pt.z);
+      points.push(new THREE.Vector3(pt.x, groundH + 0.35, pt.z));
+    }
+    return points;
+  }
+
+  // -------------------------------------------------------------
+  // DISPOSE & REBUILD LOCATION-SPECIFIC SETTLEMENTS & INFRASTRUCTURE
+  // -------------------------------------------------------------
+  private disposeObjectRecursive(obj: THREE.Object3D): void {
+    obj.traverse((child) => {
+      if ((child as THREE.Mesh).geometry) {
+        (child as THREE.Mesh).geometry.dispose();
+      }
+      if ((child as THREE.Mesh).material) {
+        const mat = (child as THREE.Mesh).material;
+        if (Array.isArray(mat)) {
+          mat.forEach((m) => m.dispose());
+        } else {
+          mat.dispose();
+        }
+      }
+    });
+  }
+
+  private rebuildSettlementsAndInfrastructure(loc: LocationGeographicProfile): void {
+    const ds = getLocationFeatureDataset(loc.id);
+
+    // 1. Clear and dispose previous settlements
+    if (this.villageGroup) {
+      while (this.villageGroup.children.length > 0) {
+        const obj = this.villageGroup.children[0];
+        this.disposeObjectRecursive(obj);
+        this.villageGroup.remove(obj);
+      }
+    }
+
+    // 2. Clear and dispose previous infrastructure
+    if (this.infrastructureGroup) {
+      while (this.infrastructureGroup.children.length > 0) {
+        const obj = this.infrastructureGroup.children[0];
+        this.disposeObjectRecursive(obj);
+        this.infrastructureGroup.remove(obj);
+      }
+    }
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.8 });
+    const redRoofMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.5 });
+    const blueRoofMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.5 });
+    const greenRoofMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.5 });
+    const stiltMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+
+    const isStilt = loc.category === 'FLOODPLAIN_ISLAND'; // Majuli stilt chang-ghar architecture
+
+    // Place location settlements at exact geographic coordinates
+    const settlementCoords = ds.settlementCoords;
+    for (let h = 0; h < settlementCoords.length; h++) {
+      const [hx, hz] = settlementCoords[h];
+      const hy = this.getTerrainHeight(hx, hz);
+      const house = new THREE.Group();
+
+      if (isStilt) {
+        const stilts = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 6), stiltMat);
+        stilts.position.y = 0.6;
+        house.add(stilts);
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 2.0), wallMat);
+        wall.position.y = 1.9;
+        wall.castShadow = true;
+        house.add(wall);
+        const roofGeom = new THREE.ConeGeometry(2.2, 1.1, 4);
+        roofGeom.rotateY(Math.PI / 4);
+        const roof = new THREE.Mesh(roofGeom, greenRoofMat);
+        roof.position.y = 3.1;
+        roof.castShadow = true;
+        house.add(roof);
+      } else {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.7, 2.1), wallMat);
+        wall.position.y = 0.85;
+        wall.castShadow = true;
+        house.add(wall);
+        const roofGeom = new THREE.ConeGeometry(2.1, 1.2, 4);
+        roofGeom.rotateY(Math.PI / 4);
+        const roof = new THREE.Mesh(roofGeom, h % 3 === 0 ? redRoofMat : h % 3 === 1 ? blueRoofMat : greenRoofMat);
+        roof.position.y = 2.2;
+        roof.castShadow = true;
+        house.add(roof);
+      }
+
+      house.position.set(hx, hy, hz);
+      house.rotation.y = (h * 0.42) % Math.PI;
+      const sName = ds.settlements[h % ds.settlements.length] || `${ds.shortName} Sector #${h + 1}`;
+      house.userData = { entityId: `house_${ds.id}_${h}`, name: sName };
+      if (this.villageGroup) {
+        this.villageGroup.add(house);
+      }
+    }
+
+    // Place location infrastructure
+    const infraNames = ds.infrastructure;
+    for (let j = 0; j < Math.min(3, infraNames.length); j++) {
+      const name = infraNames[j];
+      const baseCoord = settlementCoords[j % settlementCoords.length] || [0, 0];
+      const ix = baseCoord[0] + (j === 0 ? 5 : j === 1 ? -5 : 3);
+      const iz = baseCoord[1] + (j === 0 ? 6 : j === 1 ? -6 : -4);
+      const iy = this.getTerrainHeight(ix, iz);
+
+      const bldg = new THREE.Group();
+      if (j === 0) {
+        // District Hospital / Primary Medical Facility
+        const bBase = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.2, 3.2), wallMat);
+        bBase.position.y = 1.1;
+        const bRoof = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.4, 3.6), blueRoofMat);
+        bRoof.position.y = 2.3;
+        const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.25, 0.05), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+        crossH.position.set(0, 1.2, 1.65);
+        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+        crossV.position.set(0, 1.2, 1.65);
+        bldg.add(bBase, bRoof, crossH, crossV);
+      } else if (j === 1) {
+        // Assembly Haven / Community Shelter
+        const bBase = new THREE.Mesh(new THREE.BoxGeometry(5.6, 2.8, 3.8), wallMat);
+        bBase.position.y = 1.4;
+        const bRoof = new THREE.Mesh(new THREE.ConeGeometry(4.4, 1.8, 4), redRoofMat);
+        bRoof.rotateY(Math.PI / 4);
+        bRoof.position.y = 3.7;
+        bldg.add(bBase, bRoof);
+      } else {
+        // Emergency Control Post / Helipad
+        const bBase = new THREE.Mesh(new THREE.BoxGeometry(4.8, 1.8, 3.0), wallMat);
+        bBase.position.y = 0.9;
+        const bRoof = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.3, 3.4), greenRoofMat);
+        bRoof.position.y = 1.95;
+        bldg.add(bBase, bRoof);
+      }
+
+      bldg.position.set(ix, iy, iz);
+      bldg.userData = { entityId: `infra_${ds.id}_${j}`, name };
+      if (this.infrastructureGroup) {
+        this.infrastructureGroup.add(bldg);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------
+  // UPDATE INSTANCED FOREST VEGETATION FOR NEW TERRAIN
+  // -------------------------------------------------------------
+  private updateForestVegetationForLocation(loc: LocationGeographicProfile): void {
+    if (!this.forestMesh) return;
+    const treeCount = 650;
+    const dummy = new THREE.Object3D();
+    let placed = 0;
+
+    for (let i = 0; i < treeCount; i++) {
+      const angle = (i / treeCount) * Math.PI * 24;
+      const radius = 8 + (i % 65);
+      const x = Math.cos(angle) * radius * 1.15 - 6;
+      const z = Math.sin(angle) * radius * 1.08;
+
+      const y = this.getTerrainHeight(x, z);
+      const slope = this.getSlopeAngle(x, z);
+
+      let valid = false;
+      if (loc.category === 'FLOODPLAIN_ISLAND') {
+        valid = y >= 2.6 && y <= 4.8 && slope < 12;
+      } else if (loc.category === 'RAINFALL_PLATEAU') {
+        valid = y >= 20.0 && slope < 28;
+      } else if (loc.category === 'WESTERN_GHATS') {
+        valid = y >= 4.5 && y <= 28.0 && slope < 34;
+      } else if (loc.category === 'NORTHEAST_RIDGES') {
+        valid = y >= 5.0 && y <= 28.0 && slope < 35 && Math.abs(x) > 3.0;
+      } else {
+        valid = y >= 5.0 && y <= 28.0 && slope < 36;
+      }
+
+      if (valid) {
+        dummy.position.set(x, y - 0.2, z);
+        const sc = 0.75 + (Math.sin(i * 1.8) * 0.35 + 0.35);
+        dummy.scale.set(sc, sc * (0.9 + (i % 4) * 0.12), sc);
+        dummy.rotation.y = (i * 0.85) % Math.PI;
+        dummy.updateMatrix();
+        this.forestMesh.setMatrixAt(placed, dummy.matrix);
+        placed++;
+      }
+    }
+
+    this.forestMesh.count = placed;
+    this.forestMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // -------------------------------------------------------------
+  // UPDATE CONFORMAL RISK LAYERS (Follows actual slopes & riverbed)
+  // -------------------------------------------------------------
+  private updateConformalRiskLayersForLocation(loc: LocationGeographicProfile): void {
+    // 1. Landslide Susceptibility Overlay
+    if (this.landslideRiskMesh) {
+      const lsPos = this.landslideRiskMesh.geometry.attributes.position;
+      const lsColors = this.landslideRiskMesh.geometry.attributes.color as THREE.BufferAttribute;
+      const lsAlpha = this.landslideRiskMesh.geometry.attributes.aAlpha as THREE.BufferAttribute;
+      const count = lsPos.count;
+      const col = new THREE.Color();
+
+      const isFloodplain = loc.category === 'FLOODPLAIN_ISLAND';
+
+      for (let i = 0; i < count; i++) {
+        const x = lsPos.getX(i);
+        const z = lsPos.getZ(i);
+        const y = this.getTerrainHeight(x, z);
+        lsPos.setY(i, y + 0.12);
+
+        const slope = this.getSlopeAngle(x, z);
+
+        if (isFloodplain) {
+          lsAlpha.setX(i, 0.0);
+        } else if (slope >= 42) {
+          col.setRGB(0.94, 0.27, 0.27);
+          lsAlpha.setX(i, 0.88);
+          lsColors.setXYZ(i, col.r, col.g, col.b);
+        } else if (slope >= 30) {
+          col.setRGB(0.98, 0.45, 0.09);
+          lsAlpha.setX(i, 0.82);
+          lsColors.setXYZ(i, col.r, col.g, col.b);
+        } else if (slope >= 20) {
+          col.setRGB(0.92, 0.70, 0.03);
+          lsAlpha.setX(i, 0.72);
+          lsColors.setXYZ(i, col.r, col.g, col.b);
+        } else if (slope >= 12 && y > 5.0) {
+          col.setRGB(0.13, 0.77, 0.37);
+          lsAlpha.setX(i, 0.58);
+          lsColors.setXYZ(i, col.r, col.g, col.b);
+        } else {
+          lsAlpha.setX(i, 0.0);
+        }
+      }
+
+      lsPos.needsUpdate = true;
+      lsColors.needsUpdate = true;
+      lsAlpha.needsUpdate = true;
+      this.landslideRiskMesh.geometry.computeVertexNormals();
+    }
+
+    // 2. Flood Susceptibility Overlay
+    if (this.floodRiskMesh) {
+      const flPos = this.floodRiskMesh.geometry.attributes.position;
+      const flColors = this.floodRiskMesh.geometry.attributes.color as THREE.BufferAttribute;
+      const flAlpha = this.floodRiskMesh.geometry.attributes.aAlpha as THREE.BufferAttribute;
+      const count = flPos.count;
+      const col = new THREE.Color();
+
+      const isFloodplain = loc.category === 'FLOODPLAIN_ISLAND';
+
+      for (let i = 0; i < count; i++) {
+        const x = flPos.getX(i);
+        const z = flPos.getZ(i);
+        const y = this.getTerrainHeight(x, z);
+        flPos.setY(i, y + 0.12);
+
+        if (isFloodplain) {
+          if (y < 2.5) {
+            col.setRGB(0.94, 0.27, 0.27);
+            flAlpha.setX(i, 0.88);
+          } else if (y < 3.2) {
+            col.setRGB(0.98, 0.45, 0.09);
+            flAlpha.setX(i, 0.80);
+          } else if (y < 3.8) {
+            col.setRGB(0.92, 0.70, 0.03);
+            flAlpha.setX(i, 0.70);
+          } else {
+            col.setRGB(0.13, 0.77, 0.37);
+            flAlpha.setX(i, 0.55);
+          }
+          flColors.setXYZ(i, col.r, col.g, col.b);
+        } else {
+          if (y < 4.2) {
+            col.setRGB(0.94, 0.27, 0.27);
+            flAlpha.setX(i, 0.88);
+          } else if (y < 6.5) {
+            col.setRGB(0.98, 0.45, 0.09);
+            flAlpha.setX(i, 0.78);
+          } else if (y < 9.0) {
+            col.setRGB(0.92, 0.70, 0.03);
+            flAlpha.setX(i, 0.65);
+          } else if (y < 12.0) {
+            col.setRGB(0.13, 0.77, 0.37);
+            flAlpha.setX(i, 0.50);
+          } else {
+            flAlpha.setX(i, 0.0);
+          }
+          flColors.setXYZ(i, col.r, col.g, col.b);
+        }
+      }
+
+      flPos.needsUpdate = true;
+      flColors.needsUpdate = true;
+      flAlpha.needsUpdate = true;
+      this.floodRiskMesh.geometry.computeVertexNormals();
+    }
+  }
+
+  // -------------------------------------------------------------
+  // PRIMARY GEOGRAPHIC TERRAIN LOADER (LOCATION PIPELINE)
+  // -------------------------------------------------------------
+  public loadLocationGeographicTerrain(
+    loc: LocationGeographicProfile,
+    demResult?: LocationElevationResult | null
+  ): void {
+    this.isCinematicTour = false;
+    this.currentLocationProfile = loc;
+    this.currentDemData = demResult !== undefined ? demResult : this.currentDemData;
+
+    // 1. Camera Fly-To
+    const targetPos = loc.engineProfile?.cameraPos || [85, 65, 95];
+    const targetTarget = loc.engineProfile?.cameraTarget || [0, 8, 0];
+    this.animateCameraTo(
+      new THREE.Vector3(targetPos[0], targetPos[1], targetPos[2]),
+      new THREE.Vector3(targetTarget[0], targetTarget[1], targetTarget[2])
+    );
+
+    // 2. Backdrop Mountains Ring Scaling & Skyline
+    if (this.backdropMountainMesh) {
+      if (loc.category === 'FLOODPLAIN_ISLAND') {
+        this.backdropMountainMesh.scale.set(1, 0.06, 1);
+      } else if (loc.category === 'LOWER_RELIEF_TRIPURA') {
+        this.backdropMountainMesh.scale.set(1, 0.20, 1);
+      } else if (loc.category === 'WESTERN_GHATS') {
+        this.backdropMountainMesh.scale.set(1, 0.75, 1);
+      } else if (loc.category === 'NORTHEAST_RIDGES') {
+        this.backdropMountainMesh.scale.set(1, 0.95, 1);
+      } else if (loc.category === 'RAINFALL_PLATEAU') {
+        this.backdropMountainMesh.scale.set(1, 1.0, 1);
+      } else if (loc.category === 'SIKKIM_HIMALAYAN') {
+        this.backdropMountainMesh.scale.set(1, 1.25, 1);
+      } else {
+        this.backdropMountainMesh.scale.set(1, 1.45, 1);
+      }
+    }
+
+    // 3. Terrain Mesh Geometry & Multi-Criteria Natural Shading
+    if (this.terrainMesh) {
+      const posAttr = this.terrainMesh.geometry.attributes.position;
+      const colorAttr = this.terrainMesh.geometry.attributes.color;
+      const count = posAttr.count;
+      const col = new THREE.Color();
+
+      for (let i = 0; i < count; i++) {
+        const x = posAttr.getX(i);
+        const z = posAttr.getZ(i);
+        const y = this.getTerrainHeight(x, z);
+        posAttr.setY(i, y);
+
+        const slope = this.getSlopeAngle(x, z);
+
+        // Location-specific natural geological palette:
+        if (loc.category === 'FLOODPLAIN_ISLAND') {
+          if (y < 2.4) {
+            col.setRGB(0.24, 0.44, 0.52);
+          } else if (slope < 6) {
+            col.setRGB(0.35, 0.58, 0.28);
+          } else {
+            col.setRGB(0.52, 0.58, 0.42);
+          }
+        } else if (loc.category === 'WESTERN_GHATS') {
+          if (x < -48 || slope > 38) {
+            col.setRGB(0.38, 0.36, 0.32);
+          } else if (y < 4.2) {
+            col.setRGB(0.32, 0.38, 0.38);
+          } else if (slope < 26) {
+            col.setRGB(0.12, 0.52, 0.18);
+          } else {
+            col.setRGB(0.22, 0.44, 0.22);
+          }
+        } else if (loc.category === 'RAINFALL_PLATEAU') {
+          if (slope > 34) {
+            col.setRGB(0.64, 0.45, 0.32);
+          } else if (y < 4.2) {
+            col.setRGB(0.26, 0.32, 0.36);
+          } else {
+            col.setRGB(0.28, 0.46, 0.24);
+          }
+        } else if (loc.category === 'NORTHEAST_RIDGES') {
+          if (slope > 38) {
+            col.setRGB(0.46, 0.42, 0.36);
+          } else if (y > 22) {
+            col.setRGB(0.36, 0.48, 0.28);
+          } else {
+            col.setRGB(0.18, 0.52, 0.20);
+          }
+        } else if (loc.category === 'SIKKIM_HIMALAYAN') {
+          if (y > 34) {
+            col.setRGB(0.85, 0.88, 0.92);
+          } else if (slope > 38) {
+            col.setRGB(0.44, 0.40, 0.36);
+          } else {
+            col.setRGB(0.20, 0.44, 0.22);
+          }
+        } else {
+          if (y > 34) {
+            col.setRGB(0.92, 0.95, 0.98);
+          } else if (slope > 40) {
+            col.setRGB(0.38, 0.42, 0.46);
+          } else if (slope > 28) {
+            col.setRGB(0.48, 0.44, 0.38);
+          } else if (y < 16) {
+            col.setRGB(0.14, 0.40, 0.18);
+          } else {
+            col.setRGB(0.24, 0.46, 0.26);
+          }
+        }
+
+        colorAttr.setXYZ(i, col.r, col.g, col.b);
+      }
+
+      posAttr.needsUpdate = true;
+      colorAttr.needsUpdate = true;
+      this.terrainMesh.geometry.computeVertexNormals();
+    }
+
+    // 4. River System Re-alignment
+    if (this.riverMesh) {
+      const riverPoints = this.getRiverPointsForLocation(loc);
+      const riverCurve = new THREE.CatmullRomCurve3(riverPoints);
+      const radius = loc.category === 'FLOODPLAIN_ISLAND' ? 7.2 : 3.4 * (loc.engineProfile?.riverBedWidth || 1.0);
+      this.riverMesh.geometry.dispose();
+      this.riverMesh.geometry = new THREE.TubeGeometry(riverCurve, 100, radius, 4, false);
+      const rPos = this.riverMesh.geometry.attributes.position;
+      for (let i = 0; i < rPos.count; i++) {
+        rPos.setY(i, rPos.getY(i) * 0.12);
+      }
+      this.riverMesh.geometry.computeVertexNormals();
+
+      // Reposition river water particles
+      if (this.riverWaterParticles) {
+        const pAttr = this.riverWaterParticles.geometry.attributes.position as THREE.BufferAttribute;
+        const count = pAttr.count;
+        for (let f = 0; f < count; f++) {
+          const t = f / count;
+          const pt = riverCurve.getPoint(t);
+          pAttr.setXYZ(f, pt.x + (Math.sin(f * 2.3) - 0.5) * (radius * 0.6), pt.y + 0.15, pt.z);
+        }
+        pAttr.needsUpdate = true;
+      }
+    }
+
+    // 5. Road System Re-alignment
+    if (this.roadGroup) {
+      const roadPoints = this.getRoadPointsForLocation(loc);
+      const roadCurve = new THREE.CatmullRomCurve3(roadPoints);
+      const roadMesh = this.roadGroup.children[0] as THREE.Mesh;
+      if (roadMesh && roadMesh.geometry) {
+        roadMesh.geometry.dispose();
+        roadMesh.geometry = new THREE.TubeGeometry(roadCurve, 100, 1.5, 4, false);
+        const rPos = roadMesh.geometry.attributes.position;
+        for (let i = 0; i < rPos.count; i++) {
+          rPos.setY(i, rPos.getY(i) * 0.14);
+        }
+        roadMesh.geometry.computeVertexNormals();
+      }
+
+      if (this.roadSignPostMesh && this.roadSignBoardMesh && roadPoints.length > 10) {
+        const signRef = roadPoints[Math.floor(roadPoints.length / 4)];
+        this.roadSignPostMesh.position.set(signRef.x + 2.5, signRef.y + 1.2, signRef.z);
+        this.roadSignBoardMesh.position.set(signRef.x + 2.5, signRef.y + 2.2, signRef.z);
+      }
+    }
+
+    // 6. Settlements & Infrastructure
+    this.rebuildSettlementsAndInfrastructure(loc);
+
+    // 7. Forest Vegetation
+    this.updateForestVegetationForLocation(loc);
+
+    // 8. Conformal Risk Overlays
+    this.updateConformalRiskLayersForLocation(loc);
+  }
+
+  public setLocationProfile(profile: {
+    id: string;
+    elevationScale?: number;
+    ruggedness?: number;
+    vegetationTone?: 'dense_emerald' | 'subalpine_fir' | 'tropical_bamboo' | 'riverine_wetland' | 'glacier_ice';
+    cameraPos?: [number, number, number];
+    cameraTarget?: [number, number, number];
+  }): void {
+    const loc = getGeographicLocationById(profile.id);
+    this.loadLocationGeographicTerrain(loc, this.currentDemData);
   }
 
   private updateCameraOrbit(): void {
@@ -1727,8 +2675,8 @@ export class DisasterTwinEngine {
     const el = this.renderer.domElement;
 
     el.addEventListener('mousedown', (e) => {
-      this.isMouseDown = e.button === 0;
-      this.isRightMouseDown = e.button === 2;
+      this.isMouseDown = e.button === 0 && !e.shiftKey;
+      this.isRightMouseDown = e.button === 2 || (e.button === 0 && e.shiftKey) || e.button === 1;
       this.mousePrevPos = { x: e.clientX, y: e.clientY };
     });
 
@@ -1740,12 +2688,12 @@ export class DisasterTwinEngine {
       this.mousePrevPos = { x: e.clientX, y: e.clientY };
 
       if (this.isMouseDown) {
-        this.cameraTheta -= deltaX * 0.006;
-        this.cameraPhi = Math.max(0.15, Math.min(Math.PI / 2.1, this.cameraPhi - deltaY * 0.006));
+        this.cameraTheta -= deltaX * 0.0055;
+        this.cameraPhi = Math.max(0.12, Math.min(Math.PI / 2.05, this.cameraPhi - deltaY * 0.0055));
         this.isCameraTransitioning = false;
         this.updateCameraOrbit();
       } else if (this.isRightMouseDown) {
-        const panSpeed = 0.14;
+        const panSpeed = Math.max(0.05, this.cameraDistance * 0.0016);
         const forward = new THREE.Vector3().subVectors(this.cameraTarget, this.camera.position).setY(0).normalize();
         const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
