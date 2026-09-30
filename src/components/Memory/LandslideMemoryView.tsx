@@ -46,8 +46,10 @@ interface LandslideMemoryViewProps {
   stations: LandslideStation[];
   selectedStation: LandslideStation | null;
   onSelectStation: (station: LandslideStation) => void;
-  onOpenSimulation: () => void;
-  onOpenWhatIf: () => void;
+  onOpenSimulation?: () => void;
+  onOpenWhatIf?: () => void;
+  onOpenSmsModal?: () => void;
+  onOpenSimulator?: () => void;
 }
 
 export const LandslideMemoryView: React.FC<LandslideMemoryViewProps> = ({

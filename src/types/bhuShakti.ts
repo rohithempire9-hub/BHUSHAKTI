@@ -14,6 +14,7 @@ export type SensingNodeMode = 'physical' | 'virtual';
 
 export interface SensingNodeDevice {
   id: string;
+  stationId?: string;
   nodeCode: string;             // e.g. "Node_01_Tawang"
   label: string;                // e.g. "Node_01_Tawang (Virtual AI)"
   locationName: string;         // e.g. "Tawang Sela Pass"

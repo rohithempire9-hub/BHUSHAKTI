@@ -481,6 +481,8 @@ export interface IncidentComparisonReport {
     impactOutcome: string;
   };
   overallSimilarityPct: number; // e.g. 82%
+  similarityScorePct?: number;  // alias for overallSimilarityPct
+  lessonsLearned?: string[];
   keyDivergenceFactor: string;
   concludingAnalogy: string;
 }
@@ -561,6 +563,7 @@ export interface AiCommanderSynthesis {
 export interface SixtySecondBrief {
   briefId: string;
   headline: string;
+  timestamp?: string;
   formattedSpeechText: string;
   bulletPoints: string[];
   recommendedActionDirectives: string[];

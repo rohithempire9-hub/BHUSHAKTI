@@ -182,7 +182,7 @@ export const FloodPageView: React.FC<FloodPageViewProps> = ({
             onSearchChange={() => {}}
             onOpenEvidenceModal={() => {}}
             evidenceList={[]}
-            simulatedRiskLevel="high"
+            simulatedRiskLevel="critical"
           />
         </div>
       </div>

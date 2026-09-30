@@ -1,5 +1,5 @@
 import React from 'react';
-import { LandslideStation } from '../../types/landslide';
+import { LandslideStation, DisasterEvidenceReport } from '../../types/landslide';
 import { SensingNodeDevice, RemoteVillagePin, HighwayRiskSegment, CitizenCrowdsourceReport, BhuLanguage } from '../../types/bhuShakti';
 import { TRANSLATIONS } from '../../utils/translations';
 import { LandslideMap } from '../Map/LandslideMap';
@@ -32,7 +32,7 @@ interface BhuShaktiMainDashboardProps {
   onOpenSmsModal: () => void;
   onOpenEscapeModal: () => void;
   onOpenEvidenceModal: () => void;
-  evidenceList: string[];
+  evidenceList: DisasterEvidenceReport[];
   mapFilterStatus: string;
   setMapFilterStatus: (status: string) => void;
   mapSearchQuery: string;
@@ -86,7 +86,7 @@ export const BhuShaktiMainDashboard: React.FC<BhuShaktiMainDashboardProps> = ({
   const highCount = stations.filter((s) => s.riskAssessment?.status === 'high').length;
   const moderateCount = stations.filter((s) => s.riskAssessment?.status === 'moderate').length;
   const safeCount = stations.filter(
-    (s) => s.riskAssessment?.status === 'safe' || s.riskAssessment?.status === 'low'
+    (s) => s.riskAssessment?.status === 'safe' || (s.riskAssessment?.status as string) === 'low'
   ).length;
 
   return (
@@ -406,7 +406,7 @@ export const BhuShaktiMainDashboard: React.FC<BhuShaktiMainDashboardProps> = ({
                 onSearchChange={setMapSearchQuery}
                 onOpenEvidenceModal={onOpenEvidenceModal}
                 evidenceList={evidenceList}
-                simulatedRiskLevel={simulatedRiskLevel}
+                simulatedRiskLevel={simulatedRiskLevel === 'critical' || simulatedRiskLevel === 'high' ? 'critical' : simulatedRiskLevel === 'warning' ? 'warning' : 'safe'}
                 currentLanguage={currentLanguage}
               />
             </div>

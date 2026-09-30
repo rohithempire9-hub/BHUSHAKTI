@@ -119,6 +119,7 @@ export interface LandslideStation {
   id: string;
   name: string;
   region: string;
+  state?: string;
   country: string;
   latitude: number;
   longitude: number;
@@ -189,6 +190,7 @@ export type DisasterSeverity = 'critical' | 'high' | 'moderate' | 'low';
 export interface DisasterEvidenceReport {
   id: string;
   stationId?: string;             // Associated station or 'unassigned'
+  stationName?: string;
   locationName: string;          // e.g. "Dima Hasao Hill Cut (NH-27)"
   region: string;                // e.g. "Assam, Northeast India"
   latitude: number;
@@ -200,6 +202,7 @@ export interface DisasterEvidenceReport {
   reporterRole: 'Citizen Observer' | 'Field Geologist' | 'Emergency Responder' | 'Village Head' | 'Road Transport Inspector';
   reporterContact?: string;
   userObservations: string;      // User narrative description of what they observed
+  description?: string;          // Alias for userObservations or incident overview
 
   // Photo Evidence
   photoUrl: string;              // Compressed Data URL (base64 image/webp/jpeg)

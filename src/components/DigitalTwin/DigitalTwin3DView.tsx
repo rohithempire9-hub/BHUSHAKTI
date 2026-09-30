@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LandslideStation } from '../../types/landslide';
 import { BhuNavSection } from '../Navigation/BhuShaktiSidebar';
 import { CesiumDigitalTwin } from './CesiumDigitalTwin';
+import { CesiumErrorBoundary } from './CesiumErrorBoundary';
 import { BHUSAKTHI_LOCATIONS, BHUSAKTHI_LOCATIONS_LIST } from '../../data/bhusakthiLocations';
 
 interface DigitalTwin3DViewProps {
@@ -39,12 +40,14 @@ export const DigitalTwin3DView: React.FC<DigitalTwin3DViewProps> = ({
 
   return (
     <div className="viewer-wrapper absolute inset-0 w-full h-full overflow-hidden">
-      <CesiumDigitalTwin
-        selectedLocationId={selectedLocationId}
-        onLocationChange={(locId) => setSelectedLocationId(locId)}
-        onOpenSmsModal={onOpenSmsModal}
-        onOpenEscapeModal={onOpenEscapeModal}
-      />
+      <CesiumErrorBoundary fallbackLocationName={BHUSAKTHI_LOCATIONS[selectedLocationId]?.name}>
+        <CesiumDigitalTwin
+          selectedLocationId={selectedLocationId}
+          onLocationChange={(locId) => setSelectedLocationId(locId)}
+          onOpenSmsModal={onOpenSmsModal}
+          onOpenEscapeModal={onOpenEscapeModal}
+        />
+      </CesiumErrorBoundary>
     </div>
   );
 };

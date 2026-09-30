@@ -510,7 +510,7 @@ export default function App() {
               onOpenSmsModal={() => setSmsModalOpen(true)}
               onOpenEscapeModal={() => setCurrentNavSection('emergency_response')}
               onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
-              evidenceList={evidenceList.map((e) => e.id)}
+              evidenceList={evidenceList}
               mapFilterStatus={mapFilterStatus}
               setMapFilterStatus={setMapFilterStatus}
               mapSearchQuery={globalSearchQuery}
@@ -560,7 +560,7 @@ export default function App() {
                   searchQuery={globalSearchQuery}
                   onSearchChange={setGlobalSearchQuery}
                   onOpenEvidenceModal={() => setEvidenceModalOpen(true)}
-                  evidenceList={evidenceList.map((e) => e.id)}
+                  evidenceList={evidenceList}
                   simulatedRiskLevel={isJudgeEmergency ? 'critical' : simulatedRainfall > 40 ? 'warning' : 'safe'}
                   currentLanguage={currentLanguage}
                 />

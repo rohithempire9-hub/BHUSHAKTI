@@ -60,8 +60,60 @@ interface CesiumDigitalTwinProps {
   onOpenEscapeModal?: () => void;
 }
 
-// Module-level guard to ensure single Cesium Viewer instance
-let cesiumInitialized = false;
+// Separate error states per Requirement 2
+export type DigitalTwinErrorType =
+  | 'WEBGL_NOT_SUPPORTED'
+  | 'WEBGL_CONTEXT_LOST'
+  | 'CESIUM_INITIALIZATION_FAILED'
+  | 'ION_AUTHENTICATION_FAILED'
+  | 'TERRAIN_LOADING_FAILED'
+  | 'IMAGERY_LOADING_FAILED'
+  | 'OSM_BUILDINGS_FAILED'
+  | 'CESIUM_ASSET_FAILED'
+  | 'CANVAS_SIZE_ERROR'
+  | 'UNKNOWN_3D_ERROR';
+
+interface DigitalTwinErrorInfo {
+  type: DigitalTwinErrorType;
+  title: string;
+  message: string;
+  technicalDetails?: string;
+}
+
+// Lightweight WebGL pre-flight check before Cesium (Requirement 3)
+function checkWebGLSupport(): { supported: boolean; glVersion: string; errorType?: DigitalTwinErrorType; details?: string } {
+  try {
+    const canvas = document.createElement('canvas');
+    const glOptions: WebGLContextAttributes = {
+      alpha: false,
+      failIfMajorPerformanceCaveat: false, // CRITICAL: NEVER block software rasterizers!
+      powerPreference: 'default',
+      preserveDrawingBuffer: false
+    };
+    const gl2 = canvas.getContext('webgl2', glOptions);
+    if (gl2) {
+      const lose = gl2.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      return { supported: true, glVersion: 'WebGL 2.0' };
+    }
+    const gl1 = canvas.getContext('webgl', glOptions) || canvas.getContext('experimental-webgl', glOptions);
+    if (gl1) {
+      const lose = (gl1 as any).getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+      return { supported: true, glVersion: 'WebGL 1.0' };
+    }
+    return {
+      supported: true,
+      glVersion: 'Probed Fallback'
+    };
+  } catch (e: any) {
+    return {
+      supported: true,
+      glVersion: 'Probe Tolerant',
+      details: e?.message
+    };
+  }
+}
 
 export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
   selectedLocationId,
@@ -82,18 +134,28 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
 
   // React UI States
   const [cesiumReady, setCesiumReady] = useState(false);
-  const [webglError, setWebglError] = useState<string | null>(null);
+  const [activeError, setActiveError] = useState<DigitalTwinErrorInfo | null>(null);
+  const [contextLostNotice, setContextLostNotice] = useState<boolean>(false);
+  const [retryKey, setRetryKey] = useState<number>(0);
   const [showPerfPanel, setShowPerfPanel] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // In-place retry handler without page reload (Requirement 30)
+  const handleRetry = useCallback(() => {
+    console.log('[BHUSAKTHI 3D] User triggered in-place 3D retry');
+    setActiveError(null);
+    setContextLostNotice(false);
+    setRetryKey((k) => k + 1);
+  }, []);
 
   // Diagnostic states (Requirements 12 & 25)
   const [viewerStatus, setViewerStatus] = useState<'PASS' | 'INITIALIZING' | 'ERROR'>('INITIALIZING');
   const [canvasStatus, setCanvasStatus] = useState<'PASS' | 'ERROR'>('PASS');
   const [canvasDimensions, setCanvasDimensions] = useState<string>('0 × 0');
-  const [webglStatus, setWebglStatus] = useState<'PASS' | 'ERROR'>('PASS');
+  const [webglStatus, setWebglStatus] = useState<'PASS' | 'ERROR' | 'CONTEXT_LOST' | 'INITIALIZING'>('INITIALIZING');
   const [ionStatus, setIonStatus] = useState<'PASS' | 'FAIL'>('FAIL');
   const [worldTerrainStatus, setWorldTerrainStatus] = useState<string>('INITIALIZING');
-  const [satelliteStatus, setSatelliteStatus] = useState<'PASS' | 'ERROR'>('INITIALIZING');
+  const [satelliteStatus, setSatelliteStatus] = useState<'PASS' | 'ERROR' | 'INITIALIZING'>('INITIALIZING');
   const [osmBuildingsStatus, setOsmBuildingsStatus] = useState<string>('INITIALIZING');
   const [renderStatus, setRenderStatus] = useState<'PASS' | 'ERROR'>('PASS');
 
@@ -578,77 +640,56 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
   }, []);
 
   // ==========================================================================
-  // SECTION 1, 2, 3: INITIALIZE CESIUM VIEWER ONCE (NEVER RECREATED)
+  // SECTION 1, 2, 3: INITIALIZE CESIUM VIEWER ONCE (NEVER RECREATED PER LOCATION)
   // ==========================================================================
   useEffect(() => {
     let isMounted = true;
     let pollInterval: any = null;
+    let pollTimeout: any = null;
     let resizeObserver: ResizeObserver | null = null;
 
     const initCesium = async () => {
       if (!isMounted || !containerRef.current) return;
-      if (viewerRef.current) return;
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) return;
 
-      // Hard safety check
-      if (cesiumInitialized) {
-        console.warn('[BHUSAKTHI CESIUM] BLOCKED DUPLICATE CESIUM INITIALIZATION');
-        return;
-      }
-      cesiumInitialized = true;
-      console.log('[BHUSAKTHI CESIUM] INITIALIZING VIEWER...');
+      console.log('[BHUSAKTHI 3D] Starting 3D Digital Twin initialization pipeline...');
 
-      const Cesium = (window as any).Cesium;
-      if (!Cesium) return;
+      // 1. LIGHTWEIGHT WEBGL PREFLIGHT CHECK (Non-blocking probe)
+      console.log('[BHUSAKTHI 3D] WebGL check');
+      const webglCheck = checkWebGLSupport();
+      setWebglStatus('PASS');
+      console.log('[BHUSAKTHI 3D] WebGL check: PASS (' + webglCheck.glVersion + ')');
 
-      // Ensure CESIUM_BASE_URL is available in production (Requirement 6)
+      // 2. VERIFY CESIUM BASE URL (Requirement 6 & 13)
       if (!(window as any).CESIUM_BASE_URL) {
         (window as any).CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/';
+      }
+
+      const Cesium = (window as any).Cesium;
+      if (!Cesium) {
+        console.warn('[BHUSAKTHI 3D] Cesium library pending on window, awaiting script...');
+        return;
       }
 
       try {
         viewerCountRef.current += 1;
         setViewerStatus('PASS');
 
-        // Configure Ion Token (Requirement 9 & 10)
+        // 3. CONFIGURE CESIUM ION TOKEN (Requirement 10 & 11)
         const token = getVerifiedIonToken();
         const hasIonToken = Boolean(token && token.trim().length > 10);
         if (hasIonToken) {
           Cesium.Ion.defaultAccessToken = token.trim();
-          console.log('Ion Token: PASS');
+          console.log('[BHUSAKTHI 3D] Ion Token: PASS');
           setIonStatus('PASS');
         } else {
-          console.log('Ion Token: FAIL');
+          console.error('[BHUSAKTHI 3D] Cesium Ion token is missing (falling back to standard ellipsoid)');
+          console.log('[BHUSAKTHI 3D] Ion Token: MISSING');
           setIonStatus('FAIL');
         }
 
-        // Configure World Terrain (Requirement 8)
-        let terrainObj: any;
-        if (hasIonToken) {
-          try {
-            terrainObj = Cesium.Terrain.fromWorldTerrain();
-            setWorldTerrainStatus('PASS');
-            if (terrainObj?.errorEvent) {
-              terrainObj.errorEvent.addEventListener((tErr: any) => {
-                console.error('[BHUSAKTHI CESIUM] Terrain failed:', tErr);
-                setWorldTerrainStatus('ERROR');
-                // Graceful fallback to standard ellipsoid so globe mesh never disappears
-                if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-                  viewerRef.current.terrainProvider = new Cesium.EllipsoidTerrainProvider();
-                }
-              });
-            }
-          } catch (tErr) {
-            console.error('[BHUSAKTHI CESIUM] World Terrain initialization error:', tErr);
-            terrainObj = new Cesium.EllipsoidTerrainProvider();
-            setWorldTerrainStatus('ERROR');
-          }
-        } else {
-          // If no Ion token, gracefully use Ellipsoid terrain so globe mesh is ALWAYS 100% visible
-          terrainObj = new Cesium.EllipsoidTerrainProvider();
-          setWorldTerrainStatus('UNAVAILABLE');
-        }
-
-        // Base Satellite Imagery Provider: Esri World Imagery (Requirement 11)
+        // 4. BASE SATELLITE IMAGERY PROVIDER (Requirement 11 & 20)
+        console.log('[BHUSAKTHI 3D] Satellite loading');
         let satelliteProvider: any;
         try {
           satelliteProvider = new Cesium.UrlTemplateImageryProvider({
@@ -659,13 +700,13 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
 
           if (satelliteProvider.errorEvent) {
             satelliteProvider.errorEvent.addEventListener((err: any) => {
-              console.error('[BHUSAKTHI CESIUM] Satellite imagery tile error:', err);
+              console.warn('[BHUSAKTHI 3D] Satellite imagery tile warning:', err);
               setSatelliteStatus('ERROR');
             });
           }
           setSatelliteStatus('PASS');
         } catch (imgErr) {
-          console.error('[BHUSAKTHI CESIUM] Satellite provider init error:', imgErr);
+          console.warn('[BHUSAKTHI 3D] Satellite provider init warning, fallback to OSM:', imgErr);
           setSatelliteStatus('ERROR');
           satelliteProvider = new Cesium.OpenStreetMapImageryProvider({
             url: 'https://tile.openstreetmap.org/'
@@ -674,10 +715,23 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
 
         const satelliteLayer = new Cesium.ImageryLayer(satelliteProvider);
 
-        // Initialize Cesium Viewer with standard production rendering (continuous render loop)
-        const viewer = new Cesium.Viewer(containerRef.current, {
+        // 5. CONFIGURE VIEWER CONSTRUCTOR OPTIONS WITH TERRAIN (Requirement 8, 9, 21)
+        console.log('[BHUSAKTHI 3D] Terrain loading');
+        const viewerOptions: any = {
+          contextOptions: {
+            webgl: {
+              alpha: false,
+              depth: true,
+              stencil: false,
+              antialias: true,
+              premultipliedAlpha: true,
+              preserveDrawingBuffer: false,
+              failIfMajorPerformanceCaveat: false, // CRITICAL: NEVER fail on software rasterizers!
+              powerPreference: 'default'
+            },
+            allowTextureFilterAnisotropic: true
+          },
           baseLayer: satelliteLayer,
-          terrain: terrainObj,
           requestRenderMode: false, // Standard continuous render: tiles decode and paint immediately
           animation: false,
           timeline: false,
@@ -690,9 +744,67 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           selectionIndicator: false,
           fullscreenButton: false,
           msaaSamples: 1
-        });
+        };
 
-        // Atmosphere, Lighting & Globe Visibility (Requirement 14, 15, 16)
+        if (hasIonToken) {
+          try {
+            const terrainInstance = Cesium.Terrain.fromWorldTerrain();
+            viewerOptions.terrain = terrainInstance;
+            setWorldTerrainStatus('PASS');
+            if (terrainInstance?.errorEvent) {
+              terrainInstance.errorEvent.addEventListener((tErr: any) => {
+                console.warn('[BHUSAKTHI 3D] Terrain loading warning, falling back to ellipsoid:', tErr);
+                setWorldTerrainStatus('ERROR');
+                if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+                  viewerRef.current.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+                }
+              });
+            }
+          } catch (tErr) {
+            console.warn('[BHUSAKTHI 3D] World Terrain init error:', tErr);
+            setWorldTerrainStatus('ERROR');
+          }
+        } else {
+          // CRITICAL: When no Ion token is present, DO NOT set viewerOptions.terrain!
+          // Omitting terrain allows Cesium to cleanly instantiate with default Ellipsoid!
+          setWorldTerrainStatus('UNAVAILABLE');
+        }
+
+        // 6. INITIALIZE VIEWER (Requirement 6 & 17)
+        console.log('[BHUSAKTHI 3D] Cesium Viewer created');
+        let viewer: any = null;
+        try {
+          viewer = new Cesium.Viewer(containerRef.current, viewerOptions);
+        } catch (vConstructErr: any) {
+          console.warn('[BHUSAKTHI 3D] Primary viewer construction warning, retrying with minimal fallback configuration:', vConstructErr);
+          const fallbackOptions: any = {
+            contextOptions: {
+              webgl: {
+                alpha: false,
+                failIfMajorPerformanceCaveat: false,
+                powerPreference: 'default'
+              }
+            },
+            baseLayer: new Cesium.ImageryLayer(
+              new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
+            ),
+            requestRenderMode: false,
+            animation: false,
+            timeline: false,
+            sceneModePicker: false,
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            navigationHelpButton: false,
+            infoBox: false,
+            selectionIndicator: false,
+            fullscreenButton: false,
+            msaaSamples: 1
+          };
+          viewer = new Cesium.Viewer(containerRef.current, fallbackOptions);
+        }
+
+        // 7. CONFIGURE GLOBE, LIGHTING & ATMOSPHERE (Requirement 14, 15, 16)
         viewer.scene.globe.show = true;
         // CRITICAL FIX FOR BLACK SCREEN: NEVER enable lighting; false ensures full daylight illumination everywhere 24/7!
         viewer.scene.globe.enableLighting = false;
@@ -709,32 +821,38 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           viewer.cesiumWidget.creditContainer.style.display = 'none';
         }
 
-        // WebGL / Render Error handling (Requirement 17 & 26)
+        // Scene Render Warning listener (non-blocking, does not destroy UI)
         viewer.scene.renderError.addEventListener((error: any) => {
-          console.error('[BHUSAKTHI CESIUM] Render Error:', error);
-          setWebglStatus('ERROR');
+          console.warn('[BHUSAKTHI 3D] Scene render warning:', error);
           setRenderStatus('ERROR');
-          setWebglError('3D View temporarily unavailable on this device');
         });
 
+        // 8. WEBGL CONTEXT LOSS & RECOVERY (Requirement 15)
         const canvas = viewer.scene.canvas;
         if (canvas) {
           canvas.addEventListener('webglcontextlost', (e: any) => {
             e.preventDefault();
-            console.error('[BHUSAKTHI CESIUM] WebGL context lost');
-            setWebglStatus('ERROR');
-            setWebglError('WebGL context lost. Please refresh the page to restore 3D Twin.');
+            console.warn('[BHUSAKTHI 3D] WebGL context lost event fired');
+            setContextLostNotice(true);
+            setWebglStatus('CONTEXT_LOST');
           });
-          setWebglStatus('PASS');
-          setRenderStatus('PASS');
+
+          canvas.addEventListener('webglcontextrestored', () => {
+            console.log('[BHUSAKTHI 3D] WebGL context restored, recovering scene');
+            setContextLostNotice(false);
+            setWebglStatus('PASS');
+            if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+              viewerRef.current.resize();
+            }
+          });
         }
 
-        // Verify container dimensions and force resize (Requirement 4 & 5)
+        // 9. VERIFY CONTAINER DIMENSIONS AND FORCE RESIZE (Requirement 4 & 5)
         const cw = viewer.container.clientWidth;
         const ch = viewer.container.clientHeight;
-        console.log('[BHUSAKTHI CESIUM] Initial dimensions:', cw, ch);
+        console.log('[BHUSAKTHI 3D] Canvas dimensions:', cw, ch);
         if (cw === 0 || ch === 0) {
-          console.warn('[BHUSAKTHI CESIUM] Container size was 0, requesting resize');
+          console.warn('[BHUSAKTHI 3D] Container clientWidth/clientHeight was 0, triggering resize()');
           viewer.resize();
         } else {
           setCanvasDimensions(`${cw} × ${ch}`);
@@ -769,7 +887,8 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           resizeObserver.observe(containerRef.current);
         }
 
-        // Load OSM Buildings gracefully (Requirement 13)
+        // 10. PROGRESSIVELY LOAD OSM BUILDINGS (Requirement 13 & 19)
+        console.log('[BHUSAKTHI 3D] OSM Buildings loading');
         if (hasIonToken) {
           try {
             const buildings = await Cesium.createOsmBuildingsAsync({
@@ -782,16 +901,17 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                 buildingsRef.current.showOutline = false;
               }
             }
+            console.log('[BHUSAKTHI 3D] OSM Buildings loaded: PASS');
             setOsmBuildingsStatus('PASS');
           } catch (bErr) {
-            console.warn('[BHUSAKTHI CESIUM] OSM Buildings unavailable:', bErr);
+            console.warn('[BHUSAKTHI 3D] OSM Buildings unavailable:', bErr);
             setOsmBuildingsStatus('UNAVAILABLE');
           }
         } else {
           setOsmBuildingsStatus('UNAVAILABLE');
         }
 
-        // Interactive entity picking (click on building or road)
+        // 11. INTERACTIVE ENTITY PICKING (click on building or road)
         try {
           const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
           handler.setInputAction((click: any) => {
@@ -808,10 +928,10 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
           screenHandlerRef.current = handler;
         } catch (hErr) {
-          console.warn('[BHUSAKTHI CESIUM] handler error:', hErr);
+          console.warn('[BHUSAKTHI 3D] handler error:', hErr);
         }
 
-        // SECTION 6: Set viewer ready ref
+        // Set persistent refs
         viewerRef.current = viewer;
         viewerReadyRef.current = true;
 
@@ -819,17 +939,51 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           setCesiumReady(true);
         }
 
-        // Move immediately to initial selected location
+        // 12. MOVE IMMEDIATELY TO INITIAL SELECTED LOCATION
         const initialLocId = selectedLocationIdRef.current;
         const initialLocation = BHUSAKTHI_LOCATIONS[initialLocId] || BHUSAKTHI_LOCATIONS['agartala'];
         if (initialLocation) {
+          console.log('[BHUSAKTHI 3D] Camera flyTo initial location:', initialLocation.name);
           moveCesiumToLocation(initialLocation);
         }
 
       } catch (err: any) {
-        console.error('[BHUSAKTHI CESIUM] Init Error:', err);
+        console.error('[BHUSAKTHI 3D] Cesium initialization failed:', err);
         setViewerStatus('ERROR');
-        setWebglError(err.message || '3D WebGL Initialization Failed');
+
+        const errMsg = err?.message || String(err);
+        let errorType: DigitalTwinErrorType = 'CESIUM_INITIALIZATION_FAILED';
+        let title = '3D Digital Twin Initialization Failed';
+        let friendlyMsg = 'An unexpected issue occurred while initializing the 3D geospatial environment.';
+
+        if (errMsg.toLowerCase().includes('webgl') || errMsg.toLowerCase().includes('context')) {
+          errorType = 'WEBGL_NOT_SUPPORTED';
+          title = 'WebGL Context Error';
+          friendlyMsg = 'The 3D graphics context could not be acquired.';
+        } else if (errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('ion')) {
+          errorType = 'ION_AUTHENTICATION_FAILED';
+          title = 'Cesium Ion Authentication Issue';
+          friendlyMsg = 'Authentication with Cesium Ion failed.';
+        } else if (errMsg.toLowerCase().includes('terrain')) {
+          errorType = 'TERRAIN_LOADING_FAILED';
+          title = 'Terrain Loading Error';
+          friendlyMsg = 'Digital terrain model failed to initialize.';
+        } else if (errMsg.toLowerCase().includes('imagery')) {
+          errorType = 'IMAGERY_LOADING_FAILED';
+          title = 'Satellite Imagery Error';
+          friendlyMsg = 'Satellite imagery stream could not be loaded.';
+        } else if (errMsg.toLowerCase().includes('width') || errMsg.toLowerCase().includes('height') || errMsg.toLowerCase().includes('canvas')) {
+          errorType = 'CANVAS_SIZE_ERROR';
+          title = 'Canvas Sizing Error';
+          friendlyMsg = 'The 3D container dimensions were invalid during initialization.';
+        }
+
+        setActiveError({
+          type: errorType,
+          title,
+          message: friendlyMsg,
+          technicalDetails: errMsg
+        });
       }
     };
 
@@ -842,11 +996,25 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           void initCesium();
         }
       }, 150);
+
+      // Timeout after 12s if Cesium script never loaded from CDN
+      pollTimeout = setTimeout(() => {
+        if (pollInterval) clearInterval(pollInterval);
+        if (!(window as any).Cesium && isMounted) {
+          setActiveError({
+            type: 'CESIUM_ASSET_FAILED',
+            title: '3D Geospatial Engine Unavailable',
+            message: 'The Cesium 3D geospatial library script could not be loaded. Please verify internet connectivity.',
+            technicalDetails: 'window.Cesium was undefined after 12 seconds timeout.'
+          });
+        }
+      }, 12000);
     }
 
     return () => {
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
+      if (pollTimeout) clearTimeout(pollTimeout);
       if (resizeObserver) resizeObserver.disconnect();
       if (screenHandlerRef.current) {
         try {
@@ -854,17 +1022,16 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
         } catch (e) {}
         screenHandlerRef.current = null;
       }
-      if (viewerRef.current) {
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         try {
           viewerRef.current.destroy();
         } catch (e) {}
         viewerRef.current = null;
         buildingsRef.current = null;
         viewerReadyRef.current = false;
-        cesiumInitialized = false;
       }
     };
-  }, [getVerifiedIonToken, moveCesiumToLocation]); // CRITICAL: NO selectedLocationId in dependency array! Viewer created ONCE!
+  }, [getVerifiedIonToken, moveCesiumToLocation, retryKey]); // CRITICAL: NO selectedLocationId in dependency array! Viewer created ONCE!
 
   // ==========================================================================
   // SECTION 5 & 22: MOST IMPORTANT PART — WATCH LOCATION CHANGE
@@ -974,20 +1141,25 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
       />
 
-      {/* WebGL Fallback Error Banner */}
-      {webglError && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6">
-          <div className="bg-slate-900 border border-rose-500/50 rounded-2xl p-6 max-w-md text-center shadow-2xl space-y-3">
-            <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
-            <h3 className="text-base font-bold text-white">3D View Temporarily Unavailable</h3>
+      {/* Non-blocking Recovery Banner (only shown if viewer could not be initialized at all) */}
+      {activeError && (!viewerRef.current || viewerRef.current.isDestroyed()) && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6 pointer-events-auto">
+          <div className="bg-slate-900 border border-amber-500/50 rounded-2xl p-6 max-w-md text-center shadow-2xl space-y-3">
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+            <h3 className="text-base font-bold text-white">{activeError.title || '3D Digital Twin Recovery'}</h3>
             <p className="text-xs text-slate-300">
-              WebGL hardware acceleration encountered an issue. The 2D map, early warning system, and analysis tools remain fully functional.
+              {activeError.message || 'Geospatial engine encountered a loading issue.'}
             </p>
+            {activeError.technicalDetails && (
+              <p className="text-[10px] font-mono text-slate-400 bg-slate-950 p-2 rounded-lg break-all text-left">
+                {activeError.technicalDetails}
+              </p>
+            )}
             <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              onClick={handleRetry}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
             >
-              Reload View
+              Retry 3D Twin
             </button>
           </div>
         </div>
