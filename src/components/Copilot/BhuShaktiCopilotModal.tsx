@@ -469,41 +469,43 @@ I support 11 languages. You can speak to me with voice or change your language a
     COPILOT_LANGUAGES.find((l) => l.code === selectedLanguage) || COPILOT_LANGUAGES[0];
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] w-[450px] max-w-[calc(100vw-2rem)] h-[720px] max-h-[calc(100vh-4rem)] rounded-2xl bg-white border border-slate-200/90 shadow-2xl flex flex-col overflow-hidden select-none font-sans animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div className="fixed bottom-6 right-6 z-[9999] w-[450px] max-w-[calc(100vw-2rem)] h-[720px] max-h-[calc(100vh-4rem)] rounded-2xl bg-sky-50 border-2 border-sky-300 shadow-2xl shadow-sky-900/25 flex flex-col overflow-hidden select-none font-sans animate-in fade-in slide-in-from-bottom-4 duration-200">
       {/* ==================================================================== */}
       {/* 1. TOP HEADER (Requirement 7: [ ROBOT AVATAR ] BHUSAKTHI COPILOT)    */}
       {/* ==================================================================== */}
-      <div className="p-3 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white flex items-center justify-between shadow-md">
+      <div className="p-3 bg-gradient-to-r from-sky-500 via-sky-600 to-cyan-600 text-white flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <BhusakthiBotAvatar
-            size={48}
-            state={isLoading ? 'thinking' : speakingMessageId ? 'speaking' : 'idle'}
-            status={copilotStatus}
-            showStatusIndicator={true}
-            voiceActive={Boolean(speakingMessageId)}
-          />
+          <div className="p-1 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center shadow-inner">
+            <BhusakthiBotAvatar
+              size={48}
+              state={isLoading ? 'thinking' : speakingMessageId ? 'speaking' : 'idle'}
+              status={copilotStatus}
+              showStatusIndicator={true}
+              voiceActive={Boolean(speakingMessageId)}
+            />
+          </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-black tracking-wider uppercase text-white font-sans">
+              <h2 className="text-xs font-black tracking-wider uppercase text-white font-sans drop-shadow-xs">
                 BHUSAKTHI COPILOT
               </h2>
               {/* Online Status Indicator */}
               <div
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold ${
                   copilotStatus === 'online'
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                    ? 'bg-emerald-500/25 text-emerald-100 border border-emerald-300/40'
                     : copilotStatus === 'processing'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
-                    : 'bg-rose-500/20 text-rose-300 border border-rose-400/30'
+                    ? 'bg-amber-500/25 text-amber-100 border border-amber-300/40'
+                    : 'bg-rose-500/25 text-rose-100 border border-rose-300/40'
                 }`}
               >
                 <div
                   className={`w-1.5 h-1.5 rounded-full ${
                     copilotStatus === 'online'
-                      ? 'bg-emerald-400 animate-pulse'
+                      ? 'bg-emerald-300 animate-pulse'
                       : copilotStatus === 'processing'
-                      ? 'bg-amber-400 animate-spin'
-                      : 'bg-rose-400'
+                      ? 'bg-amber-300 animate-spin'
+                      : 'bg-rose-300'
                   }`}
                 />
                 <span>
@@ -515,7 +517,7 @@ I support 11 languages. You can speak to me with voice or change your language a
                 </span>
               </div>
             </div>
-            <p className="text-[10px] text-blue-100 font-medium">
+            <p className="text-[10px] text-sky-100 font-medium">
               AI Disaster Intelligence Assistant
             </p>
           </div>
@@ -524,7 +526,7 @@ I support 11 languages. You can speak to me with voice or change your language a
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+          className="w-7 h-7 rounded-lg bg-white/15 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
           title="Close Copilot"
         >
           <X className="w-4 h-4" />
@@ -534,14 +536,14 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 2. SUB-HEADER: LOCATION & LANGUAGE SELECTOR BAR                      */}
       {/* ==================================================================== */}
-      <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+      <div className="px-3 py-2 bg-sky-100/80 border-b border-sky-200/90 flex items-center justify-between text-xs">
         {/* Active Location Display */}
         <div className="flex items-center gap-1.5 min-w-0">
           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-          <span className="text-[11px] font-bold text-slate-800 truncate">
+          <span className="text-[11px] font-bold text-sky-950 truncate">
             {activeLocationName}, {activeLocationState}
           </span>
-          <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 font-mono font-bold">
+          <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-200 text-sky-800 font-mono font-bold border border-sky-300/60">
             SYNCED
           </span>
         </div>
@@ -550,26 +552,26 @@ I support 11 languages. You can speak to me with voice or change your language a
         <div className="relative">
           <button
             onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-slate-300 hover:border-blue-500 text-slate-700 text-[11px] font-bold shadow-2xs cursor-pointer transition-all"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-sky-300 hover:border-sky-500 text-sky-900 text-[11px] font-bold shadow-2xs cursor-pointer transition-all"
             title="Change Preferred Language"
           >
-            <Globe className="w-3.5 h-3.5 text-blue-600" />
+            <Globe className="w-3.5 h-3.5 text-sky-600" />
             <span>{currentLangMeta.nativeName}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+            <ChevronDown className="w-3 h-3 text-sky-500" />
           </button>
 
           {languageMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-44 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs">
-              <div className="px-2.5 py-1 text-[10px] font-mono text-slate-400 font-bold uppercase border-b border-slate-100">
+            <div className="absolute right-0 top-full mt-1 w-44 max-h-60 overflow-y-auto bg-white border border-sky-200 rounded-xl shadow-xl z-50 py-1 text-xs">
+              <div className="px-2.5 py-1 text-[10px] font-mono text-sky-600 font-bold uppercase border-b border-sky-100">
                 SELECT LANGUAGE
               </div>
               {COPILOT_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
                   onClick={() => handleLanguageChange(lang.code)}
-                  className={`w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between hover:bg-blue-50 transition-colors cursor-pointer ${
+                  className={`w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between hover:bg-sky-50 transition-colors cursor-pointer ${
                     selectedLanguage === lang.code
-                      ? 'bg-blue-50/80 font-bold text-blue-700'
+                      ? 'bg-sky-100/90 font-bold text-sky-800'
                       : 'text-slate-700'
                   }`}
                 >
@@ -585,8 +587,8 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 3. QUICK SUGGESTION CHIPS                                            */}
       {/* ==================================================================== */}
-      <div className="p-2 bg-slate-100/70 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto select-none no-scrollbar">
-        <span className="text-[10px] font-mono font-bold text-slate-400 shrink-0 uppercase pl-1">
+      <div className="p-2 bg-sky-100/60 border-b border-sky-200/80 flex items-center gap-1.5 overflow-x-auto select-none no-scrollbar">
+        <span className="text-[10px] font-mono font-bold text-sky-700 shrink-0 uppercase pl-1">
           SUGGESTED:
         </span>
         {currentPrompts.map((q, i) => (
@@ -594,7 +596,7 @@ I support 11 languages. You can speak to me with voice or change your language a
             key={i}
             onClick={() => handleSend(q)}
             disabled={isLoading}
-            className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-[11px] font-medium border border-slate-200 whitespace-nowrap cursor-pointer transition-all shadow-2xs disabled:opacity-50"
+            className="px-2.5 py-1 rounded-lg bg-white hover:bg-sky-50 text-sky-900 hover:text-sky-700 text-[11px] font-medium border border-sky-200 whitespace-nowrap cursor-pointer transition-all shadow-2xs disabled:opacity-50"
           >
             {q}
           </button>
@@ -614,7 +616,7 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 4. SCROLLABLE CHAT MESSAGES                                          */}
       {/* ==================================================================== */}
-      <div className="flex-1 p-3.5 overflow-y-auto space-y-3.5 bg-slate-50/60 text-xs">
+      <div className="flex-1 p-3.5 overflow-y-auto space-y-3.5 bg-gradient-to-b from-sky-50 via-sky-100/35 to-sky-50 text-xs">
         {messages.map((m, idx) => {
           const isUser = m.sender === 'user';
 
@@ -639,20 +641,20 @@ I support 11 languages. You can speak to me with voice or change your language a
               <div
                 className={`max-w-[85%] rounded-2xl p-3.5 space-y-2.5 shadow-sm ${
                   isUser
-                    ? 'bg-blue-600 text-white rounded-tr-none'
-                    : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
+                    ? 'bg-sky-500 hover:bg-sky-600 text-white rounded-tr-none'
+                    : 'bg-white border border-sky-200/90 text-slate-800 rounded-tl-none'
                 }`}
               >
                 {/* Status / Truth Header Badge for Copilot */}
                 {!isUser && m.sourceStatus && (
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <div className="flex items-center justify-between pb-1 border-b border-sky-100">
                     <span
                       className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
                         m.sourceStatus === 'REAL DATA'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : m.sourceStatus === 'SIMULATION'
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-sky-50 text-sky-700 border-sky-200'
                       }`}
                     >
                       {m.sourceStatus}
@@ -663,13 +665,13 @@ I support 11 languages. You can speak to me with voice or change your language a
                       onClick={() => handleToggleSpeech(m)}
                       className={`p-1 rounded-md transition-colors cursor-pointer ${
                         speakingMessageId === m.id
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-slate-400 hover:text-slate-700'
+                          ? 'bg-sky-100 text-sky-700'
+                          : 'text-slate-400 hover:text-sky-700'
                       }`}
                       title={speakingMessageId === m.id ? 'Stop Reading' : 'Read Aloud'}
                     >
                       {speakingMessageId === m.id ? (
-                        <VolumeX className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+                        <VolumeX className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
                       ) : (
                         <Volume2 className="w-3.5 h-3.5" />
                       )}
@@ -684,12 +686,12 @@ I support 11 languages. You can speak to me with voice or change your language a
 
                 {/* Action Buttons if returned by AI */}
                 {!isUser && m.actions && m.actions.length > 0 && (
-                  <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+                  <div className="pt-2 border-t border-sky-100 flex flex-wrap gap-1.5">
                     {m.actions.map((act, aIdx) => (
                       <button
                         key={aIdx}
                         onClick={() => executeCopilotAction(act)}
-                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                       >
                         {act.type === 'CHANGE_LOCATION' && <MapPin className="w-3 h-3" />}
                         {act.type === 'START_SIMULATION' && <Zap className="w-3 h-3" />}
@@ -703,12 +705,12 @@ I support 11 languages. You can speak to me with voice or change your language a
 
                 {/* Sources Footer */}
                 {!isUser && m.sources && m.sources.length > 0 && (
-                  <div className="pt-1.5 border-t border-slate-100 flex flex-wrap items-center gap-1 text-[9px] text-slate-400 font-mono">
-                    <span className="text-slate-500 font-bold">Verified Sources:</span>
+                  <div className="pt-1.5 border-t border-sky-100 flex flex-wrap items-center gap-1 text-[9px] text-slate-400 font-mono">
+                    <span className="text-sky-800 font-bold">Verified Sources:</span>
                     {m.sources.map((s, i) => (
                       <span
                         key={i}
-                        className="px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200"
+                        className="px-1 py-0.2 rounded bg-sky-50 text-sky-700 border border-sky-200"
                       >
                         {s}
                       </span>
@@ -719,7 +721,7 @@ I support 11 languages. You can speak to me with voice or change your language a
                 {/* Timestamp */}
                 <div
                   className={`text-[9px] text-right font-mono ${
-                    isUser ? 'text-blue-200' : 'text-slate-400'
+                    isUser ? 'text-sky-100' : 'text-slate-400'
                   }`}
                 >
                   {m.timestamp}
@@ -728,7 +730,7 @@ I support 11 languages. You can speak to me with voice or change your language a
 
               {/* User Avatar */}
               {isUser && (
-                <div className="w-7 h-7 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-xl bg-sky-200 text-sky-800 flex items-center justify-center shrink-0 mt-0.5 border border-sky-300">
                   <User className="w-4 h-4" />
                 </div>
               )}
@@ -744,12 +746,12 @@ I support 11 languages. You can speak to me with voice or change your language a
               state="thinking"
               className="shrink-0 mt-0.5"
             />
-            <div className="bg-white border border-sky-200/90 rounded-2xl rounded-tl-none p-3 shadow-sm space-y-1.5 max-w-[85%]">
+            <div className="bg-white border border-sky-300 rounded-2xl rounded-tl-none p-3 shadow-xs space-y-1.5 max-w-[85%]">
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-[11px] text-slate-800 font-sans tracking-wide">
                   BHUSAKTHI AI
                 </span>
-                <span className="text-[9px] font-mono text-sky-600 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-100 font-bold">
+                <span className="text-[9px] font-mono text-sky-600 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200 font-bold">
                   {currentLangMeta.nativeName}
                 </span>
               </div>
@@ -772,7 +774,7 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 5. INPUT & ACTIONS CONTROLS BAR                                      */}
       {/* ==================================================================== */}
-      <div className="p-3 bg-white border-t border-slate-200 space-y-2">
+      <div className="p-3 bg-sky-50/95 border-t border-sky-200 space-y-2">
         {/* Input Form */}
         <form
           onSubmit={(e) => {
@@ -787,13 +789,13 @@ I support 11 languages. You can speak to me with voice or change your language a
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
             placeholder={`Ask in ${currentLangMeta.nativeName} or English...`}
-            className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 placeholder-slate-400 outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+            className="flex-1 px-3.5 py-2 rounded-xl bg-white border border-sky-300 text-xs text-slate-900 placeholder-sky-400 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all font-sans shadow-2xs"
           />
 
           <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Send</span>
@@ -801,7 +803,7 @@ I support 11 languages. You can speak to me with voice or change your language a
         </form>
 
         {/* Bottom Toolbar: Voice Input, Language, Clear Chat */}
-        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100">
+        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-sky-200/60">
           <div className="flex items-center gap-2">
             {/* Voice Input Button */}
             <button
@@ -809,7 +811,7 @@ I support 11 languages. You can speak to me with voice or change your language a
               className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 isRecordingVoice
                   ? 'bg-rose-500 text-white animate-pulse shadow-xs'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  : 'bg-white hover:bg-sky-100 text-sky-800 border border-sky-200 shadow-2xs'
               }`}
               title="Voice Input (Speech-to-Text)"
             >
@@ -820,7 +822,7 @@ I support 11 languages. You can speak to me with voice or change your language a
                 </>
               ) : (
                 <>
-                  <Mic className="w-3.5 h-3.5 text-blue-600" />
+                  <Mic className="w-3.5 h-3.5 text-sky-600" />
                   <span className="text-[10px]">Voice</span>
                 </>
               )}
@@ -829,10 +831,10 @@ I support 11 languages. You can speak to me with voice or change your language a
             {/* Quick Language Toggle */}
             <button
               onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
-              className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              className="px-2 py-1 rounded-lg bg-white hover:bg-sky-100 text-sky-800 border border-sky-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
               title="Language"
             >
-              <Globe className="w-3 h-3 text-slate-500" />
+              <Globe className="w-3 h-3 text-sky-600" />
               <span>{currentLangMeta.code.toUpperCase()}</span>
             </button>
           </div>
@@ -840,7 +842,7 @@ I support 11 languages. You can speak to me with voice or change your language a
           {/* Clear Chat Button */}
           <button
             onClick={handleClearChat}
-            className="text-[10px] font-mono text-slate-400 hover:text-rose-600 flex items-center gap-1 p-1 rounded hover:bg-slate-50 cursor-pointer transition-colors"
+            className="text-[10px] font-mono text-sky-600/70 hover:text-rose-600 flex items-center gap-1 p-1 rounded hover:bg-sky-100/60 cursor-pointer transition-colors"
             title="Clear Chat History"
           >
             <Trash2 className="w-3 h-3" />

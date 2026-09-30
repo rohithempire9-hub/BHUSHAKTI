@@ -912,12 +912,12 @@ export default function App() {
         }}
         aria-label="Open BHUSAKTHI AI Copilot"
         title="Ask BHUSAKTHI AI"
-        className={`fixed bottom-6 right-6 z-40 group px-3 py-2.5 rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-2xl hover:shadow-sky-500/25 flex flex-col items-center justify-center transition-all duration-300 transform cursor-pointer select-none hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-6 right-6 z-40 group px-3.5 py-2.5 rounded-3xl bg-gradient-to-b from-sky-100 via-sky-200/90 to-sky-100/95 backdrop-blur-md border-2 border-sky-400 shadow-2xl hover:shadow-sky-400/40 flex flex-col items-center justify-center transition-all duration-300 transform cursor-pointer select-none hover:scale-105 active:scale-95 ${
           copilotBounce ? 'animate-bot-bounce' : ''
         } ${
           copilotModalOpen
-            ? 'ring-2 ring-sky-500/60 bg-sky-50/95 border-sky-300 shadow-sky-500/20'
-            : 'hover:border-sky-300 hover:bg-slate-50/95'
+            ? 'ring-4 ring-sky-400/60 bg-sky-200 border-sky-500 shadow-sky-500/30'
+            : 'hover:border-sky-500 hover:bg-sky-200/80'
         }`}
       >
         <div className="relative flex items-center justify-center">
@@ -931,10 +931,10 @@ export default function App() {
         </div>
 
         <div className="flex flex-col items-center mt-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 font-sans leading-tight">
+          <span className="text-[10px] font-black uppercase tracking-wider text-sky-950 font-sans leading-tight">
             BHUSAKTHI
           </span>
-          <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 font-mono leading-none">
+          <span className="text-[9px] font-black uppercase tracking-wider text-sky-700 font-mono leading-none">
             COPILOT
           </span>
         </div>
