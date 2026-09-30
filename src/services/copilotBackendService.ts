@@ -2000,9 +2000,9 @@ export async function processCopilotQuery(req: CopilotApiRequest): Promise<Copil
 
     case 'HISTORICAL_EVENT': {
       toolName = 'getHistoricalEvents';
-      const disasters = station?.disasters || [];
+      const disasters = (station as any)?.disasters || [];
       const dCount = disasters.length;
-      const dList = disasters.slice(0, 3).map((d) => `• ${d.eventTitle} (${d.incidentDate}): ${d.description}`).join('\n');
+      const dList = disasters.slice(0, 3).map((d: any) => `• ${d.eventTitle} (${d.incidentDate}): ${d.description}`).join('\n');
       toolResult = {
         answer: effectiveLang === 'te'
           ? `చారిత్రక విపత్తు రికార్డులు (${loc.name}):\nఈ ప్రాంతంలో గతంలో ${dCount} సంఘటనలు నమోదయ్యాయి.\n${dList || 'నమోదైన గత సంఘటనలు స్థిరంగా సమీక్షించబడుతున్నాయి.'}`

@@ -1,4 +1,5 @@
 import React from 'react';
+import { BhusakthiBotAvatar } from '../Copilot/BhusakthiBotAvatar';
 import {
   Sparkles,
   Flame,
@@ -137,8 +138,9 @@ export const SihDemoBar: React.FC<SihDemoBarProps> = ({
         <button
           onClick={onOpenCopilot}
           className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-2xs cursor-pointer transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
+          title="Ask BHUSAKTHI AI Copilot"
         >
-          <Sparkles className="w-3.5 h-3.5 text-white" />
+          <BhusakthiBotAvatar size={20} state="idle" />
           <span>Ask Copilot</span>
         </button>
       </div>

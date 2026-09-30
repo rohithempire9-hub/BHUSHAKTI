@@ -13,6 +13,7 @@ import {
 } from '../../services/copilotService';
 import { LandslideStation } from '../../types/landslide';
 import { BHUSAKTHI_LOCATIONS } from '../../data/bhusakthiLocations';
+import { BhusakthiBotAvatar } from './BhusakthiBotAvatar';
 import {
   Sparkles,
   Send,
@@ -470,13 +471,17 @@ I support 11 languages. You can speak to me with voice or change your language a
   return (
     <div className="fixed bottom-6 right-6 z-[9999] w-[450px] max-w-[calc(100vw-2rem)] h-[720px] max-h-[calc(100vh-4rem)] rounded-2xl bg-white border border-slate-200/90 shadow-2xl flex flex-col overflow-hidden select-none font-sans animate-in fade-in slide-in-from-bottom-4 duration-200">
       {/* ==================================================================== */}
-      {/* 1. TOP HEADER                                                        */}
+      {/* 1. TOP HEADER (Requirement 7: [ ROBOT AVATAR ] BHUSAKTHI COPILOT)    */}
       {/* ==================================================================== */}
-      <div className="p-3.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/20">
-            <Sparkles className="w-4 h-4 text-amber-300" />
-          </div>
+      <div className="p-3 bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-3">
+          <BhusakthiBotAvatar
+            size={48}
+            state={isLoading ? 'thinking' : speakingMessageId ? 'speaking' : 'idle'}
+            status={copilotStatus}
+            showStatusIndicator={true}
+            voiceActive={Boolean(speakingMessageId)}
+          />
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-black tracking-wider uppercase text-white font-sans">
@@ -620,11 +625,14 @@ I support 11 languages. You can speak to me with voice or change your language a
                 isUser ? 'justify-end' : 'justify-start'
               }`}
             >
-              {/* Bot Avatar */}
+              {/* Bot Avatar (Requirement 8) */}
               {!isUser && (
-                <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                  <Bot className="w-4 h-4" />
-                </div>
+                <BhusakthiBotAvatar
+                  size={32}
+                  state={speakingMessageId === m.id ? 'speaking' : 'idle'}
+                  voiceActive={speakingMessageId === m.id}
+                  className="shrink-0 mt-0.5"
+                />
               )}
 
               {/* Message Bubble */}
@@ -728,17 +736,32 @@ I support 11 languages. You can speak to me with voice or change your language a
           );
         })}
 
-        {/* Loading / Thinking Indicator */}
+        {/* Loading / Thinking Indicator (Requirement 9) */}
         {isLoading && (
-          <div className="flex gap-2.5 items-center text-slate-500 text-xs">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-              <Bot className="w-4 h-4 animate-spin" />
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-none p-3 shadow-sm flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
-              <span className="font-mono text-[11px] text-slate-600">
-                Thinking in {currentLangMeta.nativeName}...
-              </span>
+          <div className="flex gap-2.5 items-start text-slate-500 text-xs animate-in fade-in duration-200">
+            <BhusakthiBotAvatar
+              size={36}
+              state="thinking"
+              className="shrink-0 mt-0.5"
+            />
+            <div className="bg-white border border-sky-200/90 rounded-2xl rounded-tl-none p-3 shadow-sm space-y-1.5 max-w-[85%]">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-[11px] text-slate-800 font-sans tracking-wide">
+                  BHUSAKTHI AI
+                </span>
+                <span className="text-[9px] font-mono text-sky-600 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-100 font-bold">
+                  {currentLangMeta.nativeName}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600">
+                {/* 3 Sequential Animated Dots (Requirement 9: ● ○ ○ -> ○ ● ○ -> ○ ○ ●) */}
+                <div className="flex items-center gap-1.5 px-0.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-bot-dot-1" />
+                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-bot-dot-2" />
+                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-bot-dot-3" />
+                </div>
+                <span className="text-slate-500 text-[11px]">Thinking...</span>
+              </div>
             </div>
           </div>
         )}

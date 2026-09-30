@@ -61,6 +61,7 @@ import { WhatIfSimulatorView } from './components/Simulator/WhatIfSimulatorView'
 import { EmergencyResponseView } from './components/Emergency/EmergencyResponseView';
 import { PostDisasterForensicView } from './components/Reports/PostDisasterForensicView';
 import { BhuShaktiCopilotModal } from './components/Copilot/BhuShaktiCopilotModal';
+import { BhusakthiBotAvatar } from './components/Copilot/BhusakthiBotAvatar';
 import { SihDemoBar, DemoScenarioId } from './components/Demo/SihDemoBar';
 import { DisasterIntelligenceSuite } from './components/Disasters/DisasterIntelligenceSuite';
 
@@ -120,6 +121,7 @@ export default function App() {
   const [disastersModalOpen, setDisastersModalOpen] = useState(false);
   const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
   const [copilotModalOpen, setCopilotModalOpen] = useState(false);
+  const [copilotBounce, setCopilotBounce] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Central SIH Evaluation Scenario State
@@ -892,24 +894,50 @@ export default function App() {
         onToggleMapLayer={() => setCurrentNavSection('risk_map')}
       />
 
-      {/* FLOATING ACTION BUTTON TO OPEN BHUSHAKTI COPILOT FROM ANY SCREEN */}
+      {/* FLOATING ACTION BUTTON WITH ANIMATED BHUSAKTHI COPILOT ROBOT AVATAR */}
       <button
         id="floating-copilot-trigger"
-        onClick={() => setCopilotModalOpen((prev) => !prev)}
-        className={`fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full text-white font-bold text-xs shadow-xl border flex items-center gap-2.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer ${
+        onClick={() => {
+          setCopilotBounce(true);
+          setTimeout(() => setCopilotBounce(false), 350);
+          setCopilotModalOpen((prev) => !prev);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setCopilotBounce(true);
+            setTimeout(() => setCopilotBounce(false), 350);
+            setCopilotModalOpen((prev) => !prev);
+          }
+        }}
+        aria-label="Open BHUSAKTHI AI Copilot"
+        title="Ask BHUSAKTHI AI"
+        className={`fixed bottom-6 right-6 z-40 group px-3 py-2.5 rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-2xl hover:shadow-sky-500/25 flex flex-col items-center justify-center transition-all duration-300 transform cursor-pointer select-none hover:scale-105 active:scale-95 ${
+          copilotBounce ? 'animate-bot-bounce' : ''
+        } ${
           copilotModalOpen
-            ? 'bg-slate-900 border-slate-700 shadow-slate-900/50'
-            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-indigo-600/30 hover:shadow-indigo-600/50 border-blue-300/40 ring-2 ring-indigo-400/20'
+            ? 'ring-2 ring-sky-500/60 bg-sky-50/95 border-sky-300 shadow-sky-500/20'
+            : 'hover:border-sky-300 hover:bg-slate-50/95'
         }`}
-        title={copilotModalOpen ? 'Minimize Copilot' : 'Open AI Decision Support Copilot'}
       >
-        <Sparkles className="w-4 h-4 text-amber-200 animate-pulse" />
-        <span className="tracking-wide font-sans font-black">
-          {copilotModalOpen ? 'CLOSE COPILOT' : 'BHUSHAKTI COPILOT'}
-        </span>
-        <span className="px-2 py-0.5 rounded-full bg-white/20 text-[9px] font-mono font-bold border border-white/30 backdrop-blur-xs">
-          AI
-        </span>
+        <div className="relative flex items-center justify-center">
+          <BhusakthiBotAvatar
+            size={64}
+            state={copilotModalOpen ? 'thinking' : 'idle'}
+            showStatusIndicator={true}
+            status="online"
+            isBouncing={copilotBounce}
+          />
+        </div>
+
+        <div className="flex flex-col items-center mt-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 font-sans leading-tight">
+            BHUSAKTHI
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 font-mono leading-none">
+            COPILOT
+          </span>
+        </div>
       </button>
     </div>
   );

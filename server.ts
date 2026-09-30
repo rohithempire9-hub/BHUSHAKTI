@@ -353,6 +353,13 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
+// Serve local /mnt/data folder if mounted
+try {
+  app.use('/mnt/data', express.static('/mnt/data'));
+} catch (e) {
+  // Ignore if path not accessible
+}
+
 app.use(express.static('dist'));
 app.get('*', (_req, res) => {
   res.sendFile('index.html', { root: 'dist' });
