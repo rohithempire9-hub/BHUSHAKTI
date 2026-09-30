@@ -60,7 +60,52 @@ function geminiLandslideApiPlugin(): Plugin {
     name: 'vite-plugin-gemini-landslide-api',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url === '/api/copilot' && req.method === 'POST') {
+        const rawUrl = req.url || '/';
+        const urlObj = new URL(rawUrl, 'http://localhost');
+        const pathname = urlObj.pathname.replace(/\/$/, '') || '/';
+
+        // Set production and dev CORS headers
+        const origin = req.headers.origin;
+        if (origin) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+        } else {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+        }
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Max-Age', '86400');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
+        if ((pathname === '/health' || pathname === '/api/health') && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            status: 'ok',
+            service: 'BHUSAKTHI AI Core & Sensor API',
+            uptime: process.uptime(),
+            time: new Date().toISOString()
+          }));
+          return;
+        }
+
+        if ((pathname === '/api/copilot/health' || pathname === '/api/copilot/status') && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            status: 'ok',
+            online: true,
+            service: 'BHUSAKTHI COPILOT AI Service',
+            ai_provider: (process.env.GEMINI_API_KEY || process.env.API_KEY) ? 'gemini-3.8-flash' : 'bhusakthi-hybrid-rule-engine',
+            time: new Date().toISOString()
+          }));
+          return;
+        }
+
+        if (pathname === '/api/copilot' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => { body += chunk; });
           req.on('end', async () => {

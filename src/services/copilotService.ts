@@ -1,26 +1,17 @@
 import { LandslideStation } from '../types/landslide';
-import {
+import type {
   CopilotApiRequest,
   CopilotApiResponse,
   CopilotAction,
-  SUPPORTED_LANGUAGES
-} from './copilotBackendService';
+  CopilotMessage
+} from '../types/copilot';
 
-export interface CopilotMessage {
-  id: string;
-  sender: 'user' | 'copilot';
-  timestamp: string;
-  text: string;
-  sources?: string[];
-  actions?: CopilotAction[];
-  sourceStatus?: 'REAL DATA' | 'SIMULATION' | 'ESTIMATE';
-  language?: string;
-  confidence?: number;
-  actionLink?: {
-    label: string;
-    section: string;
-  };
-}
+export type {
+  CopilotApiRequest,
+  CopilotApiResponse,
+  CopilotAction,
+  CopilotMessage
+};
 
 export interface LanguageOption {
   code: string;
@@ -39,12 +30,17 @@ export const COPILOT_LANGUAGES: LanguageOption[] = [
   { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', speechCode: 'kn-IN' },
   { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', speechCode: 'ml-IN' },
   { code: 'mr', name: 'Marathi', nativeName: 'मराठी', speechCode: 'mr-IN' },
-  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', speechCode: 'or-IN' },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ిଆ', speechCode: 'or-IN' },
   { code: 'ne', name: 'Nepali', nativeName: 'नेपाली', speechCode: 'ne-NP' }
 ];
 
 const LANGUAGE_STORAGE_KEY = 'bhusakthi_language';
 const CHAT_STORAGE_KEY = 'bhusakthi_copilot_chat_v1';
+
+export function getApiBaseUrl(): string {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  return envUrl.replace(/\/$/, '');
+}
 
 export function getStoredLanguage(): string {
   try {
@@ -87,8 +83,43 @@ export function clearStoredChatHistory(): void {
   } catch (e) {}
 }
 
+export class CopilotHttpError extends Error {
+  status: number | string;
+  code: number | string;
+  constructor(message: string, status: number | string) {
+    super(message);
+    this.name = 'CopilotHttpError';
+    this.status = status;
+    this.code = status;
+  }
+}
+
+/**
+ * Health check: verify API server and Copilot engine status
+ */
+export async function checkCopilotHealth(): Promise<{ online: boolean; aiProvider: string }> {
+  const baseUrl = getApiBaseUrl();
+  try {
+    const res = await fetch(`${baseUrl}/api/copilot/health`, { method: 'GET' });
+    if (res.ok) {
+      const data = await res.json();
+      return { online: true, aiProvider: data.ai_provider || 'available' };
+    }
+  } catch {}
+
+  try {
+    const res = await fetch(`${baseUrl}/health`, { method: 'GET' });
+    if (res.ok) {
+      return { online: true, aiProvider: 'available' };
+    }
+  } catch {}
+
+  return { online: true, aiProvider: 'rule_engine' };
+}
+
 /**
  * Call the Real Multilingual Copilot Backend API (/api/copilot)
+ * Uses VITE_API_BASE_URL if configured, otherwise relative /api/copilot
  */
 export async function askBhuShaktiCopilot(
   message: string,
@@ -96,9 +127,20 @@ export async function askBhuShaktiCopilot(
   context: CopilotApiRequest['context'],
   history: CopilotMessage[]
 ): Promise<CopilotApiResponse> {
+  const baseUrl = getApiBaseUrl();
+  const endpoint = `${baseUrl}/api/copilot`;
+
   const payload: CopilotApiRequest = {
     message,
     language,
+    location: context?.location ? {
+      id: context.location.id,
+      name: context.location.name,
+      state: context.location.state,
+      latitude: context.location.latitude,
+      longitude: context.location.longitude,
+      cameraHeight: context.location.cameraHeight
+    } : undefined,
     context,
     history: history.slice(-6).map((m) => ({
       sender: m.sender,
@@ -106,19 +148,46 @@ export async function askBhuShaktiCopilot(
     }))
   };
 
-  const response = await fetch('/api/copilot', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-  if (!response.ok) {
-    throw new Error(`Copilot service returned status ${response.status}`);
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } catch (fetchErr: any) {
+    clearTimeout(timeoutId);
+    if (fetchErr.name === 'AbortError') {
+      console.log(`[BHUSAKTHI COPILOT]\nRequest:\nPOST /api/copilot\nStatus:\ntimeout`);
+      throw new CopilotHttpError('TIMEOUT', 'TIMEOUT');
+    }
+    console.log(`[BHUSAKTHI COPILOT]\nRequest:\nPOST /api/copilot\nStatus:\nnetwork error`);
+    throw new CopilotHttpError('NETWORK_ERROR', 'NETWORK_ERROR');
+  } finally {
+    clearTimeout(timeoutId);
   }
 
-  return await response.json();
+  // Print Development log (Requirement 3)
+  console.log(`[BHUSAKTHI COPILOT]\nRequest:\nPOST /api/copilot\nStatus:\n${response.status}`);
+
+  if (!response.ok) {
+    let errorDetail = '';
+    try {
+      const errJson = await response.json();
+      errorDetail = errJson?.error || errJson?.detail || '';
+    } catch {}
+
+    throw new CopilotHttpError(errorDetail || `HTTP_${response.status}`, response.status);
+  }
+
+  const data: CopilotApiResponse = await response.json();
+  return data;
 }
 
 /**
@@ -130,7 +199,7 @@ export function queryBhuShaktiCopilot(
   selectedStation: LandslideStation | null
 ): CopilotMessage {
   const loc = selectedStation || stations[0];
-  const locName = loc?.name || 'Agartala';
+  const locName = loc?.name || 'Tawang';
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return {

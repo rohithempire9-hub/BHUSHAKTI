@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import './server.ts';
 import { startFirestoreHistoryWorker } from './src/services/firestoreHistoryWorker';
 

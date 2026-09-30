@@ -146,10 +146,42 @@ I support 11 languages. You can speak to me with voice or change your language a
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copilotStatus, setCopilotStatus] = useState<'online' | 'processing' | 'offline'>('online');
+  const [botAvatarState, setBotAvatarState] = useState<'idle' | 'thinking' | 'speaking' | 'error'>('idle');
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+
+  const getCopilotErrorMessage = (err: any): string => {
+    const code = String(err?.code || err?.status || '');
+    const msg = String(err?.message || '').toLowerCase();
+
+    if (code === '401') {
+      return 'Copilot authentication configuration is invalid.';
+    }
+    if (code === '404') {
+      return 'Copilot API endpoint was not found.';
+    }
+    if (code === '429' || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('rate limit')) {
+      return 'AI service rate limit reached. Please try again shortly.';
+    }
+    if (code === '500') {
+      return 'Copilot server encountered an error.';
+    }
+    if (code === '502' || code === '503') {
+      return 'Copilot service is temporarily unavailable.';
+    }
+    if (code === 'NETWORK_ERROR' || msg.includes('failed to fetch') || err?.name === 'TypeError') {
+      return 'Unable to connect to the Copilot server.';
+    }
+    if (code === 'TIMEOUT' || msg.includes('timeout') || err?.name === 'TimeoutError') {
+      return 'Copilot took too long to respond. Please try again.';
+    }
+    if (err?.message && !err.message.startsWith('HTTP_') && err.message !== 'NETWORK_ERROR') {
+      return err.message;
+    }
+    return 'Copilot server encountered an error.';
+  };
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const speechRecognitionRef = useRef<{ stop: () => void } | null>(null);
@@ -293,31 +325,32 @@ I support 11 languages. You can speak to me with voice or change your language a
     setMessages((prev) => [...prev, userMsg]);
     setInputValue('');
     setIsLoading(true);
+    setBotAvatarState('thinking');
     setCopilotStatus('processing');
     setVoiceError(null);
 
     try {
-      // Assemble full real-time dashboard context
+      // Assemble full real-time dashboard context with current location
       const contextPayload = {
         location: {
-          id: activeStation?.id || 'agartala',
+          id: activeStation?.id || 'tawang-pass-01',
           name: activeLocationName,
           state: activeLocationState,
-          latitude: activeStation?.latitude || 23.8315,
-          longitude: activeStation?.longitude || 91.2868
+          latitude: activeStation?.latitude || 27.58605,
+          longitude: activeStation?.longitude || 91.85900
         },
         currentRisk: {
-          score: activeStation?.riskAssessment?.riskScore ?? 74,
-          status: activeStation?.riskAssessment?.status ?? 'high',
-          safetyFactor: activeStation?.riskAssessment?.safetyFactor ?? 1.04,
-          failureProbabilityPct: activeStation?.riskAssessment?.failureProbabilityPct ?? 72
+          score: activeStation?.riskAssessment?.riskScore ?? 78,
+          status: activeStation?.riskAssessment?.status ?? 'elevated',
+          safetyFactor: activeStation?.riskAssessment?.safetyFactor ?? 1.08,
+          failureProbabilityPct: activeStation?.riskAssessment?.failureProbabilityPct ?? 68
         },
         weather: {
-          rainfallRateMmH: activeStation?.telemetry?.rainfallRateMmH ?? 12.4,
-          rainfall24hMm: activeStation?.telemetry?.rainfall24hMm ?? 155,
-          soilMoisturePct: activeStation?.telemetry?.soilMoisturePct ?? 82,
-          temperatureC: activeStation?.telemetry?.temperatureC ?? 22.5,
-          poreWaterPressureKpa: activeStation?.telemetry?.poreWaterPressureKpa ?? 71,
+          rainfallRateMmH: activeStation?.telemetry?.rainfallRateMmH ?? 14.2,
+          rainfall24hMm: activeStation?.telemetry?.rainfall24hMm ?? 142,
+          soilMoisturePct: activeStation?.telemetry?.soilMoisturePct ?? 81,
+          temperatureC: activeStation?.telemetry?.temperatureC ?? 21.4,
+          poreWaterPressureKpa: activeStation?.telemetry?.poreWaterPressureKpa ?? 64,
           isLive: true
         },
         simulation: {
@@ -325,8 +358,8 @@ I support 11 languages. You can speak to me with voice or change your language a
           disasterType: 'landslide',
           severity: 'high',
           blockedRoadName: 'NH-13 Primary Corridor',
-          alternativeRouteName: 'High Ridge Bypass Route R-15',
-          shelterName: `${activeLocationName} Community Haven`
+          alternativeRouteName: 'Upper Military Ridge Highway Corridor R-15',
+          shelterName: `${activeLocationName} High Citadel & Monastery Haven`
         }
       };
 
@@ -342,7 +375,7 @@ I support 11 languages. You can speak to me with voice or change your language a
         sender: 'copilot',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         text: result.answer,
-        sources: result.sources || ['BhuShakti Central Telemetry Hub'],
+        sources: result.sources || ['BhuShakti IoT Slope Piezometers', 'CartoDEM Topography'],
         actions: result.actions || [],
         sourceStatus: result.sourceStatus || 'REAL DATA',
         language: result.language || selectedLanguage,
@@ -351,6 +384,8 @@ I support 11 languages. You can speak to me with voice or change your language a
 
       setMessages((prev) => [...prev, copilotMsg]);
       setCopilotStatus('online');
+      setBotAvatarState('speaking');
+      setTimeout(() => setBotAvatarState('idle'), 2500);
 
       // Auto-execute any returned high-priority action
       if (result.actions && result.actions.length > 0) {
@@ -358,21 +393,27 @@ I support 11 languages. You can speak to me with voice or change your language a
       }
 
       // If language was switched by Copilot response, synchronize
-      if (result.language && result.language !== selectedLanguage) {
-        setSelectedLanguage(result.language);
-        setStoredLanguage(result.language);
-        if (onLanguageChange) onLanguageChange(result.language);
+      if (result.languageCode && result.languageCode !== selectedLanguage) {
+        setSelectedLanguage(result.languageCode);
+        setStoredLanguage(result.languageCode);
+        if (onLanguageChange) onLanguageChange(result.languageCode);
       }
     } catch (err: any) {
       console.warn('[Copilot UI] Request error:', err);
-      setCopilotStatus('offline');
+      setCopilotStatus('online');
+      setBotAvatarState('error');
+      setTimeout(() => setBotAvatarState('idle'), 2500);
 
+      const friendlyText = getCopilotErrorMessage(err);
       const errorMsg: CopilotMessage = {
         id: `error-${Date.now()}`,
         sender: 'copilot',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `⚠ **BHUSAKTHI COPILOT TEMPORARILY UNAVAILABLE**\n\nPlease try again. The dashboard, satellite imagery, and early warning systems continue functioning normally.`,
-        sources: ['System Diagnostic Monitor'],
+        text: friendlyText,
+        error: true,
+        errorCode: err?.code || err?.status || 'ERROR',
+        failedQuery: query,
+        sources: ['BhuShakti Diagnostic Monitor'],
         sourceStatus: 'ESTIMATE',
         language: selectedLanguage
       };
@@ -642,47 +683,69 @@ I support 11 languages. You can speak to me with voice or change your language a
                 className={`max-w-[85%] rounded-2xl p-3.5 space-y-2.5 shadow-sm ${
                   isUser
                     ? 'bg-sky-500 hover:bg-sky-600 text-white rounded-tr-none'
+                    : m.error
+                    ? 'bg-rose-50/90 border border-rose-200 text-rose-900 rounded-tl-none'
                     : 'bg-white border border-sky-200/90 text-slate-800 rounded-tl-none'
                 }`}
               >
                 {/* Status / Truth Header Badge for Copilot */}
-                {!isUser && m.sourceStatus && (
+                {!isUser && (m.sourceStatus || m.error) && (
                   <div className="flex items-center justify-between pb-1 border-b border-sky-100">
                     <span
                       className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
-                        m.sourceStatus === 'REAL DATA'
+                        m.error
+                          ? 'bg-rose-100 text-rose-800 border-rose-200'
+                          : m.sourceStatus === 'REAL DATA'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : m.sourceStatus === 'SIMULATION'
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-sky-50 text-sky-700 border-sky-200'
                       }`}
                     >
-                      {m.sourceStatus}
+                      {m.error ? 'DIAGNOSTIC NOTICE' : m.sourceStatus}
                     </span>
 
                     {/* Read Aloud Button */}
-                    <button
-                      onClick={() => handleToggleSpeech(m)}
-                      className={`p-1 rounded-md transition-colors cursor-pointer ${
-                        speakingMessageId === m.id
-                          ? 'bg-sky-100 text-sky-700'
-                          : 'text-slate-400 hover:text-sky-700'
-                      }`}
-                      title={speakingMessageId === m.id ? 'Stop Reading' : 'Read Aloud'}
-                    >
-                      {speakingMessageId === m.id ? (
-                        <VolumeX className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
-                      ) : (
-                        <Volume2 className="w-3.5 h-3.5" />
-                      )}
-                    </button>
+                    {!m.error && (
+                      <button
+                        onClick={() => handleToggleSpeech(m)}
+                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                          speakingMessageId === m.id
+                            ? 'bg-sky-100 text-sky-700'
+                            : 'text-slate-400 hover:text-sky-700'
+                        }`}
+                        title={speakingMessageId === m.id ? 'Stop Reading' : 'Read Aloud'}
+                      >
+                        {speakingMessageId === m.id ? (
+                          <VolumeX className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+                        ) : (
+                          <Volume2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
 
                 {/* Message Body */}
-                <div className="whitespace-pre-line leading-relaxed font-sans text-xs">
+                <div className={`whitespace-pre-line leading-relaxed font-sans text-xs ${m.error ? 'text-rose-800 font-medium' : ''}`}>
                   {m.text}
                 </div>
+
+                {/* Try Again Button for Failed Request (Requirement 24) */}
+                {m.error && m.failedQuery && (
+                  <div className="pt-2 border-t border-rose-200/60 flex items-center justify-between">
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleSend(m.failedQuery)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Try Again</span>
+                    </button>
+                    <span className="text-[10px] text-slate-500 font-mono">Resend request</span>
+                  </div>
+                )}
 
                 {/* Action Buttons if returned by AI */}
                 {!isUser && m.actions && m.actions.length > 0 && (
