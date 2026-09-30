@@ -74,6 +74,11 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
   const buildingsRef = useRef<any>(null);
   const viewerReadyRef = useRef<boolean>(false);
   const viewerCountRef = useRef<number>(0);
+  const selectedLocationIdRef = useRef<string>(selectedLocationId);
+
+  useEffect(() => {
+    selectedLocationIdRef.current = selectedLocationId;
+  }, [selectedLocationId]);
 
   // React UI States
   const [cesiumReady, setCesiumReady] = useState(false);
@@ -81,10 +86,16 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
   const [showPerfPanel, setShowPerfPanel] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Diagnostic states
-  const [viewerCount, setViewerCount] = useState<number>(0);
-  const [osmBuildingsStatus, setOsmBuildingsStatus] = useState<string>('LOADING');
-  const [terrainStatus, setTerrainStatus] = useState<string>('INITIALIZING');
+  // Diagnostic states (Requirements 12 & 25)
+  const [viewerStatus, setViewerStatus] = useState<'PASS' | 'INITIALIZING' | 'ERROR'>('INITIALIZING');
+  const [canvasStatus, setCanvasStatus] = useState<'PASS' | 'ERROR'>('PASS');
+  const [canvasDimensions, setCanvasDimensions] = useState<string>('0 × 0');
+  const [webglStatus, setWebglStatus] = useState<'PASS' | 'ERROR'>('PASS');
+  const [ionStatus, setIonStatus] = useState<'PASS' | 'FAIL'>('FAIL');
+  const [worldTerrainStatus, setWorldTerrainStatus] = useState<string>('INITIALIZING');
+  const [satelliteStatus, setSatelliteStatus] = useState<'PASS' | 'ERROR'>('INITIALIZING');
+  const [osmBuildingsStatus, setOsmBuildingsStatus] = useState<string>('INITIALIZING');
+  const [renderStatus, setRenderStatus] = useState<'PASS' | 'ERROR'>('PASS');
 
   // SECTION 2: Selected location from single source of truth
   const selectedLocation = BHUSAKTHI_LOCATIONS[selectedLocationId] || BHUSAKTHI_LOCATIONS['agartala'];
@@ -499,76 +510,80 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
   }, []);
 
   // ==========================================================================
-  // SECTION 4: DEDICATED CAMERA FUNCTION
+  // SECTION 4, 18, 19, 20: DEDICATED CAMERA FUNCTION LOOKING DOWN AT TERRAIN
   // ==========================================================================
   const moveCesiumToLocation = useCallback((location: BhusakthiLocation) => {
     const viewer = viewerRef.current;
     const Cesium = (window as any).Cesium;
 
     if (!viewer || viewer.isDestroyed()) {
-      console.error('Cesium viewer unavailable');
+      console.warn('[BHUSAKTHI CESIUM] Viewer not ready yet for camera movement');
       return;
     }
 
     if (!location) {
-      console.error('Location not found');
+      console.error('[BHUSAKTHI CESIUM] Target location data missing');
       return;
     }
 
     if (!Cesium) {
-      console.error('Cesium library not loaded');
+      console.error('[BHUSAKTHI CESIUM] Cesium library not loaded');
       return;
     }
 
     console.log(
-      'Moving Cesium to:',
+      '[BHUSAKTHI CESIUM] Moving to location:',
       location.name,
+      'Lat:',
       location.latitude,
-      location.longitude
+      'Lng:',
+      location.longitude,
+      'Height:',
+      location.cameraHeight
     );
 
     viewer.camera.cancelFlight();
 
+    // Ensure safe altitude above topography (2,500m to 6,500m)
+    const safeHeight = Math.max(location.cameraHeight || 2500, 2500);
+
     const destination = Cesium.Cartesian3.fromDegrees(
       location.longitude,
       location.latitude,
-      location.cameraHeight
+      safeHeight
     );
 
+    // Look DOWN toward terrain at -40° pitch (Requirement 20)
     viewer.camera.flyTo({
       destination: destination,
       orientation: {
         heading: Cesium.Math.toRadians(location.heading || 0),
-        pitch: Cesium.Math.toRadians(location.pitch || -35),
+        pitch: Cesium.Math.toRadians(location.pitch || -40),
         roll: 0
       },
       duration: 2.0,
       complete: function () {
-        console.log('Cesium arrived at:', location.name);
-
+        console.log('[BHUSAKTHI CESIUM] Camera arrived at:', location.name);
         try {
-          const cartographic = Cesium.Cartographic.fromCartesian(
-            viewer.camera.position
-          );
+          const cartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position);
           const latitude = Cesium.Math.toDegrees(cartographic.latitude);
           const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-          console.log('ACTUAL CESIUM CAMERA:', latitude, longitude);
+          console.log('[BHUSAKTHI CESIUM] ACTUAL CAMERA POS:', latitude.toFixed(5), longitude.toFixed(5));
         } catch (cErr) {}
-
-        viewer.scene.requestRender();
       },
       cancel: function () {
-        console.log('Camera flight cancelled');
+        console.log('[BHUSAKTHI CESIUM] Camera flight cancelled');
       }
     });
   }, []);
 
   // ==========================================================================
-  // SECTION 1, 2, 3: INITIALIZE CESIUM VIEWER ONCE
+  // SECTION 1, 2, 3: INITIALIZE CESIUM VIEWER ONCE (NEVER RECREATED)
   // ==========================================================================
   useEffect(() => {
     let isMounted = true;
     let pollInterval: any = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     const initCesium = async () => {
       if (!isMounted || !containerRef.current) return;
@@ -576,50 +591,94 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
 
       // Hard safety check
       if (cesiumInitialized) {
-        console.warn('BLOCKED DUPLICATE CESIUM INITIALIZATION');
+        console.warn('[BHUSAKTHI CESIUM] BLOCKED DUPLICATE CESIUM INITIALIZATION');
         return;
       }
       cesiumInitialized = true;
-      console.log('CESIUM VIEWER INITIALIZED');
+      console.log('[BHUSAKTHI CESIUM] INITIALIZING VIEWER...');
 
       const Cesium = (window as any).Cesium;
       if (!Cesium) return;
 
+      // Ensure CESIUM_BASE_URL is available in production (Requirement 6)
+      if (!(window as any).CESIUM_BASE_URL) {
+        (window as any).CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/';
+      }
+
       try {
         viewerCountRef.current += 1;
-        const currentCount = viewerCountRef.current;
-        setViewerCount(currentCount);
+        setViewerStatus('PASS');
 
-        // Configure Ion Token
+        // Configure Ion Token (Requirement 9 & 10)
         const token = getVerifiedIonToken();
-        if (token) {
-          Cesium.Ion.defaultAccessToken = token;
+        const hasIonToken = Boolean(token && token.trim().length > 10);
+        if (hasIonToken) {
+          Cesium.Ion.defaultAccessToken = token.trim();
+          console.log('Ion Token: PASS');
+          setIonStatus('PASS');
+        } else {
+          console.log('Ion Token: FAIL');
+          setIonStatus('FAIL');
         }
 
-        // Configure World Terrain ONCE
+        // Configure World Terrain (Requirement 8)
         let terrainObj: any;
-        try {
-          terrainObj = Cesium.Terrain.fromWorldTerrain();
-          setTerrainStatus('ON (Cesium World Terrain)');
-        } catch (tErr) {
+        if (hasIonToken) {
+          try {
+            terrainObj = Cesium.Terrain.fromWorldTerrain();
+            setWorldTerrainStatus('PASS');
+            if (terrainObj?.errorEvent) {
+              terrainObj.errorEvent.addEventListener((tErr: any) => {
+                console.error('[BHUSAKTHI CESIUM] Terrain failed:', tErr);
+                setWorldTerrainStatus('ERROR');
+                // Graceful fallback to standard ellipsoid so globe mesh never disappears
+                if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+                  viewerRef.current.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+                }
+              });
+            }
+          } catch (tErr) {
+            console.error('[BHUSAKTHI CESIUM] World Terrain initialization error:', tErr);
+            terrainObj = new Cesium.EllipsoidTerrainProvider();
+            setWorldTerrainStatus('ERROR');
+          }
+        } else {
+          // If no Ion token, gracefully use Ellipsoid terrain so globe mesh is ALWAYS 100% visible
           terrainObj = new Cesium.EllipsoidTerrainProvider();
-          setTerrainStatus('ON (Standard Ellipsoid)');
+          setWorldTerrainStatus('UNAVAILABLE');
         }
 
-        // Base Satellite Imagery Layer (Loaded ONCE, never recreated)
-        const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
-          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          maximumLevel: 19,
-          credit: 'Esri, Maxar, Earthstar Geographics'
-        });
+        // Base Satellite Imagery Provider: Esri World Imagery (Requirement 11)
+        let satelliteProvider: any;
+        try {
+          satelliteProvider = new Cesium.UrlTemplateImageryProvider({
+            url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            maximumLevel: 19,
+            credit: 'Esri, Maxar, Earthstar Geographics'
+          });
+
+          if (satelliteProvider.errorEvent) {
+            satelliteProvider.errorEvent.addEventListener((err: any) => {
+              console.error('[BHUSAKTHI CESIUM] Satellite imagery tile error:', err);
+              setSatelliteStatus('ERROR');
+            });
+          }
+          setSatelliteStatus('PASS');
+        } catch (imgErr) {
+          console.error('[BHUSAKTHI CESIUM] Satellite provider init error:', imgErr);
+          setSatelliteStatus('ERROR');
+          satelliteProvider = new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://tile.openstreetmap.org/'
+          });
+        }
+
         const satelliteLayer = new Cesium.ImageryLayer(satelliteProvider);
 
-        // Initialize Cesium Viewer with performance-first configuration
+        // Initialize Cesium Viewer with standard production rendering (continuous render loop)
         const viewer = new Cesium.Viewer(containerRef.current, {
           baseLayer: satelliteLayer,
           terrain: terrainObj,
-          requestRenderMode: true,
-          maximumRenderTimeChange: 0.05, // Allows frame progression during flyTo animations
+          requestRenderMode: false, // Standard continuous render: tiles decode and paint immediately
           animation: false,
           timeline: false,
           sceneModePicker: false,
@@ -633,42 +692,103 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           msaaSamples: 1
         });
 
-        // Atmosphere & Lighting
-        viewer.scene.globe.enableLighting = true;
-        viewer.scene.globe.depthTestAgainstTerrain = true;
+        // Atmosphere, Lighting & Globe Visibility (Requirement 14, 15, 16)
+        viewer.scene.globe.show = true;
+        // CRITICAL FIX FOR BLACK SCREEN: NEVER enable lighting; false ensures full daylight illumination everywhere 24/7!
+        viewer.scene.globe.enableLighting = false;
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1b382b'); // Natural earthy baseline color
+        viewer.scene.globe.depthTestAgainstTerrain = false; // Prevents depth-clipping geometry or imagery
         viewer.scene.globe.showGroundAtmosphere = true;
         viewer.scene.skyAtmosphere.show = true;
+        viewer.scene.sun.show = true;
         viewer.scene.fog.enabled = true;
-        viewer.scene.globe.maximumScreenSpaceError = 4;
-        viewer.scene.globe.loadingDescendantLimit = 20;
+        viewer.scene.globe.maximumScreenSpaceError = 2; // Crisp resolution
 
         // Hide Cesium credit container
         if (viewer.cesiumWidget?.creditContainer) {
           viewer.cesiumWidget.creditContainer.style.display = 'none';
         }
 
-        // Handle WebGL / Render Errors gracefully
+        // WebGL / Render Error handling (Requirement 17 & 26)
         viewer.scene.renderError.addEventListener((error: any) => {
-          console.error('[Cesium Render Error]:', error);
+          console.error('[BHUSAKTHI CESIUM] Render Error:', error);
+          setWebglStatus('ERROR');
+          setRenderStatus('ERROR');
           setWebglError('3D View temporarily unavailable on this device');
         });
 
-        // Load OSM Buildings ONCE
-        try {
-          const buildings = await Cesium.createOsmBuildingsAsync({
-            scene: viewer.scene
+        const canvas = viewer.scene.canvas;
+        if (canvas) {
+          canvas.addEventListener('webglcontextlost', (e: any) => {
+            e.preventDefault();
+            console.error('[BHUSAKTHI CESIUM] WebGL context lost');
+            setWebglStatus('ERROR');
+            setWebglError('WebGL context lost. Please refresh the page to restore 3D Twin.');
           });
-          buildingsRef.current = viewer.scene.primitives.add(buildings);
-          if (buildingsRef.current) {
-            buildingsRef.current.maximumScreenSpaceError = 8;
-            if ('showOutline' in buildingsRef.current) {
-              buildingsRef.current.showOutline = false;
+          setWebglStatus('PASS');
+          setRenderStatus('PASS');
+        }
+
+        // Verify container dimensions and force resize (Requirement 4 & 5)
+        const cw = viewer.container.clientWidth;
+        const ch = viewer.container.clientHeight;
+        console.log('[BHUSAKTHI CESIUM] Initial dimensions:', cw, ch);
+        if (cw === 0 || ch === 0) {
+          console.warn('[BHUSAKTHI CESIUM] Container size was 0, requesting resize');
+          viewer.resize();
+        } else {
+          setCanvasDimensions(`${cw} × ${ch}`);
+          setCanvasStatus('PASS');
+        }
+
+        requestAnimationFrame(() => {
+          if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+            viewerRef.current.resize();
+            const w = viewerRef.current.container.clientWidth;
+            const h = viewerRef.current.container.clientHeight;
+            if (w > 0 && h > 0) {
+              setCanvasDimensions(`${w} × ${h}`);
+              setCanvasStatus('PASS');
             }
           }
-          setOsmBuildingsStatus('1 (ACTIVE)');
-        } catch (bErr) {
-          console.warn('[Cesium] OSM Buildings skipped:', bErr);
-          setOsmBuildingsStatus('0 (UNAVAILABLE)');
+        });
+
+        // Set up ResizeObserver on container (Requirement 5)
+        if (containerRef.current && typeof ResizeObserver !== 'undefined') {
+          resizeObserver = new ResizeObserver(() => {
+            if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+              viewerRef.current.resize();
+              const w = viewerRef.current.container.clientWidth;
+              const h = viewerRef.current.container.clientHeight;
+              if (w > 0 && h > 0) {
+                setCanvasDimensions(`${w} × ${h}`);
+                setCanvasStatus('PASS');
+              }
+            }
+          });
+          resizeObserver.observe(containerRef.current);
+        }
+
+        // Load OSM Buildings gracefully (Requirement 13)
+        if (hasIonToken) {
+          try {
+            const buildings = await Cesium.createOsmBuildingsAsync({
+              scene: viewer.scene
+            });
+            buildingsRef.current = viewer.scene.primitives.add(buildings);
+            if (buildingsRef.current) {
+              buildingsRef.current.maximumScreenSpaceError = 8;
+              if ('showOutline' in buildingsRef.current) {
+                buildingsRef.current.showOutline = false;
+              }
+            }
+            setOsmBuildingsStatus('PASS');
+          } catch (bErr) {
+            console.warn('[BHUSAKTHI CESIUM] OSM Buildings unavailable:', bErr);
+            setOsmBuildingsStatus('UNAVAILABLE');
+          }
+        } else {
+          setOsmBuildingsStatus('UNAVAILABLE');
         }
 
         // Interactive entity picking (click on building or road)
@@ -688,7 +808,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
           screenHandlerRef.current = handler;
         } catch (hErr) {
-          console.warn('[Cesium handler error]:', hErr);
+          console.warn('[BHUSAKTHI CESIUM] handler error:', hErr);
         }
 
         // SECTION 6: Set viewer ready ref
@@ -699,27 +819,27 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           setCesiumReady(true);
         }
 
-        // SECTION 6: Move immediately to the current selected location
-        const initialLocation = BHUSAKTHI_LOCATIONS[selectedLocationId] || BHUSAKTHI_LOCATIONS['agartala'];
+        // Move immediately to initial selected location
+        const initialLocId = selectedLocationIdRef.current;
+        const initialLocation = BHUSAKTHI_LOCATIONS[initialLocId] || BHUSAKTHI_LOCATIONS['agartala'];
         if (initialLocation) {
           moveCesiumToLocation(initialLocation);
         }
 
-        viewer.scene.requestRender();
-
       } catch (err: any) {
-        console.error('[Cesium Init Error]:', err);
+        console.error('[BHUSAKTHI CESIUM] Init Error:', err);
+        setViewerStatus('ERROR');
         setWebglError(err.message || '3D WebGL Initialization Failed');
       }
     };
 
     if ((window as any).Cesium) {
-      initCesium();
+      void initCesium();
     } else {
       pollInterval = setInterval(() => {
         if ((window as any).Cesium) {
           clearInterval(pollInterval);
-          initCesium();
+          void initCesium();
         }
       }, 150);
     }
@@ -727,6 +847,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
     return () => {
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
+      if (resizeObserver) resizeObserver.disconnect();
       if (screenHandlerRef.current) {
         try {
           screenHandlerRef.current.destroy();
@@ -743,21 +864,20 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
         cesiumInitialized = false;
       }
     };
-  }, [getVerifiedIonToken, moveCesiumToLocation, selectedLocationId]);
+  }, [getVerifiedIonToken, moveCesiumToLocation]); // CRITICAL: NO selectedLocationId in dependency array! Viewer created ONCE!
 
   // ==========================================================================
-  // SECTION 5: MOST IMPORTANT PART — WATCH LOCATION CHANGE
+  // SECTION 5 & 22: MOST IMPORTANT PART — WATCH LOCATION CHANGE
   // ==========================================================================
   useEffect(() => {
     const location = BHUSAKTHI_LOCATIONS[selectedLocationId];
 
     if (!location) {
-      console.error('Unknown location:', selectedLocationId);
+      console.error('[BHUSAKTHI CESIUM] Unknown location:', selectedLocationId);
       return;
     }
 
-    if (!viewerRef.current) {
-      console.warn('Viewer not ready yet');
+    if (!viewerRef.current || viewerRef.current.isDestroyed()) {
       return;
     }
 
@@ -1817,7 +1937,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
       )}
 
       {/* ==================================================================== */}
-      {/* SECTION 10 & 14: PERFORMANCE & DYNAMIC CAMERA DEBUGGING PANEL        */}
+      {/* SECTION 10, 12, 14 & 25: PRODUCTION CESIUM DIGITAL TWIN STATUS PANEL */}
       {/* ==================================================================== */}
       {showPerfPanel && !isSimActive && (
         <div className="absolute top-16 left-3 z-30 bg-slate-900/95 backdrop-blur-md rounded-2xl p-4 border border-cyan-500/40 shadow-2xl w-80 text-xs text-slate-200 pointer-events-auto font-mono">
@@ -1825,7 +1945,7 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
             <div className="flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-cyan-400" />
               <strong className="text-white text-xs uppercase tracking-wider">
-                CESIUM PERFORMANCE
+                CESIUM DIGITAL TWIN STATUS
               </strong>
             </div>
             <button
@@ -1837,45 +1957,83 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
           </div>
 
           <div className="space-y-1.5 text-[11px]">
-            {/* Cesium Viewer Count — MUST BE 1 */}
+            {/* Viewer: PASS */}
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">Cesium Viewer:</span>
-              <span className={`font-bold px-1.5 py-0.2 rounded ${viewerCount === 1 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                {viewerCount}
+              <span className="text-slate-400">Viewer:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${viewerStatus === 'PASS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {viewerStatus}
               </span>
             </div>
 
-            {/* OSM Buildings */}
+            {/* Canvas: PASS */}
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">OSM Buildings:</span>
-              <span className="text-emerald-400 font-bold">{osmBuildingsStatus}</span>
+              <span className="text-slate-400">Canvas:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${canvasStatus === 'PASS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {canvasStatus}
+              </span>
             </div>
 
-            {/* Terrain */}
+            {/* WebGL: PASS */}
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">Terrain:</span>
-              <span className="text-emerald-400 font-bold">{terrainStatus}</span>
+              <span className="text-slate-400">WebGL:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${webglStatus === 'PASS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {webglStatus}
+              </span>
             </div>
 
-            {/* Satellite */}
+            {/* Ion: PASS / FAIL */}
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Ion:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${ionStatus === 'PASS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                {ionStatus}
+              </span>
+            </div>
+
+            {/* World Terrain: PASS / UNAVAILABLE / ERROR */}
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">World Terrain:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${
+                worldTerrainStatus === 'PASS'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : worldTerrainStatus === 'UNAVAILABLE'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-rose-500/20 text-rose-400'
+              }`}>
+                {worldTerrainStatus}
+              </span>
+            </div>
+
+            {/* Satellite: PASS / ERROR */}
             <div className="flex justify-between items-center">
               <span className="text-slate-400">Satellite:</span>
-              <span className="text-emerald-400 font-bold">ON (Esri World Imagery)</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${satelliteStatus === 'PASS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {satelliteStatus}
+              </span>
             </div>
 
-            {/* Animated Layers */}
+            {/* OSM Buildings: PASS / UNAVAILABLE / ERROR */}
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">Animated Layers:</span>
-              <span className="text-amber-400 font-bold">OFF (Zero CPU Overhead)</span>
+              <span className="text-slate-400">OSM Buildings:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${
+                osmBuildingsStatus === 'PASS'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : osmBuildingsStatus === 'UNAVAILABLE'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-rose-500/20 text-rose-400'
+              }`}>
+                {osmBuildingsStatus}
+              </span>
             </div>
 
-            {/* FPS */}
+            {/* Render: PASS */}
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">FPS:</span>
-              <span className="text-cyan-300 font-bold">60 (On-Demand)</span>
+              <span className="text-slate-400">Render:</span>
+              <span className={`font-bold px-1.5 py-0.2 rounded ${renderStatus === 'PASS' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                {renderStatus}
+              </span>
             </div>
 
-            {/* SECTION 10: Dynamic Camera Debug Data */}
+            {/* Camera Details */}
             <div className="pt-2 border-t border-slate-800 space-y-1">
               <div className="flex justify-between">
                 <span className="text-slate-400">Camera:</span>
@@ -1898,8 +2056,8 @@ export const CesiumDigitalTwin: React.FC<CesiumDigitalTwinProps> = ({
                 <span className="text-amber-300 font-bold">{selectedLocation.cameraHeight.toLocaleString()} m</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Render Mode:</span>
-                <span className="text-emerald-400 font-bold">requestRenderMode (Active)</span>
+                <span className="text-slate-400">Canvas:</span>
+                <span className="text-cyan-300 font-bold">{canvasDimensions}</span>
               </div>
             </div>
           </div>

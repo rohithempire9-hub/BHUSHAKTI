@@ -21,7 +21,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Tripura",
     latitude: 23.83150,
     longitude: 91.28680,
-    cameraHeight: 1500
+    cameraHeight: 2500
   },
 
   tawang: {
@@ -30,7 +30,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Arunachal Pradesh",
     latitude: 27.58605,
     longitude: 91.85900,
-    cameraHeight: 2500
+    cameraHeight: 4800
   },
 
   gangtok: {
@@ -39,7 +39,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Sikkim",
     latitude: 27.33890,
     longitude: 88.60650,
-    cameraHeight: 2200
+    cameraHeight: 3600
   },
 
   majuli: {
@@ -48,7 +48,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Assam",
     latitude: 27.00140,
     longitude: 94.22460,
-    cameraHeight: 2500
+    cameraHeight: 2800
   },
 
   cherrapunji: {
@@ -57,7 +57,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Meghalaya",
     latitude: 25.28400,
     longitude: 91.72100,
-    cameraHeight: 2200
+    cameraHeight: 3200
   },
 
   aizawl: {
@@ -66,7 +66,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Mizoram",
     latitude: 23.72710,
     longitude: 92.71760,
-    cameraHeight: 2200
+    cameraHeight: 3000
   },
 
   kohima: {
@@ -75,7 +75,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Nagaland",
     latitude: 25.67510,
     longitude: 94.10860,
-    cameraHeight: 2200
+    cameraHeight: 3200
   },
 
   chungthang: {
@@ -84,7 +84,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Sikkim",
     latitude: 27.60390,
     longitude: 88.64640,
-    cameraHeight: 2500
+    cameraHeight: 3800
   },
 
   noney: {
@@ -93,7 +93,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Manipur",
     latitude: 24.71260,
     longitude: 93.63180,
-    cameraHeight: 2200
+    cameraHeight: 2800
   },
 
   dima_hasao: {
@@ -102,7 +102,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Assam",
     latitude: 25.18430,
     longitude: 93.01630,
-    cameraHeight: 2200
+    cameraHeight: 2800
   },
 
   rathong: {
@@ -111,7 +111,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Sikkim",
     latitude: 27.48330,
     longitude: 88.16670,
-    cameraHeight: 3500
+    cameraHeight: 6500
   },
 
   khangri_karpo: {
@@ -120,7 +120,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Arunachal Pradesh",
     latitude: 28.38330,
     longitude: 94.41670,
-    cameraHeight: 3500
+    cameraHeight: 6500
   },
 
   bhalukpong: {
@@ -129,7 +129,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Arunachal Pradesh",
     latitude: 27.01350,
     longitude: 92.64150,
-    cameraHeight: 2000
+    cameraHeight: 2800
   },
 
   wayanad: {
@@ -138,7 +138,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Kerala",
     latitude: 11.68540,
     longitude: 76.13200,
-    cameraHeight: 2200
+    cameraHeight: 2800
   },
 
   chamoli: {
@@ -147,7 +147,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Uttarakhand",
     latitude: 30.40740,
     longitude: 79.32760,
-    cameraHeight: 2500
+    cameraHeight: 4500
   },
 
   umiam: {
@@ -156,7 +156,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Meghalaya",
     latitude: 25.65860,
     longitude: 91.90560,
-    cameraHeight: 2200
+    cameraHeight: 3000
   },
 
   tura: {
@@ -165,7 +165,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Meghalaya",
     latitude: 25.51410,
     longitude: 90.20320,
-    cameraHeight: 2000
+    cameraHeight: 2600
   },
 
   baramura: {
@@ -174,7 +174,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Tripura",
     latitude: 23.87420,
     longitude: 91.56420,
-    cameraHeight: 1800
+    cameraHeight: 2500
   },
 
   mokokchung: {
@@ -183,7 +183,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "Nagaland",
     latitude: 26.32450,
     longitude: 94.51550,
-    cameraHeight: 2200
+    cameraHeight: 3200
   },
 
   kurseong: {
@@ -192,7 +192,7 @@ export const BHUSAKTHI_LOCATIONS: Record<string, BhusakthiLocation> = {
     state: "West Bengal",
     latitude: 26.88140,
     longitude: 88.27790,
-    cameraHeight: 2200
+    cameraHeight: 3400
   }
 };
 
