@@ -360,6 +360,63 @@ body {
   animation: bot-dot-seq-3 1.4s infinite ease-in-out;
 }
 
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reverse-spin {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes scan-slow {
+  0% {
+    top: 0%;
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    top: 100%;
+    opacity: 0.1;
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3.8s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 18s linear infinite;
+}
+
+.animate-reverse-spin {
+  animation: reverse-spin 12s linear infinite;
+}
+
+.animate-scan-slow {
+  animation: scan-slow 4s ease-in-out infinite;
+}
+
 
 
 

@@ -14,6 +14,9 @@ import {
 import { LandslideStation } from '../../types/landslide';
 import { BHUSAKTHI_LOCATIONS } from '../../data/bhusakthiLocations';
 import { BhusakthiBotAvatar } from './BhusakthiBotAvatar';
+import { ThinkingOrbIndicator } from './ThinkingOrbIndicator';
+import { SafeRouteMapCard, SafeRouteData } from './SafeRouteMapCard';
+import { useAuth } from '../../context/AuthContext';
 import {
   Sparkles,
   Send,
@@ -143,6 +146,7 @@ I support 11 languages. You can speak to me with voice or change your language a
     ];
   });
 
+  const { user, rolePermissions } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copilotStatus, setCopilotStatus] = useState<'online' | 'processing' | 'offline'>('online');
@@ -156,31 +160,43 @@ I support 11 languages. You can speak to me with voice or change your language a
     const code = String(err?.code || err?.status || '');
     const msg = String(err?.message || '').toLowerCase();
 
+    if (code === '400') {
+      return 'Invalid request parameters sent to Copilot engine.';
+    }
     if (code === '401') {
-      return 'Copilot authentication configuration is invalid.';
+      return 'Copilot authentication token is invalid or expired. Please sign in again.';
+    }
+    if (code === '403') {
+      return 'Access restricted. Insufficient operational permissions for this disaster response command.';
     }
     if (code === '404') {
-      return 'Copilot API endpoint was not found.';
+      return 'The requested disaster telemetry endpoint or location was not found on the server.';
+    }
+    if (code === '409') {
+      return 'Conflicting telemetry operation detected. Please retry in a few moments.';
+    }
+    if (code === '422') {
+      return 'Unprocessable query. Please verify and rephrase your disaster query.';
     }
     if (code === '429' || msg.includes('quota') || msg.includes('resource_exhausted') || msg.includes('rate limit')) {
-      return 'AI service rate limit reached. Please try again shortly.';
+      return 'AI disaster intelligence rate limit reached. Please wait a few moments before requesting again.';
     }
     if (code === '500') {
-      return 'Copilot server encountered an error.';
+      return 'BHUSAKTHI disaster intelligence service encountered an internal server error. Please retry.';
     }
     if (code === '502' || code === '503') {
-      return 'Copilot service is temporarily unavailable.';
+      return 'BHUSAKTHI disaster intelligence gateway is temporarily undergoing live telemetry sync. Please retry shortly.';
     }
     if (code === 'NETWORK_ERROR' || msg.includes('failed to fetch') || err?.name === 'TypeError') {
-      return 'Unable to connect to the Copilot server.';
+      return 'Unable to connect to the Copilot server. Please check your network connection.';
     }
     if (code === 'TIMEOUT' || msg.includes('timeout') || err?.name === 'TimeoutError') {
-      return 'Copilot took too long to respond. Please try again.';
+      return 'Copilot took too long to respond. The mountain telemetry link may be congested.';
     }
     if (err?.message && !err.message.startsWith('HTTP_') && err.message !== 'NETWORK_ERROR') {
       return err.message;
     }
-    return 'Copilot server encountered an error.';
+    return 'Copilot service encountered an unexpected error.';
   };
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -353,6 +369,12 @@ I support 11 languages. You can speak to me with voice or change your language a
           poreWaterPressureKpa: activeStation?.telemetry?.poreWaterPressureKpa ?? 64,
           isLive: true
         },
+        user: user ? {
+          name: user.full_name,
+          role: user.role,
+          organization: user.organization,
+          permissions: rolePermissions
+        } : undefined,
         simulation: {
           active: false,
           disasterType: 'landslide',
@@ -731,6 +753,23 @@ I support 11 languages. You can speak to me with voice or change your language a
                   {m.text}
                 </div>
 
+                {/* Safe Evacuation Route in Interactive Map Format (Not Text Only) */}
+                {!isUser && !m.error && (
+                  (m.actions && m.actions.some((a) => a.type === 'FIND_SAFE_ROUTE')) ||
+                  m.text.toLowerCase().includes('safe route') ||
+                  m.text.toLowerCase().includes('evacuation route') ||
+                  m.text.toLowerCase().includes('safe corridor') ||
+                  m.text.toLowerCase().includes('relief shelter') ||
+                  m.text.toLowerCase().includes('safe haven')
+                ) && (
+                  <SafeRouteMapCard
+                    onOpenFullGis={() => {
+                      if (onNavigateSection) onNavigateSection('emergency_response');
+                      onClose();
+                    }}
+                  />
+                )}
+
                 {/* Try Again Button for Failed Request (Requirement 24) */}
                 {m.error && m.failedQuery && (
                   <div className="pt-2 border-t border-rose-200/60 flex items-center justify-between">
@@ -801,33 +840,15 @@ I support 11 languages. You can speak to me with voice or change your language a
           );
         })}
 
-        {/* Loading / Thinking Indicator (Requirement 9) */}
+        {/* Loading / Thinking Orb Indicator (Pill capsule with 3D thinking orb animation) */}
         {isLoading && (
-          <div className="flex gap-2.5 items-start text-slate-500 text-xs animate-in fade-in duration-200">
+          <div className="flex gap-2.5 items-center text-slate-500 text-xs animate-in fade-in duration-200">
             <BhusakthiBotAvatar
               size={36}
               state="thinking"
               className="shrink-0 mt-0.5"
             />
-            <div className="bg-white border border-sky-300 rounded-2xl rounded-tl-none p-3 shadow-xs space-y-1.5 max-w-[85%]">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-[11px] text-slate-800 font-sans tracking-wide">
-                  BHUSAKTHI AI
-                </span>
-                <span className="text-[9px] font-mono text-sky-600 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-200 font-bold">
-                  {currentLangMeta.nativeName}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600">
-                {/* 3 Sequential Animated Dots (Requirement 9: ● ○ ○ -> ○ ● ○ -> ○ ○ ●) */}
-                <div className="flex items-center gap-1.5 px-0.5">
-                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-bot-dot-1" />
-                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-bot-dot-2" />
-                  <span className="w-2 h-2 rounded-full bg-sky-500 animate-bot-dot-3" />
-                </div>
-                <span className="text-slate-500 text-[11px]">Thinking...</span>
-              </div>
-            </div>
+            <ThinkingOrbIndicator label="Thinking...." size={48} />
           </div>
         )}
 

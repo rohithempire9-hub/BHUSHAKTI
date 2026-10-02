@@ -8,13 +8,21 @@ import {
   Menu,
   ShieldCheck,
   CloudSun,
-  Database
+  Database,
+  LogOut,
+  ShieldAlert,
+  Check,
+  Settings,
+  Sparkles,
+  Building
 } from 'lucide-react';
 import { BhuLanguage } from '../../types/bhuShakti';
 import { TRANSLATIONS } from '../../utils/translations';
 import { BhuNavSection } from './BhuShaktiSidebar';
 import { BhuShaktiLogo } from './BhuShaktiLogo';
 import { DemoScenarioId } from '../Demo/SihDemoBar';
+import { useAuth } from '../../context/AuthContext';
+import { UserRole } from '../../types/auth';
 
 interface BhuShaktiHeaderProps {
   currentLanguage: BhuLanguage;
@@ -28,6 +36,7 @@ interface BhuShaktiHeaderProps {
   onToggleMobileMenu?: () => void;
   activeScenario?: DemoScenarioId;
   onSelectScenario?: (scenario: DemoScenarioId) => void;
+  onOpenAuth?: () => void;
 }
 
 const LANGUAGE_OPTIONS: { code: BhuLanguage; label: string; native: string }[] = [
@@ -43,6 +52,15 @@ const LANGUAGE_OPTIONS: { code: BhuLanguage; label: string; native: string }[] =
   { code: 'brx', label: 'Bodo', native: 'बोडो' },
 ];
 
+const AVAILABLE_ROLES: UserRole[] = [
+  'Disaster Management Officer',
+  'Administrator',
+  'Emergency Responder',
+  'Field Officer',
+  'Researcher',
+  'Viewer'
+];
+
 export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
   currentLanguage,
   onLanguageChange,
@@ -51,9 +69,12 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
   onSearchChange,
   isMobileMenuOpen,
   onToggleMobileMenu,
+  onOpenAuth
 }) => {
+  const { user, isAuthenticated, logout, updateUserRole } = useAuth();
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const currentLangObj = LANGUAGE_OPTIONS.find((l) => l.code === currentLanguage) || LANGUAGE_OPTIONS[0];
 
   const headerRef = useRef<HTMLElement>(null);
@@ -62,11 +83,19 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
     const handleOutsideClick = (e: MouseEvent) => {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
         setLangDropdownOpen(false);
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'DM';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
     <header
@@ -198,18 +227,128 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
             )}
           </div>
 
-          {/* Admin Button */}
-          <button
-            id="header-admin-btn"
-            onClick={() => onNavigate('settings')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-95"
-            title="System Administration & Settings"
-          >
-            <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-              <User className="w-2.5 h-2.5" />
+          {/* User Profile / Authentication Menu */}
+          {isAuthenticated && user ? (
+            <div className="relative">
+              <button
+                id="header-user-btn"
+                type="button"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 transition-all cursor-pointer shadow-xs active:scale-95"
+                title="User Profile & Access Control"
+              >
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center text-[11px] font-black shadow-xs">
+                  {getInitials(user.full_name)}
+                </div>
+                <div className="text-left hidden md:block">
+                  <div className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px]">
+                    {user.full_name}
+                  </div>
+                  <div className="text-[10px] font-semibold text-blue-600 truncate max-w-[130px]">
+                    {user.role}
+                  </div>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              </button>
+
+              {userMenuOpen && (
+                <div
+                  id="header-user-menu"
+                  className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100"
+                >
+                  {/* User Profile Card */}
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+                        {getInitials(user.full_name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-black text-slate-900 truncate">
+                          {user.full_name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate font-mono">
+                          {user.email}
+                        </div>
+                        <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-blue-100/70 text-blue-700 border border-blue-200">
+                          {user.role}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-slate-200/80 text-[10px] text-slate-600 space-y-1">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Building className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{user.organization}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Switch Role Simulator */}
+                  <div className="mb-2">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-1">
+                      Simulate Role Permissions
+                    </div>
+                    <div className="space-y-0.5">
+                      {AVAILABLE_ROLES.map((roleOption) => (
+                        <button
+                          key={roleOption}
+                          type="button"
+                          onClick={() => {
+                            updateUserRole(roleOption);
+                            setUserMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                            user.role === roleOption
+                              ? 'bg-blue-50 text-blue-700 font-bold'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="truncate">{roleOption}</span>
+                          {user.role === roleOption && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onNavigate('settings');
+                        setUserMenuOpen(false);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Settings</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <span className="hidden sm:inline font-bold">Admin</span>
-          </button>
+          ) : (
+            <button
+              id="header-signin-btn"
+              type="button"
+              onClick={onOpenAuth}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

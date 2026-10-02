@@ -8,6 +8,16 @@ import { fetchOriginalWeatherForStation, syncStationWithLiveWeather } from './sr
 import type { SensorTelemetry, LandslideStation } from './src/types/landslide';
 import { handleBhuShaktiApi } from './src/services/bhuShaktiApiHandlers';
 import { processCopilotQuery } from './src/services/copilotBackendService';
+import {
+  registerUser,
+  loginUser,
+  googleAuthUser,
+  updateUserProfile,
+  getMeFromToken,
+  logoutUser,
+  forgotPassword,
+  resetPassword
+} from './src/services/authBackendService';
 
 const app = express();
 
@@ -375,6 +385,71 @@ app.post('/api/copilot', async (req, res) => {
     console.error('[Copilot Server Error]', err);
     return res.status(500).json({ error: err?.message || 'Copilot query processing failed' });
   }
+});
+
+// ============================================================================
+// AUTHENTICATION & ACCESS CONTROL API ROUTES
+// ============================================================================
+app.post('/api/auth/register', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+  const result = await registerUser(req.body, { ip, userAgent });
+  return res.status(result.status).json(result);
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+  const result = await loginUser(req.body, { ip, userAgent });
+  return res.status(result.status).json(result);
+});
+
+app.post('/api/auth/google', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+  const result = await googleAuthUser(req.body, { ip, userAgent });
+  return res.status(result.status).json(result);
+});
+
+app.put('/api/auth/profile', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  const me = await getMeFromToken(token);
+  if (!me.ok || !me.user) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized profile update' });
+  }
+  const result = await updateUserProfile(me.user.id, req.body);
+  return res.status(result.status).json(result);
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+  const result = await logoutUser(token, { ip, userAgent });
+  return res.status(result.status).json(result);
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  const result = await getMeFromToken(token);
+  return res.status(result.status).json(result);
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+  const result = await forgotPassword(req.body?.email, { ip, userAgent });
+  return res.status(result.status).json(result);
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+  const result = await resetPassword(req.body, { ip, userAgent });
+  return res.status(result.status).json(result);
 });
 
 // Central BhuShakti Intelligence Router

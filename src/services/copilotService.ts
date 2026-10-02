@@ -38,7 +38,7 @@ const LANGUAGE_STORAGE_KEY = 'bhusakthi_language';
 const CHAT_STORAGE_KEY = 'bhusakthi_copilot_chat_v1';
 
 export function getApiBaseUrl(): string {
-  const envUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  const envUrl = (((import.meta as any).env?.VITE_API_BASE_URL) || '').trim();
   return envUrl.replace(/\/$/, '');
 }
 

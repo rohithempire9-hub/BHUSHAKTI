@@ -56,6 +56,16 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Authenticated Users (Disaster Management Accounts)
+    match /users/{userId} {
+      allow read, write: if isValidId(userId);
+    }
+
+    // Security & Access Audit Logs
+    match /auth_logs/{logId} {
+      allow read, write: if isValidId(logId);
+    }
+
     // Default safety catch-all
     match /{document=**} {
       allow read, write: if false;

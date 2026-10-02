@@ -135,6 +135,41 @@
         "level": { "type": "string" }
       },
       "required": ["incidentId"]
+    },
+    "users": {
+      "title": "BhuUser",
+      "description": "Authenticated disaster response personnel accounts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "full_name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "organization": { "type": "string" },
+        "role": { "type": "string" },
+        "password_hash": { "type": "string" },
+        "is_verified": { "type": "boolean" },
+        "status": { "type": "string" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" },
+        "last_login": { "type": "string" }
+      },
+      "required": ["id", "full_name", "email", "role", "password_hash"]
+    },
+    "auth_logs": {
+      "title": "AuthLogRecord",
+      "description": "Security audit trail and access logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "email": { "type": "string" },
+        "event": { "type": "string" },
+        "ip_address": { "type": "string" },
+        "user_agent": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "event", "created_at"]
     }
   },
   "firestore": {
@@ -169,6 +204,14 @@
     "/alerts/{alertId}": {
       "schema": "alerts",
       "description": "Emergency hazard alerts"
+    },
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Registered disaster response officers and personnel"
+    },
+    "/auth_logs/{logId}": {
+      "schema": "auth_logs",
+      "description": "Security audit logs for user authentication and authorization events"
     }
   }
 }

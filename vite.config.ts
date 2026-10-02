@@ -6,6 +6,14 @@ import {defineConfig, Plugin} from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { handleBhuShaktiApi } from './src/services/bhuShaktiApiHandlers';
 import { processCopilotQuery } from './src/services/copilotBackendService';
+import {
+  registerUser,
+  loginUser,
+  getMeFromToken,
+  logoutUser,
+  forgotPassword,
+  resetPassword
+} from './src/services/authBackendService';
 
 function bhuShaktiIntelligencePlugin(): Plugin {
   return {
@@ -118,6 +126,115 @@ function geminiLandslideApiPlugin(): Plugin {
               res.statusCode = 500;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ error: err?.message || 'Copilot service error' }));
+            }
+          });
+          return;
+        }
+
+        // ====================================================================
+        // AUTHENTICATION API ROUTES (Dev Mode Vite Middleware)
+        // ====================================================================
+        if (pathname === '/api/auth/register' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+              const userAgent = (req.headers['user-agent'] as string) || '';
+              const result = await registerUser(data, { ip, userAgent });
+              res.statusCode = result.status;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ ok: false, error: err?.message || 'Registration failed' }));
+            }
+          });
+          return;
+        }
+
+        if (pathname === '/api/auth/login' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+              const userAgent = (req.headers['user-agent'] as string) || '';
+              const result = await loginUser(data, { ip, userAgent });
+              res.statusCode = result.status;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ ok: false, error: err?.message || 'Login failed' }));
+            }
+          });
+          return;
+        }
+
+        if (pathname === '/api/auth/logout' && req.method === 'POST') {
+          const authHeader = req.headers.authorization || '';
+          const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+          const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+          const userAgent = (req.headers['user-agent'] as string) || '';
+          const result = await logoutUser(token, { ip, userAgent });
+          res.statusCode = result.status;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(result));
+          return;
+        }
+
+        if (pathname === '/api/auth/me' && req.method === 'GET') {
+          const authHeader = req.headers.authorization || '';
+          const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+          const result = await getMeFromToken(token);
+          res.statusCode = result.status;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(result));
+          return;
+        }
+
+        if (pathname === '/api/auth/forgot-password' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+              const userAgent = (req.headers['user-agent'] as string) || '';
+              const result = await forgotPassword(data?.email, { ip, userAgent });
+              res.statusCode = result.status;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ ok: false, error: err?.message || 'Forgot password failed' }));
+            }
+          });
+          return;
+        }
+
+        if (pathname === '/api/auth/reset-password' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+              const userAgent = (req.headers['user-agent'] as string) || '';
+              const result = await resetPassword(data, { ip, userAgent });
+              res.statusCode = result.status;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ ok: false, error: err?.message || 'Reset password failed' }));
             }
           });
           return;
