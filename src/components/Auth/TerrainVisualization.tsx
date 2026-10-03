@@ -72,7 +72,7 @@ export const TerrainVisualization: React.FC<TerrainVisualizationProps> = ({
     planeGeo.rotateX(-Math.PI / 2);
 
     const posAttr = planeGeo.attributes.position;
-    const vertexCount = posAttr.count;
+    const vertexCount = posAttr ? posAttr.count : 0;
 
     // Perlin-style noise generation for realistic alpine mountain range
     const noise = (x: number, y: number) => {

@@ -55,15 +55,15 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
   return (
     <div id="sms-early-warning-hub-panel" className="flex flex-col h-full space-y-4 text-slate-900">
       {/* Sub-view switcher tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 p-2.5 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-3 clay-panel p-2.5">
+        <div className="clay-tab-container p-1">
           <button
             type="button"
             onClick={() => setActiveSubView('polygon')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
               activeSubView === 'polygon'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'clay-tab-active'
+                : 'clay-tab text-slate-600'
             }`}
           >
             <MapPin className="w-3.5 h-3.5" />
@@ -72,10 +72,10 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubView('devices')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
               activeSubView === 'devices'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'clay-tab-active'
+                : 'clay-tab text-slate-600'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
@@ -84,7 +84,7 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-emerald-700 font-bold flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          <span className="text-[11px] font-mono text-emerald-800 font-bold flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             BSNL Ch. 4370 Live Gateway
           </span>
@@ -100,16 +100,16 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
       ) : (
         <div className="space-y-3">
           {/* Top Header & Prominent Manual Override Button */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-1 bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1 clay-panel p-4">
             <div>
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center border border-amber-300">
                   <Radio className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-bold text-slate-900 font-sans tracking-tight">
                   Registered Device Registry
                 </h3>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
                   Cell Broadcast Ch. 4370
                 </span>
               </div>
@@ -122,7 +122,7 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
             <button
               id="simulate-mass-sos-btn"
               onClick={onSimulateMassSos}
-              className="relative group flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all transform hover:scale-[1.02] active:scale-95 cursor-pointer"
+              className="clay-button-danger flex items-center gap-2 px-4 py-2 text-xs font-bold"
             >
               <ShieldAlert className="w-4 h-4 text-white animate-pulse" />
               <span className="tracking-wide uppercase font-sans">
@@ -132,30 +132,30 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
           </div>
 
           {/* Network Tower & Subscriber Telemetry Ribbon */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-xs">
-            <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3 text-xs">
+            <div className="p-3 clay-card flex items-center justify-between">
               <span className="text-[11px] text-slate-500">Registered Devices</span>
               <span className="font-mono font-bold text-slate-900">{registeredDevices.length} Priority Units</span>
             </div>
-            <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-xs">
+            <div className="p-3 clay-card flex items-center justify-between">
               <span className="text-[11px] text-slate-500">Cell Relay Towers</span>
               <span className="font-mono font-bold text-emerald-700">18 BSNL / Airtel Towers</span>
             </div>
-            <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-xs">
+            <div className="p-3 clay-card flex items-center justify-between">
               <span className="text-[11px] text-slate-500">Network Latency</span>
               <span className="font-mono font-bold text-blue-700">&lt; 1.4s Satellite Sync</span>
             </div>
-            <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between shadow-xs">
+            <div className="p-3 clay-card flex items-center justify-between">
               <span className="text-[11px] text-slate-500">Gateway Encryption</span>
               <span className="font-mono font-bold text-slate-800">AES-256 CAP v1.2</span>
             </div>
           </div>
 
           {/* Contact Database Table */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
+          <div className="overflow-x-auto clay-panel p-2">
             <table className="w-full text-left text-xs border-collapse min-w-[620px]">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
+                <tr className="border-b border-slate-200/80 text-slate-600 text-[11px] font-bold uppercase tracking-wider">
                   <th className="py-2.5 px-3">Device / Authority Name</th>
                   <th className="py-2.5 px-3">Mobile Number</th>
                   <th className="py-2.5 px-3">Region &amp; Jurisdiction</th>
@@ -164,7 +164,7 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
                   <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-medium">
+              <tbody className="divide-y divide-slate-200/60 font-medium">
                 {filteredDevices.map((dev) => {
                   const isDispatched = dev.alertStatus === 'DISPATCHED';
                   const isArmed = dev.alertStatus === 'ARMED / ACTIVE';
@@ -179,7 +179,7 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
                     <tr
                       key={dev.id}
                       id={`device-row-${dev.id}`}
-                      className="hover:bg-slate-50 transition-colors text-slate-800"
+                      className="hover:bg-blue-50/40 transition-colors text-slate-800"
                     >
                       <td className="py-2.5 px-3">
                         <div className="font-bold text-slate-900">{dev.deviceName}</div>
@@ -216,7 +216,7 @@ export const SmsEarlyWarningHub: React.FC<SmsEarlyWarningHubProps> = ({
                               onSimulateMassSos();
                             }
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-[11px] font-bold transition-colors inline-flex items-center gap-1 cursor-pointer border border-slate-300 shadow-2xs"
+                          className="clay-button-secondary px-2.5 py-1 text-[11px] font-bold inline-flex items-center gap-1"
                         >
                           <Send className="w-3 h-3 text-blue-600" />
                           <span>Dispatch</span>

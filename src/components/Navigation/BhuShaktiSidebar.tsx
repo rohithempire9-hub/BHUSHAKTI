@@ -224,39 +224,39 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
               key={item.id}
               id={`sidebar-link-${item.id}`}
               onClick={() => handleItemClick(item)}
-              className={`w-full group flex items-center justify-between h-[56px] px-3 py-2 rounded-2xl transition-all duration-200 ease-out cursor-pointer text-left ${
+              className={`w-full group flex items-center justify-between h-[56px] px-3.5 py-2 rounded-2xl cursor-pointer text-left ${
                 isActive
-                  ? 'bg-gradient-to-r from-blue-50/95 via-blue-50/60 to-indigo-50/30 border border-blue-200/90 border-l-[4px] border-l-blue-600 shadow-sm shadow-blue-500/10'
-                  : 'bg-white hover:bg-slate-50/90 border border-transparent hover:border-slate-200/70 hover:translate-x-1 shadow-none hover:shadow-2xs'
+                  ? 'clay-sidebar-item-active'
+                  : 'clay-sidebar-item'
               }`}
             >
-              {/* Left: Colorful Icon Container & Item Name (Vertically centered, full width) */}
+              {/* Left: Colorful 3D Clay Icon Container & Item Name */}
               <div className="flex items-center gap-3 truncate min-w-0 flex-1">
-                {/* 40-44px Colorful Gradient Icon Box */}
+                {/* 40px Soft 3D Clay Icon Box */}
                 <div
-                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.iconGradient} flex items-center justify-center shrink-0 shadow-md ${item.iconShadow} transition-transform group-hover:scale-105`}
+                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.iconGradient} flex items-center justify-center shrink-0 shadow-md ${item.iconShadow} transition-transform group-hover:scale-105 border border-white/50 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.7),3px_4px_8px_rgba(100,116,139,0.2)]`}
                 >
-                  <Icon className="w-5 h-5 text-white" />
+                  <Icon className="w-5 h-5 text-white drop-shadow-xs" />
                 </div>
 
                 {/* Item Name */}
                 <span
-                  className={`truncate text-[13px] font-bold tracking-tight transition-colors ${
+                  className={`truncate text-[13px] tracking-tight transition-colors ${
                     isActive
                       ? 'text-blue-900 font-extrabold'
-                      : 'text-[#0F172A] group-hover:text-blue-700'
+                      : 'text-[#10233f] font-bold group-hover:text-blue-700'
                   }`}
                 >
                   {item.label}
                 </span>
               </div>
 
-              {/* Right: Right-facing navigation arrow only (No badges/tags) */}
+              {/* Right: Navigation arrow */}
               <ChevronRight
                 className={`w-4 h-4 shrink-0 transition-all duration-200 ml-2 ${
                   isActive
                     ? 'text-blue-600 translate-x-0.5'
-                    : 'text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5'
+                    : 'text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5'
                 }`}
               />
             </button>
@@ -300,17 +300,17 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
 
       {/* Footer System Status Card */}
       <div className="pt-3 border-t border-slate-200/90 text-xs text-slate-500">
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200/80 flex items-center justify-between shadow-2xs">
+        <div className="p-3 rounded-2xl clay-card-raised flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="font-mono text-[10.5px] text-slate-800 font-bold tracking-tight">
+            <span className="font-mono text-[10.5px] text-[#10233f] font-bold tracking-tight">
               PINN AI MODEL v3.2
             </span>
           </div>
-          <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
+          <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300/80 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.8)]">
             ONLINE
           </span>
         </div>
@@ -323,7 +323,7 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
       {/* Desktop Persistent Sidebar (280-300px width on desktop) */}
       <aside
         id="bhushakti-main-sidebar"
-        className="hidden lg:flex w-[290px] xl:w-[300px] shrink-0 bg-white border-r border-slate-200/90 p-4 flex-col justify-between shadow-xs z-30"
+        className="hidden lg:flex w-[290px] xl:w-[300px] shrink-0 bg-gradient-to-b from-[#ffffff] via-[#f8fafc] to-[#f0f4f9] border-r border-slate-200/80 p-4 flex-col justify-between shadow-[4px_0_20px_rgba(148,163,184,0.14)] z-30"
       >
         {sidebarContent}
       </aside>
@@ -335,7 +335,7 @@ export const BhuShaktiSidebar: React.FC<BhuShaktiSidebarProps> = ({
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
             onClick={onCloseMobile}
           />
-          <aside className="relative w-[300px] max-w-[85vw] bg-white border-r border-slate-200 p-4 shadow-2xl z-10 overflow-y-auto">
+          <aside className="relative w-[300px] max-w-[85vw] bg-gradient-to-b from-[#ffffff] via-[#f8fafc] to-[#f0f4f9] border-r border-slate-200 p-4 shadow-2xl z-10 overflow-y-auto">
             {sidebarContent}
           </aside>
         </div>

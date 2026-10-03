@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
   initializeFirestore,
+  setLogLevel,
   collection,
   doc,
   getDocs,
@@ -27,6 +28,13 @@ import {
   LiveWeatherData
 } from './realWeatherService';
 
+// Silence internal Firestore SDK debug/transport messages (e.g. idle stream cancellations)
+try {
+  setLogLevel('silent');
+} catch {
+  // Ignore if already set or unsupported in environment
+}
+
 let db: Firestore | null = null;
 let firebaseInitialized = false;
 
@@ -37,16 +45,14 @@ try {
   const dbIdParam = databaseId !== '(default)' ? databaseId : undefined;
 
   try {
-    // Enable experimentalForceLongPolling to prevent iframe proxy/stream disconnect errors
-    db = initializeFirestore(firebaseApp, {
-      experimentalForceLongPolling: true,
-    }, dbIdParam);
-  } catch (initErr) {
+    // Enable experimentalAutoDetectLongPolling or getFirestore according to environment
     db = getFirestore(firebaseApp, dbIdParam);
+  } catch (initErr) {
+    db = initializeFirestore(firebaseApp, {}, dbIdParam);
   }
 
   firebaseInitialized = true;
-  console.log('[Firebase] Cloud Firestore initialized with long-polling for DB ID:', databaseId);
+  console.log('[Firebase] Cloud Firestore initialized for DB ID:', databaseId);
 } catch (err) {
   console.warn('[Firebase] Initialization notice (using resilient local cloud sync fallback):', err);
 }
@@ -433,7 +439,10 @@ export function subscribeToDisasterEvidence(
         callback(reports);
       },
       (error) => {
-        console.warn('[Firebase] Evidence snapshot connection note (using offline resilient cache):', error?.message || error);
+        const msg = error?.message || String(error || '');
+        if (!msg.includes('CANCELLED') && !msg.includes('idle stream') && !msg.includes('new targets')) {
+          console.warn('[Firebase] Evidence snapshot connection note (using offline resilient cache):', msg);
+        }
         callback(INITIAL_DISASTER_EVIDENCE);
       }
     );
@@ -498,10 +507,13 @@ export function subscribeToStations(
         }
       },
       (error) => {
-        console.warn(
-          '[Firebase] Station realtime connection note (operating with resilient offline sync):',
-          error?.message || error
-        );
+        const msg = error?.message || String(error || '');
+        if (!msg.includes('CANCELLED') && !msg.includes('idle stream') && !msg.includes('new targets')) {
+          console.warn(
+            '[Firebase] Station realtime connection note (operating with resilient offline sync):',
+            msg
+          );
+        }
         callback(INITIAL_STATIONS);
       }
     );

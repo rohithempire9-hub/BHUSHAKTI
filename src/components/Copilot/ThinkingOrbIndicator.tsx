@@ -1,5 +1,45 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, Component, ErrorInfo, ReactNode } from 'react';
 import { ThinkingOrb } from 'thinking-orbs';
+
+type OrbSize = 64 | 32 | 20;
+
+function normalizeOrbSize(size?: number): OrbSize {
+  if (!size) return 32;
+  if (size <= 24) return 20;
+  if (size <= 48) return 32;
+  return 64;
+}
+
+interface OrbErrorBoundaryProps {
+  children: ReactNode;
+  fallback: ReactNode;
+}
+
+interface OrbErrorBoundaryState {
+  hasError: boolean;
+}
+
+class OrbErrorBoundary extends Component<OrbErrorBoundaryProps, OrbErrorBoundaryState> {
+  constructor(props: OrbErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): OrbErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn('[ThinkingOrb] Switched to procedural fallback due to rendering error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 interface ThinkingOrbIndicatorProps {
   label?: string;
@@ -9,15 +49,15 @@ interface ThinkingOrbIndicatorProps {
 
 export const ThinkingOrbIndicator: React.FC<ThinkingOrbIndicatorProps> = ({
   label = 'Thinking....',
-  size = 48,
+  size = 32,
   className = ''
 }) => {
   const [orbError, setOrbError] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const normalizedSize = normalizeOrbSize(size);
 
   // High performance Canvas 3D Dotted Globe fallback in case of canvas context issue
   useEffect(() => {
-    if (!orbError) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -43,7 +83,7 @@ export const ThinkingOrbIndicator: React.FC<ThinkingOrbIndicatorProps> = ({
       const cy = canvas.height / 2;
       const r = canvas.width * 0.38;
 
-      dots.forEach((dot, idx) => {
+      dots.forEach((dot) => {
         // Rotate around Y and slight tilt
         const currentTheta = dot.theta + angle;
         const x3d = r * Math.sqrt(1 - dot.phi * dot.phi) * Math.cos(currentTheta);
@@ -73,6 +113,15 @@ export const ThinkingOrbIndicator: React.FC<ThinkingOrbIndicatorProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [orbError]);
 
+  const fallbackCanvas = (
+    <canvas
+      ref={canvasRef}
+      width={72}
+      height={72}
+      className="w-9 h-9 rounded-full object-contain"
+    />
+  );
+
   return (
     <div
       className={`inline-flex items-center gap-3.5 px-4 py-2 rounded-full bg-[#16171a]/95 border border-white/10 text-white shadow-xl backdrop-blur-md select-none transition-all ${className}`}
@@ -81,19 +130,16 @@ export const ThinkingOrbIndicator: React.FC<ThinkingOrbIndicatorProps> = ({
     >
       <div className="relative flex items-center justify-center shrink-0 w-9 h-9 overflow-hidden rounded-full">
         {!orbError ? (
-          <div
-            className="flex items-center justify-center scale-90 transition-transform"
-            onError={() => setOrbError(true)}
-          >
-            <ThinkingOrb state="working" size={size as any} />
-          </div>
+          <OrbErrorBoundary fallback={fallbackCanvas}>
+            <div
+              className="flex items-center justify-center scale-90 transition-transform"
+              onError={() => setOrbError(true)}
+            >
+              <ThinkingOrb state="working" size={normalizedSize} />
+            </div>
+          </OrbErrorBoundary>
         ) : (
-          <canvas
-            ref={canvasRef}
-            width={72}
-            height={72}
-            className="w-9 h-9 rounded-full object-contain"
-          />
+          fallbackCanvas
         )}
       </div>
 

@@ -74,24 +74,24 @@ export const FloodPageView: React.FC<FloodPageViewProps> = ({
   return (
     <div className="space-y-6 w-full max-w-[1720px] mx-auto">
       {/* Header */}
-      <div className="rounded-2xl bg-[#0b1738] border border-[#1b3470] p-5 sm:p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+      <div className="clay-panel p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/40">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-[4px_6px_12px_rgba(6,182,212,0.3)] border-t border-white/40">
             <Waves className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-600">
                 Hydrological Intelligence
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200">
                 3 RIVERS ABOVE DANGER MARK
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white font-sans">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 font-sans">
               Northeast River Basin &amp; Flash Flood Inundation Engine
             </h1>
-            <p className="text-xs text-slate-300 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Live river telemetry along Brahmaputra, Barak, Teesta, and Subansiri river valleys with GLOF surge modelling.
             </p>
           </div>
@@ -99,7 +99,7 @@ export const FloodPageView: React.FC<FloodPageViewProps> = ({
 
         <button
           onClick={onTriggerMassSos}
-          className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/30 border border-cyan-400/40 text-xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+          className="clay-button-danger px-4 py-2.5 text-xs font-bold gap-2"
         >
           <ShieldAlert className="w-3.5 h-3.5" />
           <span>Dispatch Inundation Siren</span>
@@ -116,38 +116,38 @@ export const FloodPageView: React.FC<FloodPageViewProps> = ({
             <div
               key={basin.name}
               onClick={() => setSelectedBasin(basin)}
-              className={`rounded-2xl p-4 transition-all cursor-pointer border flex flex-col justify-between ${
+              className={`p-4 transition-all cursor-pointer flex flex-col justify-between ${
                 isSelected
-                  ? 'bg-[#102554] border-cyan-400 shadow-xl shadow-cyan-950/60'
-                  : 'bg-[#0a1738] border-[#162e66] hover:border-slate-500'
+                  ? 'clay-card-active ring-2 ring-blue-500/80'
+                  : 'clay-card hover:translate-y-[-2px]'
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-[11px] font-mono text-cyan-300 uppercase font-bold">{basin.state}</span>
+                  <span className="text-[11px] font-mono text-blue-600 uppercase font-bold">{basin.state}</span>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                       isDanger
-                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                        : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'bg-amber-50 text-amber-800 border-amber-200'
                     }`}
                   >
                     {isDanger ? 'ABOVE DANGER' : 'WARNING'}
                   </span>
                 </div>
-                <h3 className="text-sm font-bold text-white leading-snug">{basin.name}</h3>
+                <h3 className="text-sm font-bold text-slate-800 leading-snug">{basin.name}</h3>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-[#18316c] space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-300">
+              <div className="mt-4 pt-3 border-t border-slate-200/80 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
                   <span>Current Water Level:</span>
-                  <span className="font-mono font-bold text-white">{basin.currentLevelM} m</span>
+                  <span className="font-mono font-bold text-slate-800">{basin.currentLevelM} m</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-500">
                   <span>Danger Level Mark:</span>
-                  <span className="font-mono text-slate-300">{basin.dangerLevelM} m</span>
+                  <span className="font-mono text-slate-600">{basin.dangerLevelM} m</span>
                 </div>
-                <div className="flex justify-between text-cyan-300 font-bold">
+                <div className="flex justify-between text-blue-600 font-bold">
                   <span>Trend:</span>
                   <span>{basin.trend}</span>
                 </div>
@@ -158,20 +158,20 @@ export const FloodPageView: React.FC<FloodPageViewProps> = ({
       </div>
 
       {/* Map with Inundation Focus */}
-      <div className="rounded-2xl bg-[#0a1738] border border-[#162e66] p-5 shadow-2xl">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#162e66]">
+      <div className="clay-panel p-5">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
           <div className="flex items-center gap-2">
-            <Waves className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            <Waves className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono">
               GIS Flood Inundation &amp; Drainage Corridors
             </h3>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-slate-500 font-mono font-bold">
             {selectedBasin.name} Focus
           </span>
         </div>
 
-        <div className="h-[620px] rounded-xl overflow-hidden border border-[#18316c]">
+        <div className="h-[620px] rounded-2xl overflow-hidden border border-slate-200/80 shadow-inner">
           <LandslideMap
             stations={stations}
             selectedStation={selectedStation}

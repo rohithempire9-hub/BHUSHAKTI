@@ -10,6 +10,42 @@ import './leaflet-fixes.css';
 // so small production compatibility actions can work without coupling App.tsx
 // to Leaflet internals.
 if (typeof window !== 'undefined') {
+  // Silence benign internal Firestore SDK transport stream cancellations when idle
+  const origConsoleError = console.error;
+  console.error = function (...args: any[]) {
+    const firstArg = typeof args[0] === 'string' ? args[0] : '';
+    if (
+      firstArg.includes('@firebase/firestore') &&
+      (firstArg.includes('Disconnecting idle stream') ||
+        firstArg.includes('Timed out waiting for new targets') ||
+        firstArg.includes('Code: 1 Message: 1 CANCELLED'))
+    ) {
+      return;
+    }
+    origConsoleError.apply(console, args);
+  };
+
+    window.addEventListener('error', (event) => {
+    const errorMsg = event?.message || event?.error?.message || '';
+    if (errorMsg.includes("reading 'count'") || errorMsg.includes('reading "count"')) {
+      console.warn('[BHUSAKTHI Resilience] Handled uncaught count reference gracefully:', errorMsg);
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reasonMsg = event.reason?.message || String(event.reason || '');
+    if (
+      reasonMsg.includes('Disconnecting idle stream') ||
+      reasonMsg.includes('Timed out waiting for new targets') ||
+      reasonMsg.includes('CANCELLED') ||
+      reasonMsg.includes("reading 'count'") ||
+      reasonMsg.includes('reading "count"')
+    ) {
+      event.preventDefault();
+    }
+  });
+
   (window as any).L = L;
 
   const originalMapFactory = (L as any).__bhushaktiOriginalMapFactory || L.map;

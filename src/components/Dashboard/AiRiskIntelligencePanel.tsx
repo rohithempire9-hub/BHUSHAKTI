@@ -256,24 +256,24 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
         </div>
       </div>
 
-      {/* Sub navigation pills: Modern with Blue Gradient on Selected */}
-      <div className="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 text-xs min-w-0">
+      {/* Sub navigation pills: Claymorphic Segmented Controls */}
+      <div className="clay-tab-container text-xs min-w-0">
         <button
           onClick={() => setActiveSubTab('overview')}
-          className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all text-center ${
+          className={`clay-tab ${
             activeSubTab === 'overview'
-              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-blue-700 hover:bg-white/80'
+              ? 'clay-tab-active'
+              : ''
           }`}
         >
           {t.tabOverview}
         </button>
         <button
           onClick={() => setActiveSubTab('hill_cut')}
-          className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1 ${
+          className={`clay-tab flex items-center justify-center gap-1 ${
             activeSubTab === 'hill_cut'
-              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-amber-800 hover:bg-amber-50/50'
+              ? 'clay-tab-active'
+              : ''
           }`}
         >
           <Mountain className="w-3 h-3 text-amber-500" />
@@ -281,10 +281,10 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
         </button>
         <button
           onClick={() => setActiveSubTab('glacier')}
-          className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1 ${
+          className={`clay-tab flex items-center justify-center gap-1 ${
             activeSubTab === 'glacier'
-              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-sky-800 hover:bg-sky-50/50'
+              ? 'clay-tab-active'
+              : ''
           }`}
         >
           <Snowflake className="w-3 h-3 text-sky-500" />
@@ -292,10 +292,10 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
         </button>
         <button
           onClick={() => setActiveSubTab('escape')}
-          className={`flex-1 py-1.5 px-2 rounded-xl font-bold transition-all flex items-center justify-center gap-1 ${
+          className={`clay-tab flex items-center justify-center gap-1 ${
             activeSubTab === 'escape'
-              ? 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-emerald-800 hover:bg-emerald-50/50'
+              ? 'clay-tab-active'
+              : ''
           }`}
         >
           <Navigation className="w-3 h-3 text-emerald-500" />
@@ -306,8 +306,8 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
       {/* TAB 1: OVERVIEW & CIRCULAR GAUGE & SCIENTIFIC TELEMETRY */}
       {activeSubTab === 'overview' && (
         <div className="space-y-4">
-          {/* Gauge and Quick Metrics */}
-          <div className="flex items-center justify-between gap-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+          {/* Gauge and Quick Metrics Well */}
+          <div className="flex items-center justify-between gap-4 p-4 clay-card-raised rounded-2xl">
             {/* Circular Gauge: Smooth Blue -> Cyan -> Green visual progression for stable conditions */}
             <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 128 128">
@@ -333,7 +333,7 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
                   cx="64"
                   cy="64"
                   r={radius}
-                  className="stroke-slate-200"
+                  className="stroke-slate-200/80"
                   strokeWidth="11"
                   fill="transparent"
                 />
@@ -366,9 +366,9 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
               </div>
             </div>
 
-            {/* Core Geotechnical Summary */}
+            {/* Core Geotechnical Summary: Raised 3D Clay Cards */}
             <div className="flex-1 space-y-2 text-xs">
-              <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+              <div className="p-2.5 rounded-xl clay-card-raised shadow-xs">
                 <div className="text-[10px] text-slate-500 font-medium">{t.factorOfSafety}</div>
                 <div
                   className={`font-mono font-black text-sm ${
@@ -386,14 +386,14 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
                 </div>
               </div>
 
-              <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+              <div className="p-2.5 rounded-xl clay-card-raised shadow-xs">
                 <div className="text-[10px] text-slate-500 font-medium">{t.poreWaterPressure}</div>
                 <div className="font-mono font-black text-sm text-slate-900">
                   {station.telemetry.poreWaterPressureKpa.toFixed(1)} <span className="text-[10px] text-slate-500">kPa</span>
                 </div>
               </div>
 
-              <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+              <div className="p-2.5 rounded-xl clay-card-raised shadow-xs">
                 <div className="text-[10px] text-slate-500 font-medium">{t.live24hRain}</div>
                 <div className="font-mono font-black text-sm text-blue-700">
                   {station.telemetry.rainfall24hMm.toFixed(1)} <span className="text-[10px] text-slate-500">mm</span>
@@ -402,7 +402,7 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
             </div>
           </div>
 
-          {/* 8-Metric Scientific Sensor Telemetry Grid (Desktop: 4 cols x 2 rows, No Truncation, min-height 120px) */}
+          {/* 8-Metric Scientific Sensor Telemetry Grid (Clay Cards with Clay Icons) */}
           <div className="space-y-2">
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 font-mono px-0.5">
               {t.liveSensorTelemetry}
@@ -416,7 +416,7 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
                 return (
                   <div
                     key={m.key}
-                    className="p-3 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all flex flex-col justify-between min-h-[120px]"
+                    className="p-3 rounded-2xl clay-card flex flex-col justify-between min-h-[120px]"
                   >
                     <div className="flex items-start justify-between gap-1 mb-1.5 min-w-0">
                       <span
@@ -430,8 +430,8 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
                       >
                         {m.label}
                       </span>
-                      <div className={`p-1 rounded-md border shrink-0 ${m.iconBg || 'bg-slate-50 border-slate-200'}`}>
-                        <Icon className={`w-3 h-3 ${m.iconColor}`} />
+                      <div className="w-6 h-6 rounded-lg clay-icon shrink-0">
+                        <Icon className={`w-3.5 h-3.5 ${m.iconColor}`} />
                       </div>
                     </div>
                     <div className="font-mono font-black text-sm sm:text-base text-slate-900 my-auto">
@@ -640,11 +640,11 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
       )}
 
       {/* Action Buttons: Instant Emergency SMS to Gutla rohith & Full Gateway */}
-      <div className="space-y-2 pt-2 border-t border-slate-200">
+      <div className="space-y-2 pt-2 border-t border-slate-200/80">
         <button
           id="quick-sms-gutla-rohith-btn"
           onClick={handleQuickDispatchGutla}
-          className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-extrabold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 text-xs cursor-pointer border border-red-500"
+          className="clay-button-danger w-full py-3 px-4 text-xs font-black gap-2"
         >
           <Radio className="w-4 h-4 animate-pulse text-white" />
           <span>⚡ Send Emergency SMS to Gutla rohith (+91 9032479657)</span>
@@ -653,7 +653,7 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenSmsModal}
-            className="flex-1 py-2.5 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            className="clay-button-secondary flex-1 py-2.5 px-3 text-xs font-bold gap-1.5"
           >
             <Share2 className="w-3.5 h-3.5 text-blue-600" />
             <span>Full SMS Dispatch Center</span>
@@ -666,7 +666,7 @@ export const AiRiskIntelligencePanel: React.FC<AiRiskIntelligencePanelProps> = (
             )}`}
             target="_blank"
             rel="noreferrer"
-            className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+            className="clay-button-success py-2.5 px-4 text-xs font-bold gap-1.5"
             title="Send WhatsApp Alert to Gutla rohith"
           >
             <PhoneCall className="w-3.5 h-3.5 text-white" />

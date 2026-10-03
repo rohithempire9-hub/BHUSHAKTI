@@ -501,7 +501,7 @@ export class DisasterTwinEngine {
     geometry.rotateX(-Math.PI / 2);
 
     const posAttr = geometry.attributes.position;
-    const count = posAttr.count;
+    const count = posAttr?.count || 0;
 
     const colors = new Float32Array(count * 3);
     const col = new THREE.Color();
@@ -586,7 +586,7 @@ export class DisasterTwinEngine {
     geometry.rotateX(-Math.PI / 2);
 
     const pos = geometry.attributes.position;
-    const count = pos.count;
+    const count = pos?.count || 0;
     const colors = new Float32Array(count * 3);
     const col = new THREE.Color();
 
@@ -762,7 +762,8 @@ export class DisasterTwinEngine {
     const roadCurve = new THREE.CatmullRomCurve3(roadPoints);
     const roadGeom = new THREE.TubeGeometry(roadCurve, 100, 1.5, 4, false);
     const pos = roadGeom.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
+    const roadCount = pos?.count || 0;
+    for (let i = 0; i < roadCount; i++) {
       pos.setY(i, pos.getY(i) * 0.14);
     }
     roadGeom.computeVertexNormals();
@@ -897,7 +898,8 @@ export class DisasterTwinEngine {
     const riverCurve = new THREE.CatmullRomCurve3(riverPoints);
     const riverGeom = new THREE.TubeGeometry(riverCurve, 100, 3.6, 4, false);
     const pos = riverGeom.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
+    const riverCount = pos?.count || 0;
+    for (let i = 0; i < riverCount; i++) {
       pos.setY(i, pos.getY(i) * 0.12);
     }
     riverGeom.computeVertexNormals();
@@ -1277,7 +1279,7 @@ export class DisasterTwinEngine {
     const lsGeom = new THREE.PlaneGeometry(size, size, segments, segments);
     lsGeom.rotateX(-Math.PI / 2);
     const lsPos = lsGeom.attributes.position;
-    const lsCount = lsPos.count;
+    const lsCount = lsPos?.count || 0;
     const lsColors = new Float32Array(lsCount * 3);
     const lsAlpha = new Float32Array(lsCount);
     const col = new THREE.Color();
@@ -1367,7 +1369,7 @@ export class DisasterTwinEngine {
     const flGeom = new THREE.PlaneGeometry(size, size, segments, segments);
     flGeom.rotateX(-Math.PI / 2);
     const flPos = flGeom.attributes.position;
-    const flCount = flPos.count;
+    const flCount = flPos?.count || 0;
     const flColors = new Float32Array(flCount * 3);
     const flAlpha = new Float32Array(flCount);
 
@@ -2224,7 +2226,7 @@ export class DisasterTwinEngine {
       const lsPos = this.landslideRiskMesh.geometry.attributes.position;
       const lsColors = this.landslideRiskMesh.geometry.attributes.color as THREE.BufferAttribute;
       const lsAlpha = this.landslideRiskMesh.geometry.attributes.aAlpha as THREE.BufferAttribute;
-      const count = lsPos.count;
+      const count = lsPos?.count || 0;
       const col = new THREE.Color();
 
       const isFloodplain = loc.category === 'FLOODPLAIN_ISLAND';
@@ -2271,7 +2273,7 @@ export class DisasterTwinEngine {
       const flPos = this.floodRiskMesh.geometry.attributes.position;
       const flColors = this.floodRiskMesh.geometry.attributes.color as THREE.BufferAttribute;
       const flAlpha = this.floodRiskMesh.geometry.attributes.aAlpha as THREE.BufferAttribute;
-      const count = flPos.count;
+      const count = flPos?.count || 0;
       const col = new THREE.Color();
 
       const isFloodplain = loc.category === 'FLOODPLAIN_ISLAND';
@@ -2366,7 +2368,7 @@ export class DisasterTwinEngine {
     if (this.terrainMesh) {
       const posAttr = this.terrainMesh.geometry.attributes.position;
       const colorAttr = this.terrainMesh.geometry.attributes.color;
-      const count = posAttr.count;
+      const count = posAttr?.count || 0;
       const col = new THREE.Color();
 
       for (let i = 0; i < count; i++) {
@@ -2450,7 +2452,8 @@ export class DisasterTwinEngine {
       this.riverMesh.geometry.dispose();
       this.riverMesh.geometry = new THREE.TubeGeometry(riverCurve, 100, radius, 4, false);
       const rPos = this.riverMesh.geometry.attributes.position;
-      for (let i = 0; i < rPos.count; i++) {
+      const rPosCount = rPos?.count || 0;
+      for (let i = 0; i < rPosCount; i++) {
         rPos.setY(i, rPos.getY(i) * 0.12);
       }
       this.riverMesh.geometry.computeVertexNormals();
@@ -2458,9 +2461,9 @@ export class DisasterTwinEngine {
       // Reposition river water particles
       if (this.riverWaterParticles) {
         const pAttr = this.riverWaterParticles.geometry.attributes.position as THREE.BufferAttribute;
-        const count = pAttr.count;
+        const count = pAttr?.count || 0;
         for (let f = 0; f < count; f++) {
-          const t = f / count;
+          const t = count > 0 ? f / count : 0;
           const pt = riverCurve.getPoint(t);
           pAttr.setXYZ(f, pt.x + (Math.sin(f * 2.3) - 0.5) * (radius * 0.6), pt.y + 0.15, pt.z);
         }
@@ -2477,7 +2480,8 @@ export class DisasterTwinEngine {
         roadMesh.geometry.dispose();
         roadMesh.geometry = new THREE.TubeGeometry(roadCurve, 100, 1.5, 4, false);
         const rPos = roadMesh.geometry.attributes.position;
-        for (let i = 0; i < rPos.count; i++) {
+        const rPosCount = rPos?.count || 0;
+        for (let i = 0; i < rPosCount; i++) {
           rPos.setY(i, rPos.getY(i) * 0.14);
         }
         roadMesh.geometry.computeVertexNormals();

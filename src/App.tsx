@@ -239,6 +239,8 @@ export default function App() {
         const loadedEvidence = await getDisasterEvidence();
         if (!cancelled) setEvidenceList(loadedEvidence);
 
+        if (cancelled) return;
+
         unsubscribeEvidence = subscribeToDisasterEvidence((liveEvidence) => {
           if (!cancelled) {
             setEvidenceList(liveEvidence);
@@ -250,6 +252,12 @@ export default function App() {
             applyStations(liveStations);
           }
         });
+
+        if (cancelled) {
+          unsubscribeEvidence?.();
+          unsubscribeStations?.();
+          return;
+        }
 
         setFirebaseConnected(isFirebaseAvailable());
       } catch (error) {
@@ -549,7 +557,7 @@ export default function App() {
           {/* VIEW 2: RISK MAP (FULL-PAGE GIS SPATIAL WORKBENCH) */}
           {currentNavSection === 'risk_map' && (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="rounded-2xl clay-panel p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-black text-slate-900 font-sans">
                     Interactive GIS Landslide &amp; Topographical Hazard Map
@@ -558,17 +566,17 @@ export default function App() {
                     High-resolution satellite topography, hazard heatmaps, safe zones, and NH-10 / NH-13 evacuation routes.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <button
                     onClick={() => setEvidenceModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all shadow-sm flex items-center gap-2 border border-slate-300 cursor-pointer"
+                    className="clay-button-secondary px-3.5 py-2 text-xs font-bold gap-2"
                   >
                     <Camera className="w-3.5 h-3.5 text-rose-600" />
                     <span>Photo Evidence ({evidenceList.length})</span>
                   </button>
                   <button
                     onClick={() => setMassSosModalOpen(true)}
-                    className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                    className="clay-button-danger px-4 py-2 text-xs font-bold gap-2"
                   >
                     <Radio className="w-3.5 h-3.5" />
                     <span>Dispatch Siren</span>
@@ -576,7 +584,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="h-[750px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+              <div className="h-[750px] rounded-2xl overflow-hidden border border-slate-200/80 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.1)] bg-white">
                 <LandslideMap
                   stations={stations}
                   selectedStation={selectedStation}
@@ -597,23 +605,23 @@ export default function App() {
           {/* VIEW 3: LANDSLIDE (SLOPE MEMORY ENGINE & PINN SENSORS) */}
           {currentNavSection === 'landslide' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-xl w-fit shadow-sm">
+              <div className="clay-tab-container w-fit">
                 <button
                   onClick={() => setLandslideSubTab('memory')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`clay-tab ${
                     landslideSubTab === 'memory'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'clay-tab-active'
+                      : ''
                   }`}
                 >
                   Slope Memory &amp; AI Fingerprint
                 </button>
                 <button
                   onClick={() => setLandslideSubTab('sensors')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`clay-tab ${
                     landslideSubTab === 'sensors'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'clay-tab-active'
+                      : ''
                   }`}
                 >
                   Live Sensor Mesh &amp; Inclinometers
@@ -715,7 +723,7 @@ export default function App() {
           {/* VIEW 7: ANALYTICS (RAINFALL & SATURATION DUAL-AXIS) */}
           {currentNavSection === 'analytics' && (
             <div className="space-y-6">
-              <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="rounded-2xl clay-panel p-5 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-black text-slate-900 font-sans">
                     Dual-Axis Rainfall &amp; Soil Moisture Saturation Analytics
@@ -726,13 +734,13 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500 font-mono">Focus Zone:</span>
-                  <span className="px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs">
+                  <span className="px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9)]">
                     {selectedStation?.name || 'Tawang Sela Pass'}
                   </span>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+              <div className="rounded-2xl clay-panel p-6">
                 <RainfallSaturationChart
                   currentStationName={selectedStation?.name}
                   simulatedRainfall={simulatedRainfall}
@@ -745,23 +753,23 @@ export default function App() {
           {/* VIEW 8: HISTORICAL & POST-DISASTER FORENSIC AUDIT */}
           {currentNavSection === 'historical' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-xl w-fit shadow-sm">
+              <div className="clay-tab-container w-fit">
                 <button
                   onClick={() => setHistoricalSubTab('forensic')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`clay-tab ${
                     historicalSubTab === 'forensic'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'clay-tab-active'
+                      : ''
                   }`}
                 >
                   Post-Disaster Forensic Audit Reports
                 </button>
                 <button
                   onClick={() => setHistoricalSubTab('archive')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`clay-tab ${
                     historicalSubTab === 'archive'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'clay-tab-active'
+                      : ''
                   }`}
                 >
                   12 Historical Disaster Archives
@@ -778,7 +786,7 @@ export default function App() {
 
           {/* VIEW 9: FIELD REPORTS (CROWDSOURCED GEOPORTAL & PHOTO EVIDENCE) */}
           {currentNavSection === 'field_reports' && (
-            <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <div className="rounded-2xl clay-panel p-6">
               <CitizenReportingPortal
                 reports={citizenReports}
                 onSubmitReport={handleSubmitCitizenReport}
@@ -790,7 +798,7 @@ export default function App() {
 
           {/* VIEW 10: ALERTS (ZERO-INTERNET SMS EARLY WARNING GATEWAY) */}
           {currentNavSection === 'alerts' && (
-            <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <div className="rounded-2xl clay-panel p-6">
               <SmsEarlyWarningHub
                 registeredDevices={registeredDevices}
                 currentLanguage={currentLanguage}
@@ -938,12 +946,12 @@ export default function App() {
         }}
         aria-label="Open BHUSAKTHI AI Copilot"
         title="Ask BHUSAKTHI AI"
-        className={`fixed bottom-6 right-6 z-40 group px-3.5 py-2.5 rounded-3xl bg-gradient-to-b from-sky-100 via-sky-200/90 to-sky-100/95 backdrop-blur-md border-2 border-sky-400 shadow-2xl hover:shadow-sky-400/40 flex flex-col items-center justify-center transition-all duration-300 transform cursor-pointer select-none hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-6 right-6 z-40 group px-4 py-3 clay-copilot-device flex flex-col items-center justify-center cursor-pointer select-none ${
           copilotBounce ? 'animate-bot-bounce' : ''
         } ${
           copilotModalOpen
-            ? 'ring-4 ring-sky-400/60 bg-sky-200 border-sky-500 shadow-sky-500/30'
-            : 'hover:border-sky-500 hover:bg-sky-200/80'
+            ? 'ring-4 ring-sky-400/60'
+            : ''
         }`}
       >
         <div className="relative flex items-center justify-center">
@@ -977,7 +985,7 @@ function RiskInput({
   value: string;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg px-2.5 py-2 shadow-sm">
+    <div className="clay-card-raised rounded-xl px-2.5 py-2">
       <div className="text-[9px] uppercase tracking-wide text-slate-500 font-semibold">
         {label}
       </div>

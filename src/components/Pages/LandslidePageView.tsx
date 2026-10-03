@@ -86,55 +86,55 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-[1720px] mx-auto pb-10">
-      {/* Top Header Card: Spacious & High Contrast */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0a1638] via-[#091535] to-[#061026] border border-[#1b3674] p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+      {/* Top Header Card: Clay Panel */}
+      <div className="clay-panel p-5 sm:p-6 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
           <div className="flex items-start gap-3.5">
-            <div className="p-3 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 mt-0.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-[4px_6px_12px_rgba(245,158,11,0.35)] border-t border-white/40 shrink-0 mt-0.5">
               <Flame className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-400 px-2 py-0.5 rounded bg-amber-950/60 border border-amber-500/30">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-700 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200">
                   GEOTECHNICAL CORE v4.1
                 </span>
 
                 {/* Live Stream / Frozen Status Capsule */}
                 {isPaused ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-amber-50 text-amber-800 border border-amber-300 shadow-sm whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
                     FROZEN FOR INSPECTION ({frozenTimestamp || 'ACTIVE'})
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wide bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 shadow-sm whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping opacity-75" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wide bg-blue-50 text-blue-700 border border-blue-200 shadow-sm whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping opacity-75" />
                     LIVE TELEMETRY STREAM
                   </span>
                 )}
                 
                 {/* Dynamic Status Capsule */}
                 {activeAlertNodes.length > 0 ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/50 shadow-sm animate-pulse whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-rose-50 text-rose-700 border border-rose-300 shadow-sm animate-pulse whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
                     {activeAlertNodes.length} CRITICAL ALERTS ACTIVE
                   </span>
                 ) : warningNodes.length > 0 ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/50 whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-amber-50 text-amber-800 border border-amber-300 whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
                     {warningNodes.length} STATIONS ON ELEVATED WATCH
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 whitespace-nowrap">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-wide bg-emerald-50 text-emerald-800 border border-emerald-300 whitespace-nowrap">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     ALL MONITORED SLOPES STABLE
                   </span>
                 )}
               </div>
 
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white font-sans tracking-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 font-sans tracking-tight">
                 Live Sensor Mesh &amp; PINN Slope Stability
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-3xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-3xl leading-relaxed">
                 Autonomous real-time IoT Inclinometers, Pore Water Pressure transducers, and continuous Physics-Informed Neural Network (PINN) slope twins across high-risk Himalayan corridors.
               </p>
             </div>
@@ -145,10 +145,10 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
             <button
               id="btn-pause-live-updates"
               onClick={handleTogglePause}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-md active:scale-95 whitespace-nowrap ${
+              className={`px-3.5 py-2 text-xs font-bold gap-2 whitespace-nowrap ${
                 isPaused
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 shadow-emerald-950/50 ring-2 ring-emerald-400/40'
-                  : 'bg-[#0e224e] hover:bg-[#142e68] text-amber-300 border border-amber-500/40 hover:border-amber-400'
+                  ? 'clay-button-primary'
+                  : 'clay-button'
               }`}
               title={
                 isPaused
@@ -158,12 +158,12 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
             >
               {isPaused ? (
                 <>
-                  <Play className="w-4 h-4 text-white fill-white" />
+                  <Play className="w-4 h-4 fill-white" />
                   <span>Resume Live Updates</span>
                 </>
               ) : (
                 <>
-                  <Pause className="w-4 h-4 text-amber-400" />
+                  <Pause className="w-4 h-4 text-amber-600" />
                   <span>Pause Live Updates</span>
                 </>
               )}
@@ -171,18 +171,18 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
 
             <button
               onClick={() => setShowPerturbationBench(!showPerturbationBench)}
-              className="px-3.5 py-2 rounded-xl bg-[#0e224e] hover:bg-[#142e68] text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap"
+              className="clay-button px-3.5 py-2 text-xs font-bold gap-2 whitespace-nowrap"
             >
-              <Sliders className="w-4 h-4 text-cyan-400" />
+              <Sliders className="w-4 h-4 text-blue-600" />
               <span>{showPerturbationBench ? 'Hide' : 'Open'} Perturbation Sliders</span>
               {showPerturbationBench ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
 
             <button
               onClick={onTriggerMassSos}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white font-bold text-xs transition-all shadow-lg shadow-rose-900/40 border border-rose-400/40 flex items-center gap-2 cursor-pointer active:scale-95 whitespace-nowrap"
+              className="clay-button-danger px-4 py-2 text-xs font-bold gap-2 whitespace-nowrap"
             >
-              <Radio className="w-4 h-4 text-white" />
+              <Radio className="w-4 h-4" />
               <span>Broadcast Slope SOS</span>
             </button>
           </div>
@@ -191,28 +191,28 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
 
       {/* Inspection Freeze Banner Alert */}
       {isPaused && (
-        <div className="rounded-xl bg-amber-950/40 border border-amber-500/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200 shadow-lg">
+        <div className="clay-panel border-amber-300/80 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900 shadow-lg">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/30 shrink-0">
+            <div className="p-2 rounded-xl bg-amber-100 text-amber-700 border border-amber-300 shrink-0">
               <Pause className="w-4 h-4" />
             </div>
             <div>
-              <div className="font-bold text-white flex items-center gap-2">
+              <div className="font-bold text-amber-900 flex items-center gap-2">
                 <span>Inspection Mode Active — Live Updates Paused</span>
                 {frozenTimestamp && (
-                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-amber-900/60 border border-amber-400/30 text-amber-300">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-200/80 border border-amber-300 text-amber-900">
                     Snapshotted at {frozenTimestamp}
                   </span>
                 )}
               </div>
-              <p className="text-slate-300 text-[11px] mt-0.5">
+              <p className="text-amber-800/80 text-[11px] mt-0.5">
                 All sensor readings, pore-water pressure metrics, and inclinometer tilt degrees are locked so you can inspect individual node telemetry without values shifting.
               </p>
             </div>
           </div>
           <button
             onClick={handleTogglePause}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow cursor-pointer transition-colors shrink-0 self-start sm:self-auto"
+            className="clay-button-primary px-3 py-1.5 text-xs font-bold gap-1.5 shrink-0 self-start sm:self-auto"
           >
             <Play className="w-3.5 h-3.5 fill-white" />
             <span>Unfreeze Grid</span>
@@ -222,17 +222,17 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
 
       {/* Geotechnical Perturbation Bench (Collapsible & Spacious) */}
       {showPerturbationBench && (
-        <div className="rounded-2xl bg-[#091533] border border-[#162e66] p-5 sm:p-6 shadow-xl transition-all">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-[#142854]">
+        <div className="clay-panel p-5 sm:p-6 transition-all">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-200/80">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center">
                 <Sliders className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono">
                   Live Geotechnical Stress Perturbation Sandbox
                 </h3>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   Manipulate rainfall threshold or shear creep to observe live PINN neural twin reaction in real time.
                 </p>
               </div>
@@ -240,7 +240,7 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
 
             <button
               onClick={onResetSimulation}
-              className="px-3 py-1.5 rounded-xl bg-[#0e214d] hover:bg-[#132c66] text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+              className="clay-button-secondary px-3 py-1.5 text-xs font-bold gap-1.5 whitespace-nowrap self-start sm:self-auto"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset to Baseline</span>
@@ -249,10 +249,10 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Monsoon Rainfall Rate Slider */}
-            <div className="p-4 rounded-xl bg-[#050e22] border border-[#142854]">
+            <div className="clay-card-raised p-4">
               <div className="flex items-center justify-between mb-2.5">
-                <span className="text-xs font-bold text-slate-200">Monsoon Rainfall Intensity</span>
-                <span className="text-xs font-mono font-black text-cyan-300 px-2.5 py-1 rounded-md bg-cyan-950/80 border border-cyan-700/60">
+                <span className="text-xs font-bold text-slate-700">Monsoon Rainfall Intensity</span>
+                <span className="text-xs font-mono font-black text-blue-700 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200">
                   {simulatedRainfall} mm/h
                 </span>
               </div>
@@ -262,20 +262,20 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
                 max="200"
                 value={simulatedRainfall}
                 onChange={(e) => onSimulatedRainfallChange(Number(e.target.value))}
-                className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
               />
-              <div className="flex justify-between text-[11px] text-slate-400 mt-2 font-mono">
+              <div className="flex justify-between text-[11px] text-slate-500 mt-2 font-mono">
                 <span>0 mm/h (Dry)</span>
                 <span>50 mm/h (Monsoon)</span>
-                <span className="text-rose-400 font-bold">120+ mm/h (Cloudburst)</span>
+                <span className="text-rose-600 font-bold">120+ mm/h (Cloudburst)</span>
               </div>
             </div>
 
             {/* Downslope Shear Displacement Slider */}
-            <div className="p-4 rounded-xl bg-[#050e22] border border-[#142854]">
+            <div className="clay-card-raised p-4">
               <div className="flex items-center justify-between mb-2.5">
-                <span className="text-xs font-bold text-slate-200">Downslope Shear Creep Displacement</span>
-                <span className="text-xs font-mono font-black text-amber-300 px-2.5 py-1 rounded-md bg-amber-950/80 border border-amber-700/60">
+                <span className="text-xs font-bold text-slate-700">Downslope Shear Creep Displacement</span>
+                <span className="text-xs font-mono font-black text-amber-700 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200">
                   {simulatedDisplacement} cm
                 </span>
               </div>
@@ -286,12 +286,12 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
                 step="0.1"
                 value={simulatedDisplacement}
                 onChange={(e) => onSimulatedDisplacementChange(Number(e.target.value))}
-                className="w-full accent-amber-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-200 rounded-lg"
               />
-              <div className="flex justify-between text-[11px] text-slate-400 mt-2 font-mono">
+              <div className="flex justify-between text-[11px] text-slate-500 mt-2 font-mono">
                 <span>0.0 cm (Static)</span>
                 <span>2.5 cm (Creep Phase)</span>
-                <span className="text-rose-400 font-bold">8.0+ cm (Slope Slip)</span>
+                <span className="text-rose-600 font-bold">8.0+ cm (Slope Slip)</span>
               </div>
             </div>
           </div>
@@ -299,7 +299,7 @@ export const LandslidePageView: React.FC<LandslidePageViewProps> = ({
       )}
 
       {/* Full Telemetry Grid Container: Generous Padding & Beautiful Contrast */}
-      <div className="rounded-2xl bg-[#091533] border border-[#162e66] p-5 sm:p-6 shadow-2xl">
+      <div className="clay-panel p-5 sm:p-6 shadow-2xl">
         <HybridSensingGrid
           nodes={currentDisplayedNodes}
           onToggleNodeMode={onToggleNodeMode}

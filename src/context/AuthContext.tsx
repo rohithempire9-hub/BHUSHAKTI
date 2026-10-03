@@ -108,6 +108,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (params: {
+    email: string;
+    full_name?: string;
+    avatar_url?: string;
+    phone?: string;
+    organization?: string;
+    role?: UserRole;
+  }) => {
+    setIsLoading(true);
+    try {
+      const res = await authApi.loginWithGoogle(params);
+      if (res.token && res.user) {
+        setToken(res.token);
+        setUser(res.user);
+      }
+      return { ok: true, isNewUser: res.isNewUser, user: res.user };
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const updateProfile = useCallback(async (updates: Partial<Pick<BhuUser, 'full_name' | 'phone' | 'organization' | 'role' | 'avatar_url'>>) => {
+    setIsLoading(true);
+    try {
+      const res = await authApi.updateProfile(updates);
+      if (res.user) {
+        setUser(res.user);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const register = useCallback(async (data: {
     full_name: string;
     email: string;
@@ -174,6 +207,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     rolePermissions,
     login,
+    loginWithGoogle,
+    updateProfile,
     register,
     logout,
     refreshUser,

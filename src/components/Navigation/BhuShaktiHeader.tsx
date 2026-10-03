@@ -140,24 +140,24 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
           </div>
 
           {/* Status Pills */}
-          <div className="hidden xl:flex items-center gap-2 pl-3 border-l border-slate-200">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
+          <div className="hidden xl:flex items-center gap-2 pl-3 border-l border-slate-200/80">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-white text-emerald-700 border border-emerald-200/80 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),2px_3px_6px_rgba(148,163,184,0.18)]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <ShieldCheck className="w-3 h-3 text-emerald-600" />
               <span>SYSTEM ONLINE</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-cyan-50 text-cyan-700 border border-cyan-200/80 shadow-2xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-white text-cyan-700 border border-cyan-200/80 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),2px_3px_6px_rgba(148,163,184,0.18)]">
               <CloudSun className="w-3 h-3 text-cyan-600" />
               <span>WEATHER LIVE</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200/80 shadow-2xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-white text-purple-700 border border-purple-200/80 shadow-[inset_1px_1px_2px_rgba(255,255,255,0.9),2px_3px_6px_rgba(148,163,184,0.18)]">
               <Database className="w-3 h-3 text-purple-600" />
               <span>GIS UPDATED</span>
             </span>
           </div>
         </div>
 
-        {/* Center: Search location (Naturally expanded and rebalanced) */}
+        {/* Center: Search location */}
         <div className="flex-1 max-w-2xl mx-1 sm:mx-6">
           <div className="relative w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -167,7 +167,7 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="w-full pl-9.5 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 shadow-inner transition-all font-medium"
+              className="w-full pl-9.5 pr-8 py-2 rounded-xl clay-input text-xs text-slate-900 placeholder-slate-400 transition-all font-medium"
             />
             {searchQuery && (
               <button
@@ -181,25 +181,25 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
           </div>
         </div>
 
-        {/* Right side controls: Language Selector & Admin Button (SMS Alert & Simulations removed naturally) */}
+        {/* Right side controls: Language Selector & Admin Button */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* Language Selector Dropdown */}
           <div className="relative">
             <button
               id="header-language-btn"
               onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 text-slate-800 hover:text-blue-700 text-xs font-semibold transition-all shadow-xs cursor-pointer"
+              className="clay-control flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold"
               title="Select Interface Language"
             >
               <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <span className="font-semibold">{currentLangObj.native}</span>
+              <span className="font-semibold text-slate-800">{currentLangObj.native}</span>
               <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
             </button>
 
             {langDropdownOpen && (
               <div
                 id="header-lang-menu"
-                className="absolute right-0 mt-2 w-48 rounded-xl bg-white border border-slate-200 shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[80vh] overflow-y-auto"
+                className="absolute right-0 mt-2 w-48 clay-dropdown p-2 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[80vh] overflow-y-auto"
               >
                 {LANGUAGE_OPTIONS.map((lang) => {
                   const isSelected = currentLanguage === lang.code;
@@ -210,10 +210,10 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                         onLanguageChange(lang.code);
                         setLangDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-left transition-colors cursor-pointer ${
                         isSelected
                           ? 'bg-blue-50 text-blue-700 font-bold'
-                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                          : 'text-slate-700 hover:bg-slate-100/70 hover:text-slate-900'
                       }`}
                     >
                       <span className="w-4 text-center font-bold text-blue-600 shrink-0">
@@ -234,10 +234,10 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                 id="header-user-btn"
                 type="button"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 transition-all cursor-pointer shadow-xs active:scale-95"
+                className="clay-control flex items-center gap-2 pl-2 pr-3 py-1.5"
                 title="User Profile & Access Control"
               >
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center text-[11px] font-black shadow-xs">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center text-[11px] font-black shadow-[inset_1px_1px_1px_rgba(255,255,255,0.6)]">
                   {getInitials(user.full_name)}
                 </div>
                 <div className="text-left hidden md:block">
@@ -254,12 +254,12 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
               {userMenuOpen && (
                 <div
                   id="header-user-menu"
-                  className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-slate-200 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  className="absolute right-0 mt-2 w-72 clay-dropdown p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100"
                 >
                   {/* User Profile Card */}
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 mb-3">
+                  <div className="p-3 rounded-2xl clay-card-raised mb-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white flex items-center justify-center font-black text-sm shadow-[inset_1px_1px_2px_rgba(255,255,255,0.7)] shrink-0">
                         {getInitials(user.full_name)}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -269,7 +269,7 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                         <div className="text-[11px] text-slate-500 truncate font-mono">
                           {user.email}
                         </div>
-                        <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-blue-100/70 text-blue-700 border border-blue-200">
+                        <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           {user.role}
                         </div>
                       </div>
@@ -285,7 +285,7 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
 
                   {/* Switch Role Simulator */}
                   <div className="mb-2">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-1">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-1 font-mono">
                       Simulate Role Permissions
                     </div>
                     <div className="space-y-0.5">
@@ -297,10 +297,10 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                             updateUserRole(roleOption);
                             setUserMenuOpen(false);
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-colors cursor-pointer ${
                             user.role === roleOption
                               ? 'bg-blue-50 text-blue-700 font-bold'
-                              : 'text-slate-700 hover:bg-slate-50'
+                              : 'text-slate-700 hover:bg-slate-100/60'
                           }`}
                         >
                           <span className="truncate">{roleOption}</span>
@@ -317,9 +317,9 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                         onNavigate('settings');
                         setUserMenuOpen(false);
                       }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+                      className="clay-button flex-1 py-2 px-2.5 text-xs"
                     >
-                      <Settings className="w-3.5 h-3.5" />
+                      <Settings className="w-3.5 h-3.5 mr-1 text-slate-500" />
                       <span>Settings</span>
                     </button>
 
@@ -329,9 +329,9 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
                         setUserMenuOpen(false);
                         logout();
                       }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-colors cursor-pointer"
+                      className="clay-button-danger flex-1 py-2 px-2.5 text-xs"
                     >
-                      <LogOut className="w-3.5 h-3.5" />
+                      <LogOut className="w-3.5 h-3.5 mr-1" />
                       <span>Sign Out</span>
                     </button>
                   </div>
@@ -343,9 +343,9 @@ export const BhuShaktiHeader: React.FC<BhuShaktiHeaderProps> = ({
               id="header-signin-btn"
               type="button"
               onClick={onOpenAuth}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95"
+              className="clay-button-primary px-4 py-2 text-xs font-bold"
             >
-              <User className="w-3.5 h-3.5" />
+              <User className="w-3.5 h-3.5 mr-1.5" />
               <span>Sign In</span>
             </button>
           )}

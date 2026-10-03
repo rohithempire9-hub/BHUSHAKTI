@@ -1,8 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, getDocs, collection, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, setLogLevel, doc, getDoc, getDocs, collection, updateDoc, serverTimestamp } from 'firebase/firestore';
 import firebaseConfigData from './firebase-applet-config.json';
+
+try {
+  setLogLevel('silent');
+} catch {}
 import { evaluateLandslideRisk } from './src/services/mlRiskEngine';
 import { fetchOriginalWeatherForStation, syncStationWithLiveWeather } from './src/services/realWeatherService';
 import type { SensorTelemetry, LandslideStation } from './src/types/landslide';

@@ -159,7 +159,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
         {/* Left Column: Reporting Form (5 Cols) */}
         <form
           onSubmit={handleFormSubmit}
-          className="lg:col-span-5 rounded-2xl bg-white border border-slate-200 shadow-sm p-4 flex flex-col justify-between overflow-y-auto"
+          className="lg:col-span-5 clay-panel p-4 flex flex-col justify-between overflow-y-auto"
         >
           <div className="space-y-3 text-xs">
             {/* File Upload Box (Drag/Drop + Click) */}
@@ -176,7 +176,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                     e.stopPropagation();
                     setIsLiveCameraOpen(true);
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-xs transition-all cursor-pointer active:scale-95"
+                  className="clay-button-primary flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold"
                 >
                   <Camera className="w-3.5 h-3.5" />
                   <span>Take Camera Photo</span>
@@ -185,7 +185,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
 
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="relative rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 p-3 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-50/80 overflow-hidden group"
+                className="relative rounded-2xl border border-dashed border-blue-300/80 hover:border-blue-500 p-3 flex flex-col items-center justify-center cursor-pointer transition-colors bg-white/70 shadow-[inset_1px_2px_4px_rgba(0,0,0,0.03)] overflow-hidden group"
               >
                 <input
                   ref={fileInputRef}
@@ -197,7 +197,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                 />
 
                 {photoPreviewUrl ? (
-                  <div className="relative w-full h-28 rounded-lg overflow-hidden border border-slate-200">
+                  <div className="relative w-full h-28 rounded-xl overflow-hidden border border-slate-200">
                     <img
                       src={photoPreviewUrl}
                       alt="Preview"
@@ -213,7 +213,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                           e.stopPropagation();
                           setIsLiveCameraOpen(true);
                         }}
-                        className="px-2 py-0.5 rounded-md bg-white/90 hover:bg-white text-slate-900 border border-slate-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                        className="clay-button px-2.5 py-0.5 text-[10px] font-bold flex items-center gap-1"
                       >
                         <Camera className="w-3 h-3 text-blue-600" />
                         Retake
@@ -229,7 +229,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                           e.stopPropagation();
                           setIsLiveCameraOpen(true);
                         }}
-                        className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all active:scale-95 cursor-pointer"
+                        className="clay-button-primary p-2 text-white"
                         title="Open Camera"
                       >
                         <Camera className="w-5 h-5" />
@@ -248,13 +248,13 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
             </div>
 
             {/* Checkbox: Auto-extract GPS metadata from photo EXIF tags */}
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5">
+            <div className="p-2.5 rounded-2xl clay-card-raised flex items-start gap-2.5">
               <input
                 id="auto-extract-exif-checkbox"
                 type="checkbox"
                 checked={autoExtractExif}
                 onChange={(e) => setAutoExtractExif(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded text-blue-600 bg-white border-slate-300 focus:ring-blue-500 cursor-pointer"
+                className="clay-checkbox mt-0.5"
               />
               <label
                 htmlFor="auto-extract-exif-checkbox"
@@ -279,7 +279,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                   onChange={(e) => setLocationName(e.target.value)}
                   placeholder="e.g. NH-10 9th Mile"
                   required
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="clay-input w-full px-2.5 py-1.5 text-xs font-semibold"
                 />
               </div>
 
@@ -290,7 +290,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                 <select
                   value={state}
                   onChange={(e) => setState(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="clay-select w-full px-2.5 py-1.5 text-xs font-semibold"
                 >
                   <option value="Sikkim">Sikkim</option>
                   <option value="Assam">Assam</option>
@@ -316,7 +316,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                   value={latitude}
                   onChange={(e) => setLatitude(parseFloat(e.target.value))}
                   required
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="clay-input w-full px-2.5 py-1.5 font-mono text-xs font-semibold"
                 />
               </div>
               <div>
@@ -329,7 +329,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                   value={longitude}
                   onChange={(e) => setLongitude(parseFloat(e.target.value))}
                   required
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 font-mono text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="clay-input w-full px-2.5 py-1.5 font-mono text-xs font-semibold"
                 />
               </div>
             </div>
@@ -345,15 +345,15 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                 rows={2}
                 placeholder="Describe slope cracks, mud volume, road blockages..."
                 required
-                className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-800 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                className="clay-textarea w-full px-2.5 py-1.5 text-xs resize-none"
               />
             </div>
           </div>
 
           {/* Submit Button */}
-          <div className="mt-3 pt-2 border-t border-slate-200">
+          <div className="mt-3 pt-2 border-t border-slate-200/80">
             {submittedSuccess && (
-              <div className="mb-2 p-2 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center gap-1.5">
+              <div className="mb-2 p-2.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center gap-1.5 shadow-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>Georeport dispatched successfully to BhuShakti Queue!</span>
               </div>
@@ -362,7 +362,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="clay-button-primary w-full py-2.5 text-xs font-bold gap-2 disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
               <span>{isSubmitting ? 'Analyzing & Transmitting...' : t.submitReport}</span>
@@ -371,14 +371,14 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
         </form>
 
         {/* Right Column: Interactive Queue of Recently Submitted Reports (7 Cols) */}
-        <div className="lg:col-span-7 rounded-2xl bg-white border border-slate-200 shadow-sm p-4 flex flex-col justify-between overflow-hidden">
+        <div className="lg:col-span-7 clay-panel p-4 flex flex-col justify-between overflow-hidden">
           <div>
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200/80">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-900 font-mono">
                   Citizen Reports Stream &amp; Verification Queue
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                   {reports.length} Verified Records
                 </span>
               </div>
@@ -401,17 +401,17 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                   <div
                     key={report.id}
                     id={`report-card-${report.id}`}
-                    className="p-3 rounded-xl bg-slate-50/70 border border-slate-200 hover:border-slate-300 transition-all flex flex-col sm:flex-row gap-3"
+                    className="p-3.5 rounded-2xl clay-card hover:translate-y-[-1px] transition-all flex flex-col sm:flex-row gap-3"
                   >
                     {/* Thumbnail */}
-                    <div className="relative w-full sm:w-28 h-20 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-100">
+                    <div className="relative w-full sm:w-28 h-20 rounded-xl overflow-hidden shrink-0 border border-slate-200 bg-slate-100 shadow-inner">
                       <img
                         src={report.photoUrl}
                         alt={report.locationName}
                         className="w-full h-full object-cover"
                       />
                       {report.exifExtracted && (
-                        <div className="absolute top-1 left-1 px-1 rounded bg-black/70 text-[8px] font-mono text-white">
+                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-slate-900/80 text-[8px] font-mono text-white font-bold">
                           EXIF GPS
                         </div>
                       )}
@@ -424,7 +424,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                           {report.locationName}
                         </span>
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusBadge}`}
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${statusBadge}`}
                         >
                           {report.status}
                         </span>
@@ -439,7 +439,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                       </p>
 
                       {/* AI Classification & Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 text-[10px]">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80 text-[10px]">
                         <div className="flex items-center gap-1.5 text-blue-700 font-mono font-bold">
                           <Sparkles className="w-3 h-3 text-blue-600" />
                           <span>{report.disasterType}</span>
@@ -448,11 +448,11 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
 
                         {/* Status Change Buttons for Reviewer */}
                         {onUpdateReportStatus && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             {isPending && (
                               <button
                                 onClick={() => onUpdateReportStatus(report.id, 'Dispatched to NDRF')}
-                                className="px-2.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold border border-amber-300 cursor-pointer shadow-2xs"
+                                className="clay-button px-2.5 py-1 text-[10px] font-bold text-amber-800"
                               >
                                 Dispatch NDRF
                               </button>
@@ -460,7 +460,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
                             {!isVerified && (
                               <button
                                 onClick={() => onUpdateReportStatus(report.id, 'Verified Disaster')}
-                                className="px-2.5 py-0.5 rounded bg-red-50 hover:bg-red-100 text-red-800 font-bold border border-red-300 cursor-pointer shadow-2xs"
+                                className="clay-button-danger px-2.5 py-1 text-[10px] font-bold"
                               >
                                 Mark Verified
                               </button>
@@ -475,7 +475,7 @@ export const CitizenReportingPortal: React.FC<CitizenReportingPortalProps> = ({
             </div>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+          <div className="mt-2 pt-2 border-t border-slate-200/80 text-[11px] text-slate-600 flex items-center justify-between">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               Verified by District Geotechnical Control Room

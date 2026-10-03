@@ -532,11 +532,11 @@ I support 11 languages. You can speak to me with voice or change your language a
     COPILOT_LANGUAGES.find((l) => l.code === selectedLanguage) || COPILOT_LANGUAGES[0];
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] w-[450px] max-w-[calc(100vw-2rem)] h-[720px] max-h-[calc(100vh-4rem)] rounded-2xl bg-sky-50 border-2 border-sky-300 shadow-2xl shadow-sky-900/25 flex flex-col overflow-hidden select-none font-sans animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div className="fixed bottom-6 right-6 z-[9999] w-[450px] max-w-[calc(100vw-2rem)] h-[720px] max-h-[calc(100vh-4rem)] rounded-3xl clay-modal flex flex-col overflow-hidden select-none font-sans animate-in fade-in slide-in-from-bottom-4 duration-200">
       {/* ==================================================================== */}
       {/* 1. TOP HEADER (Requirement 7: [ ROBOT AVATAR ] BHUSAKTHI COPILOT)    */}
       {/* ==================================================================== */}
-      <div className="p-3 bg-gradient-to-r from-sky-500 via-sky-600 to-cyan-600 text-white flex items-center justify-between shadow-md">
+      <div className="p-3.5 bg-gradient-to-r from-sky-500 via-sky-600 to-cyan-600 text-white flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
           <div className="p-1 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-xs flex items-center justify-center shadow-inner">
             <BhusakthiBotAvatar
@@ -554,7 +554,7 @@ I support 11 languages. You can speak to me with voice or change your language a
               </h2>
               {/* Online Status Indicator */}
               <div
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold ${
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold ${
                   copilotStatus === 'online'
                     ? 'bg-emerald-500/25 text-emerald-100 border border-emerald-300/40'
                     : copilotStatus === 'processing'
@@ -589,7 +589,7 @@ I support 11 languages. You can speak to me with voice or change your language a
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="w-7 h-7 rounded-lg bg-white/15 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+          className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center cursor-pointer transition-colors shadow-[inset_1px_1px_2px_rgba(255,255,255,0.4)]"
           title="Close Copilot"
         >
           <X className="w-4 h-4" />
@@ -599,14 +599,14 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 2. SUB-HEADER: LOCATION & LANGUAGE SELECTOR BAR                      */}
       {/* ==================================================================== */}
-      <div className="px-3 py-2 bg-sky-100/80 border-b border-sky-200/90 flex items-center justify-between text-xs">
+      <div className="px-3.5 py-2.5 bg-sky-100/70 border-b border-sky-200/90 flex items-center justify-between text-xs">
         {/* Active Location Display */}
         <div className="flex items-center gap-1.5 min-w-0">
           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
           <span className="text-[11px] font-bold text-sky-950 truncate">
             {activeLocationName}, {activeLocationState}
           </span>
-          <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-200 text-sky-800 font-mono font-bold border border-sky-300/60">
+          <span className="text-[9px] px-2 py-0.5 rounded-full bg-sky-200/90 text-sky-800 font-mono font-bold border border-sky-300/70 shadow-[inset_1px_1px_1px_rgba(255,255,255,0.8)]">
             SYNCED
           </span>
         </div>
@@ -615,7 +615,7 @@ I support 11 languages. You can speak to me with voice or change your language a
         <div className="relative">
           <button
             onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border border-sky-300 hover:border-sky-500 text-sky-900 text-[11px] font-bold shadow-2xs cursor-pointer transition-all"
+            className="clay-control flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold"
             title="Change Preferred Language"
           >
             <Globe className="w-3.5 h-3.5 text-sky-600" />
@@ -624,7 +624,7 @@ I support 11 languages. You can speak to me with voice or change your language a
           </button>
 
           {languageMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-44 max-h-60 overflow-y-auto bg-white border border-sky-200 rounded-xl shadow-xl z-50 py-1 text-xs">
+            <div className="absolute right-0 top-full mt-1.5 w-44 max-h-60 overflow-y-auto clay-dropdown p-1.5 z-50 text-xs">
               <div className="px-2.5 py-1 text-[10px] font-mono text-sky-600 font-bold uppercase border-b border-sky-100">
                 SELECT LANGUAGE
               </div>
@@ -632,9 +632,9 @@ I support 11 languages. You can speak to me with voice or change your language a
                 <button
                   key={lang.code}
                   onClick={() => handleLanguageChange(lang.code)}
-                  className={`w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between hover:bg-sky-50 transition-colors cursor-pointer ${
+                  className={`w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between rounded-lg hover:bg-sky-50 transition-colors cursor-pointer ${
                     selectedLanguage === lang.code
-                      ? 'bg-sky-100/90 font-bold text-sky-800'
+                      ? 'bg-sky-100 font-bold text-sky-800'
                       : 'text-slate-700'
                   }`}
                 >
@@ -650,7 +650,7 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 3. QUICK SUGGESTION CHIPS                                            */}
       {/* ==================================================================== */}
-      <div className="p-2 bg-sky-100/60 border-b border-sky-200/80 flex items-center gap-1.5 overflow-x-auto select-none no-scrollbar">
+      <div className="p-2.5 bg-sky-100/50 border-b border-sky-200/80 flex items-center gap-1.5 overflow-x-auto select-none no-scrollbar">
         <span className="text-[10px] font-mono font-bold text-sky-700 shrink-0 uppercase pl-1">
           SUGGESTED:
         </span>
@@ -659,7 +659,7 @@ I support 11 languages. You can speak to me with voice or change your language a
             key={i}
             onClick={() => handleSend(q)}
             disabled={isLoading}
-            className="px-2.5 py-1 rounded-lg bg-white hover:bg-sky-50 text-sky-900 hover:text-sky-700 text-[11px] font-medium border border-sky-200 whitespace-nowrap cursor-pointer transition-all shadow-2xs disabled:opacity-50"
+            className="clay-button px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap cursor-pointer disabled:opacity-50"
           >
             {q}
           </button>
@@ -848,7 +848,7 @@ I support 11 languages. You can speak to me with voice or change your language a
               state="thinking"
               className="shrink-0 mt-0.5"
             />
-            <ThinkingOrbIndicator label="Thinking...." size={48} />
+            <ThinkingOrbIndicator label="Thinking...." size={32} />
           </div>
         )}
 
@@ -858,7 +858,7 @@ I support 11 languages. You can speak to me with voice or change your language a
       {/* ==================================================================== */}
       {/* 5. INPUT & ACTIONS CONTROLS BAR                                      */}
       {/* ==================================================================== */}
-      <div className="p-3 bg-sky-50/95 border-t border-sky-200 space-y-2">
+      <div className="p-3 bg-white/80 border-t border-sky-200/90 space-y-2">
         {/* Input Form */}
         <form
           onSubmit={(e) => {
@@ -873,13 +873,13 @@ I support 11 languages. You can speak to me with voice or change your language a
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
             placeholder={`Ask in ${currentLangMeta.nativeName} or English...`}
-            className="flex-1 px-3.5 py-2 rounded-xl bg-white border border-sky-300 text-xs text-slate-900 placeholder-sky-400 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all font-sans shadow-2xs"
+            className="flex-1 px-4 py-2.5 clay-input text-xs text-slate-900 placeholder-slate-400 font-sans"
           />
 
           <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="clay-button-primary px-4 py-2.5 text-xs font-bold gap-1.5 shrink-0 disabled:opacity-40"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Send</span>
@@ -892,10 +892,10 @@ I support 11 languages. You can speak to me with voice or change your language a
             {/* Voice Input Button */}
             <button
               onClick={handleToggleVoice}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold gap-1.5 cursor-pointer ${
                 isRecordingVoice
-                  ? 'bg-rose-500 text-white animate-pulse shadow-xs'
-                  : 'bg-white hover:bg-sky-100 text-sky-800 border border-sky-200 shadow-2xs'
+                  ? 'clay-button-danger animate-pulse'
+                  : 'clay-button-secondary'
               }`}
               title="Voice Input (Speech-to-Text)"
             >
@@ -915,7 +915,7 @@ I support 11 languages. You can speak to me with voice or change your language a
             {/* Quick Language Toggle */}
             <button
               onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
-              className="px-2 py-1 rounded-lg bg-white hover:bg-sky-100 text-sky-800 border border-sky-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+              className="clay-control px-2.5 py-1 text-[10px] font-bold gap-1"
               title="Language"
             >
               <Globe className="w-3 h-3 text-sky-600" />
@@ -926,7 +926,7 @@ I support 11 languages. You can speak to me with voice or change your language a
           {/* Clear Chat Button */}
           <button
             onClick={handleClearChat}
-            className="text-[10px] font-mono text-sky-600/70 hover:text-rose-600 flex items-center gap-1 p-1 rounded hover:bg-sky-100/60 cursor-pointer transition-colors"
+            className="text-[10px] font-mono text-slate-500 hover:text-rose-600 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
             title="Clear Chat History"
           >
             <Trash2 className="w-3 h-3" />

@@ -2121,7 +2121,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       {/* TOP-LEFT MAIN CONTROLS: Search, Station Selector, Current Location / GPS */}
       <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2.5 flex-wrap max-w-[calc(100%-180px)]">
         {/* 1. Search Station / Area */}
-        <div className="flex items-center h-11 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[14px] px-3.5 shadow-sm hover:border-slate-300 transition-all w-48 sm:w-60 md:w-72">
+        <div className="flex items-center h-11 clay-input rounded-[16px] px-3.5 w-48 sm:w-60 md:w-72">
           <Search className="w-4 h-4 text-blue-600 mr-2 shrink-0" />
           <input
             id="map-search-input"
@@ -2143,7 +2143,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         </div>
 
         {/* 2. Station Selector: "STATION: Agartala (Tripura) ▼" */}
-        <div className="relative flex items-center h-11 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[14px] px-3.5 shadow-sm hover:border-slate-300 transition-all max-w-[220px] sm:max-w-[270px]">
+        <div className="relative flex items-center h-11 clay-control rounded-[16px] px-3.5 max-w-[220px] sm:max-w-[270px]">
           <span className="text-[10px] font-mono font-bold text-blue-600 uppercase tracking-wider mr-1.5 shrink-0">
             {t.stationLabel || 'STATION:'}
           </span>
@@ -2194,11 +2194,11 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
               fitAllStations();
             }
           }}
-          className="flex items-center justify-center h-11 w-11 bg-white/95 backdrop-blur-md border border-slate-200/90 hover:border-blue-400 hover:bg-blue-50/50 text-blue-600 rounded-[14px] shadow-sm transition-all cursor-pointer shrink-0 active:scale-95 group"
+          className="clay-control flex items-center justify-center h-11 w-11 rounded-[16px] text-blue-600 shrink-0 group"
           title="Current Location / GPS"
           aria-label="Current Location / GPS"
         >
-          <div className="w-6 h-6 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+          <div className="w-6 h-6 rounded-full bg-blue-50/80 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
             <LocateFixed className="w-4 h-4 text-blue-600" />
           </div>
         </button>
@@ -2215,7 +2215,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             e.stopPropagation();
             setIsLayerPanelOpen(!isLayerPanelOpen);
           }}
-          className="flex items-center gap-2 h-11 px-4 rounded-[14px] bg-white/95 backdrop-blur-md border border-slate-200/90 hover:border-blue-500 hover:bg-white text-xs font-bold text-slate-800 shadow-sm cursor-pointer transition-all active:scale-95"
+          className="clay-control flex items-center gap-2 h-11 px-4 rounded-[16px] text-xs font-bold text-slate-800"
           title="Open GIS & Hazard Map Layers Selector"
         >
           <Layers className="w-4 h-4 text-blue-600" />
@@ -2234,7 +2234,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
             id="floating-map-layer-panel"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            className="w-80 sm:w-88 max-h-[calc(100vh-160px)] sm:max-h-[580px] overflow-y-auto bg-white border border-slate-200 rounded-2xl p-4 text-xs space-y-4 shadow-xl text-slate-800 animate-in fade-in zoom-in-95 duration-150"
+            className="w-80 sm:w-88 max-h-[calc(100vh-160px)] sm:max-h-[580px] overflow-y-auto clay-dropdown p-4 text-xs space-y-4 text-slate-800 animate-in fade-in zoom-in-95 duration-150"
           >
             {/* Header */}
             <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
@@ -2593,22 +2593,21 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
         )}
       </div>
 
-      {/* 5. RIGHT SIDE: Zoom Controls [ + ] [ − ] */}
-      <div className="absolute top-20 right-4 z-[1000] flex flex-col items-center bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[14px] overflow-hidden shadow-sm">
+      {/* 5. RIGHT SIDE: Soft 3D Clay Zoom Controls [ + ] and [ − ] */}
+      <div className="absolute top-20 right-4 z-[1000] flex flex-col items-center gap-2">
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomIn()}
-          className="w-10 h-10 flex items-center justify-center text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors cursor-pointer"
+          className="clay-control w-10 h-10 rounded-[14px] text-slate-800 hover:text-blue-600"
           title="Zoom In"
           aria-label="Zoom In"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
         </button>
-        <div className="w-6 h-[1px] bg-slate-200/80" />
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomOut()}
-          className="w-10 h-10 flex items-center justify-center text-slate-700 hover:text-blue-600 hover:bg-slate-50 transition-colors cursor-pointer"
+          className="clay-control w-10 h-10 rounded-[14px] text-slate-800 hover:text-blue-600"
           title="Zoom Out"
           aria-label="Zoom Out"
         >
@@ -2619,7 +2618,7 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       {/* FLOATING RISK LEGEND ON MAP (BOTTOM-RIGHT) */}
       <div
         id="map-floating-risk-legend"
-        className="absolute bottom-3 right-3 z-[1000] bg-white/95 border border-slate-200 rounded-2xl p-3 shadow-md text-xs max-w-[280px] sm:max-w-xs pointer-events-auto overflow-hidden text-slate-800"
+        className="absolute bottom-3 right-3 z-[1000] clay-card p-3.5 text-xs max-w-[280px] sm:max-w-xs pointer-events-auto overflow-hidden text-slate-800"
       >
         <div className="flex items-center justify-between gap-3 pb-1.5 mb-1.5 border-b border-slate-200">
           <span className="font-bold text-slate-900 text-[11px] uppercase tracking-wider font-mono truncate">
@@ -2826,9 +2825,9 @@ export const LandslideMap: React.FC<LandslideMapProps> = ({
       </div>
 
       {/* FLOATING BOTTOM-LEFT TAG */}
-      <div className="absolute bottom-3 left-3 z-[1000] pointer-events-none flex items-center gap-2 text-[10px] sm:text-[11px] bg-white/95 px-3 py-1.5 rounded-full border border-slate-200 text-slate-700 shadow-sm">
+      <div className="absolute bottom-3 left-3 z-[1000] pointer-events-none flex items-center gap-2 text-[10px] sm:text-[11px] clay-card-raised px-3.5 py-1.5 rounded-full text-slate-800">
         <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-        <span className="truncate font-medium">GIS Disaster Monitoring • {stations.length} Monitored Stations</span>
+        <span className="truncate font-semibold">GIS Disaster Monitoring • {stations.length} Monitored Stations</span>
       </div>
     </div>
   );

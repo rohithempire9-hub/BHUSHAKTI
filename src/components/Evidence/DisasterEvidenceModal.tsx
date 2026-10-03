@@ -351,7 +351,7 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                 setActiveTab('upload');
                 setIsLiveCameraOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-950/50 border border-rose-400/40 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+              className="clay-button-danger px-3.5 py-1.5 text-xs font-bold gap-1.5 whitespace-nowrap"
               title="Open Live Camera to Snap Field Photo"
             >
               <Camera className="w-3.5 h-3.5" />
@@ -359,13 +359,13 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
             </button>
 
             {/* View Tabs */}
-            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
+            <div className="clay-tab-container">
               <button
                 onClick={() => setActiveTab('gallery')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`clay-tab flex items-center gap-1.5 ${
                   activeTab === 'gallery'
-                    ? 'bg-indigo-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'clay-tab-active'
+                    : ''
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -373,22 +373,22 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
               </button>
               <button
                 onClick={() => setActiveTab('upload')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`clay-tab flex items-center gap-1.5 ${
                   activeTab === 'upload'
-                    ? 'bg-rose-600 text-white shadow'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'clay-tab-active'
+                    : ''
                 }`}
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Upload & Identify Photo</span>
+                <span>Upload &amp; Identify Photo</span>
               </button>
             </div>
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              className="clay-control w-8 h-8 rounded-xl text-slate-400 hover:text-white"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -860,7 +860,7 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                     <button
                       type="submit"
                       disabled={isSubmitting || !processedImage}
-                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm shadow-xl shadow-rose-950/40 flex items-center justify-center gap-2 cursor-pointer transition-all border border-rose-400/30"
+                      className="clay-button-primary w-full py-3 px-4 text-sm font-bold gap-2 disabled:opacity-50"
                     >
                       {isSubmitting ? (
                         <>
@@ -892,7 +892,7 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search by location, reporter, or type..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full clay-input pl-9 pr-3 py-2 text-xs"
                   />
                 </div>
 
@@ -901,7 +901,7 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    className="clay-control px-3 py-1.5 text-xs focus:outline-none"
                   >
                     <option value="all">All Disaster Types</option>
                     <option value="Rotational Landslide">Rotational Landslide</option>
@@ -915,7 +915,7 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
                   <select
                     value={filterSeverity}
                     onChange={(e) => setFilterSeverity(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    className="clay-control px-3 py-1.5 text-xs focus:outline-none"
                   >
                     <option value="all">All Severities</option>
                     <option value="critical">Critical</option>
@@ -925,7 +925,7 @@ export const DisasterEvidenceModal: React.FC<DisasterEvidenceModalProps> = ({
 
                   <button
                     onClick={() => setActiveTab('upload')}
-                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+                    className="clay-button-danger px-3.5 py-1.5 text-xs font-bold gap-1.5"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Add New Photo</span>

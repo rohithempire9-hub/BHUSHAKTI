@@ -46,24 +46,24 @@ export const SettingsPageView: React.FC<SettingsPageViewProps> = ({
   return (
     <div className="space-y-6 w-full max-w-[1720px] mx-auto">
       {/* Header */}
-      <div className="rounded-2xl bg-[#0b1738] border border-[#1b3470] p-5 sm:p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
+      <div className="clay-panel p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-slate-700/30 text-slate-300 border border-slate-600/40">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-white shadow-[4px_6px_12px_rgba(71,85,105,0.3)] border-t border-white/40">
             <Settings className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-600">
                 System Administration
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                 ACTIVE CONFIG
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white font-sans">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 font-sans">
               Platform Settings &amp; Telemetry Configuration
             </h1>
-            <p className="text-xs text-slate-300 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Regional language localization, IoT sensor gateway parameters, and cloud persistence.
             </p>
           </div>
@@ -71,30 +71,30 @@ export const SettingsPageView: React.FC<SettingsPageViewProps> = ({
 
         <button
           onClick={handleSave}
-          className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-600/30 text-xs transition-all active:scale-95 cursor-pointer"
+          className="clay-button-primary px-4 py-2.5 text-xs font-bold"
         >
           Save Configuration
         </button>
       </div>
 
       {toastMessage && (
-        <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-sm">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Localization & Language */}
-        <div className="rounded-2xl bg-[#0a1738] border border-[#162e66] p-5 shadow-2xl space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-[#162e66]">
-            <Globe className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+        <div className="clay-panel p-5 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-200/80">
+            <Globe className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
               Northeast Regional Language Localization
             </h3>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-xs text-slate-500 leading-relaxed">
             Select the primary dialect for emergency cell broadcasts, field instructions, and AI risk synthesis.
           </p>
 
@@ -106,17 +106,17 @@ export const SettingsPageView: React.FC<SettingsPageViewProps> = ({
                 <div
                   key={lang.code}
                   onClick={() => onLanguageChange(lang.code)}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                     isSelected
-                      ? 'bg-[#102554] border-cyan-400 shadow-md'
-                      : 'bg-[#071129] border-[#18316c] hover:border-slate-500'
+                      ? 'clay-card-active ring-2 ring-blue-500/80'
+                      : 'clay-card hover:translate-y-[-2px]'
                   }`}
                 >
                   <div>
-                    <div className="text-xs font-bold text-white">{lang.native}</div>
-                    <div className="text-[11px] text-slate-400">{lang.label} • {lang.region}</div>
+                    <div className="text-xs font-bold text-slate-800">{lang.native}</div>
+                    <div className="text-[11px] text-slate-500">{lang.label} • {lang.region}</div>
                   </div>
-                  {isSelected && <CheckCircle2 className="w-4 h-4 text-cyan-400" />}
+                  {isSelected && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
                 </div>
               );
             })}
@@ -124,21 +124,21 @@ export const SettingsPageView: React.FC<SettingsPageViewProps> = ({
         </div>
 
         {/* Telemetry & Gateway Settings */}
-        <div className="rounded-2xl bg-[#0a1738] border border-[#162e66] p-5 shadow-2xl space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-[#162e66]">
-            <Radio className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+        <div className="clay-panel p-5 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-200/80">
+            <Radio className="w-4 h-4 text-amber-500" />
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
               IoT Sensor Gateway &amp; LoRaWAN Parameters
             </h3>
           </div>
 
-          <div className="space-y-3 text-xs">
+          <div className="space-y-3.5 text-xs">
             <div>
-              <label className="block text-slate-300 font-bold mb-1">LoRa Physical Frequency Band</label>
+              <label className="block text-slate-700 font-bold mb-1.5">LoRa Physical Frequency Band</label>
               <select
                 value={loraChannel}
                 onChange={(e) => setLoraChannel(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-[#071129] border border-[#18316c] text-slate-200 focus:outline-none focus:border-cyan-400"
+                className="clay-select w-full p-2.5 text-xs"
               >
                 <option value="IN865_CH1_865.2MHZ">IN865 (India 865.2 MHz - Standard)</option>
                 <option value="IN865_CH2_865.8MHZ">IN865 (India 865.8 MHz - Redundant)</option>
@@ -147,41 +147,45 @@ export const SettingsPageView: React.FC<SettingsPageViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-slate-300 font-bold mb-1">Emergency SMS Cell Broadcast Auto-Trigger</label>
-              <div className="flex items-center gap-3 mt-1">
+              <label className="block text-slate-700 font-bold mb-1.5">Emergency SMS Cell Broadcast Auto-Trigger</label>
+              <div className="flex items-center gap-2.5 mt-1">
                 <button
                   onClick={() => setAutoSmsEnabled(true)}
-                  className={`px-3 py-1.5 rounded-lg font-bold ${
-                    autoSmsEnabled ? 'bg-cyan-600 text-white' : 'bg-[#071129] text-slate-400 border border-[#18316c]'
-                  }`}
+                  className={
+                    autoSmsEnabled
+                      ? 'clay-button-primary px-3 py-1.5 text-xs font-bold'
+                      : 'clay-button px-3 py-1.5 text-xs font-bold'
+                  }
                 >
                   Enabled (FS &lt; 1.0)
                 </button>
                 <button
                   onClick={() => setAutoSmsEnabled(false)}
-                  className={`px-3 py-1.5 rounded-lg font-bold ${
-                    !autoSmsEnabled ? 'bg-rose-600 text-white' : 'bg-[#071129] text-slate-400 border border-[#18316c]'
-                  }`}
+                  className={
+                    !autoSmsEnabled
+                      ? 'clay-button-danger px-3 py-1.5 text-xs font-bold'
+                      : 'clay-button px-3 py-1.5 text-xs font-bold'
+                  }
                 >
                   Manual Approval Only
                 </button>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[#18316c]">
-              <label className="block text-slate-300 font-bold mb-1">Database &amp; Data Pipeline Status</label>
-              <div className="p-3 rounded-xl bg-[#071129] border border-[#18316c] space-y-1 text-slate-300">
+            <div className="pt-3 border-t border-slate-200/80">
+              <label className="block text-slate-700 font-bold mb-1.5">Database &amp; Data Pipeline Status</label>
+              <div className="clay-card-raised p-3 space-y-1.5 text-slate-600">
                 <div className="flex justify-between">
                   <span>Firebase Firestore:</span>
-                  <span className="text-emerald-400 font-bold font-mono">CONNECTED</span>
+                  <span className="text-emerald-700 font-bold font-mono">CONNECTED</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Open-Meteo Weather API:</span>
-                  <span className="text-emerald-400 font-bold font-mono">200 OK</span>
+                  <span className="text-emerald-700 font-bold font-mono">200 OK</span>
                 </div>
                 <div className="flex justify-between">
                   <span>PINN Digital Twin:</span>
-                  <span className="text-cyan-400 font-bold font-mono">INFERENCE ACTIVE</span>
+                  <span className="text-blue-700 font-bold font-mono">INFERENCE ACTIVE</span>
                 </div>
               </div>
             </div>
@@ -189,7 +193,7 @@ export const SettingsPageView: React.FC<SettingsPageViewProps> = ({
             <div className="pt-2">
               <button
                 onClick={onResetSimulation}
-                className="w-full py-2.5 rounded-xl bg-[#0e214d] hover:bg-[#142e6a] text-cyan-300 border border-cyan-500/40 font-bold transition-all cursor-pointer"
+                className="clay-button-secondary w-full py-2.5 text-xs font-bold"
               >
                 Reset All Geotechnical Perturbations to Nominal Baseline
               </button>
