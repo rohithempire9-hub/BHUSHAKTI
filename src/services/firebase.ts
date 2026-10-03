@@ -1,5 +1,12 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  Auth,
+  UserCredential
+} from 'firebase/auth';
+import {
   getFirestore,
   initializeFirestore,
   setLogLevel,
@@ -36,6 +43,7 @@ try {
 }
 
 let db: Firestore | null = null;
+let auth: Auth | null = null;
 let firebaseInitialized = false;
 
 try {
@@ -51,8 +59,14 @@ try {
     db = initializeFirestore(firebaseApp, {}, dbIdParam);
   }
 
+  try {
+    auth = getAuth(firebaseApp);
+  } catch (authErr) {
+    console.warn('[Firebase] Auth initialization notice:', authErr);
+  }
+
   firebaseInitialized = true;
-  console.log('[Firebase] Cloud Firestore initialized for DB ID:', databaseId);
+  console.log('[Firebase] Cloud Firestore & Auth initialized for DB ID:', databaseId);
 } catch (err) {
   console.warn('[Firebase] Initialization notice (using resilient local cloud sync fallback):', err);
 }
@@ -63,6 +77,43 @@ export function isFirebaseAvailable(): boolean {
 
 export function getFirestoreDb(): Firestore | null {
   return db;
+}
+
+export function getFirebaseAuth(): Auth | null {
+  return auth;
+}
+
+/**
+ * Triggers Google Sign-In popup via Firebase Auth with select_account prompt
+ */
+export async function signInWithGooglePopup(): Promise<{
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  uid: string;
+}> {
+  if (!auth) {
+    throw new Error('Firebase Auth is not initialized. Please ensure network connectivity.');
+  }
+
+  const provider = new GoogleAuthProvider();
+  // Force Google account chooser so the user sees all available Google accounts
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
+
+  const result: UserCredential = await signInWithPopup(auth, provider);
+  const user = result.user;
+  if (!user.email) {
+    throw new Error('No email address provided by the selected Google account.');
+  }
+
+  return {
+    email: user.email,
+    displayName: user.displayName || user.email.split('@')[0],
+    photoURL: user.photoURL || undefined,
+    uid: user.uid
+  };
 }
 
 /**
