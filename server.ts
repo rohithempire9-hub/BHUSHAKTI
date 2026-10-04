@@ -45,6 +45,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true }));
 
 const firebaseApp = getApps().length === 0
   ? initializeApp(firebaseConfigData)
@@ -413,6 +414,124 @@ app.post('/api/auth/google', async (req, res) => {
   const userAgent = (req.headers['user-agent'] as string) || '';
   const result = await googleAuthUser(req.body, { ip, userAgent });
   return res.status(result.status).json(result);
+});
+
+// Provides the official Google OAuth 2.0 full-page authorization URL with prompt=select_account
+app.get('/api/auth/google/url', (req, res) => {
+  const origin = `${req.protocol}://${req.get('host')}`;
+  const redirectUri = `${origin}/api/auth/google/callback`;
+  const clientId = (firebaseConfigData as any).oAuthClientId;
+
+  const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  googleAuthUrl.searchParams.set('client_id', clientId);
+  googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+  googleAuthUrl.searchParams.set('response_type', 'code');
+  googleAuthUrl.searchParams.set('scope', 'openid email profile');
+  googleAuthUrl.searchParams.set('prompt', 'select_account');
+  googleAuthUrl.searchParams.set('access_type', 'online');
+
+  return res.json({ ok: true, url: googleAuthUrl.toString() });
+});
+
+// Handles Google OAuth 2.0 full-page redirect callback (both POST for GIS credential and GET for query response)
+app.all('/api/auth/google/callback', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || '';
+
+  const credential = req.body?.credential;
+  const error = req.query?.error || req.body?.error;
+  const code = req.query?.code;
+
+  if (error) {
+    if (error === 'access_denied') {
+      return res.redirect('/?google_auth_error=cancelled');
+    }
+    return res.redirect(`/?google_auth_error=${encodeURIComponent(String(error))}`);
+  }
+
+  // 1. Google Identity Services (GIS) full-page redirect credential (POST)
+  if (credential) {
+    try {
+      const parts = String(credential).split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        const email = payload.email;
+        const name = payload.name;
+        const picture = payload.picture;
+
+        const authResult = await googleAuthUser(
+          {
+            email,
+            full_name: name,
+            avatar_url: picture,
+            google_id: payload.sub
+          },
+          { ip, userAgent }
+        );
+
+        if (authResult.ok && authResult.token) {
+          return res.redirect(`/?google_token=${encodeURIComponent(authResult.token)}`);
+        }
+      }
+    } catch (e) {
+      console.error('[GoogleCallback] Error processing credential:', e);
+    }
+  }
+
+  // 2. Google OAuth 2.0 Authorization Code flow (GET)
+  if (code) {
+    const clientId = process.env.GOOGLE_CLIENT_ID || (firebaseConfigData as any).oAuthClientId;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const origin = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const redirectUri = `${origin}/api/auth/google/callback`;
+
+    if (clientSecret) {
+      try {
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code: String(code),
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code'
+          })
+        });
+
+        const tokenData = await tokenRes.json();
+        if (tokenData.id_token) {
+          const parts = String(tokenData.id_token).split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+            const authResult = await googleAuthUser(
+              {
+                email: payload.email,
+                full_name: payload.name,
+                avatar_url: payload.picture,
+                google_id: payload.sub
+              },
+              { ip, userAgent }
+            );
+
+            if (authResult.ok && authResult.token) {
+              return res.redirect(`/?google_token=${encodeURIComponent(authResult.token)}`);
+            }
+          }
+        } else if (tokenData.error) {
+          console.error('[GoogleCallback] Token exchange error:', tokenData);
+          return res.redirect(`/?google_auth_error=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+        }
+      } catch (err) {
+        console.error('[GoogleCallback] Token exchange network error:', err);
+      }
+    } else {
+      console.warn('[GoogleCallback] Received OAuth code, but GOOGLE_CLIENT_SECRET is not configured on server.');
+      return res.redirect('/?google_auth_error=client_secret_missing');
+    }
+  }
+
+  return res.redirect('/?google_auth_error=failed');
 });
 
 app.put('/api/auth/profile', async (req, res) => {

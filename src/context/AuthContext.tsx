@@ -7,6 +7,7 @@ import {
   setStoredToken,
   setStoredUser
 } from '../services/apiClient';
+import { checkGoogleRedirectResult } from '../services/firebase';
 
 interface AuthContextValue {
   user: BhuUser | null;
@@ -57,10 +58,90 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<BhuUser | null>(() => getStoredUser());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Validate session on boot
+  // Validate session on boot & handle Google OAuth Redirect returns
   useEffect(() => {
     let isMounted = true;
     const initAuth = async () => {
+      // 1. Check for Google OAuth tokens in URL (?google_token=... or #access_token=... or #id_token=...)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const googleToken = urlParams.get('google_token');
+        if (googleToken) {
+          setStoredToken(googleToken);
+          setToken(googleToken);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          try {
+            const meRes = await authApi.getMe();
+            if (isMounted && meRes.ok && meRes.user) {
+              setUser(meRes.user);
+              setStoredUser(meRes.user);
+              setIsLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.warn('[Auth] Failed to load user with google_token:', e);
+          }
+        }
+
+        // Direct Google OAuth hash response (#access_token=... or #id_token=...)
+        if (window.location.hash && (window.location.hash.includes('access_token=') || window.location.hash.includes('id_token='))) {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const idToken = hashParams.get('id_token');
+          const accessToken = hashParams.get('access_token');
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+
+          if (idToken) {
+            try {
+              const parts = idToken.split('.');
+              if (parts.length === 3) {
+                const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+                if (payload.email) {
+                  const googleRes = await authApi.loginWithGoogle({
+                    email: payload.email,
+                    full_name: payload.name,
+                    avatar_url: payload.picture
+                  });
+                  if (isMounted && googleRes.token && googleRes.user) {
+                    setToken(googleRes.token);
+                    setUser(googleRes.user);
+                    setStoredToken(googleRes.token);
+                    setStoredUser(googleRes.user);
+                    setIsLoading(false);
+                    return;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn('[Auth] Failed to parse Google hash token:', e);
+            }
+          }
+        }
+      }
+
+      // 2. Check Firebase Auth getRedirectResult
+      try {
+        const googleRedirectUser = await checkGoogleRedirectResult();
+        if (isMounted && googleRedirectUser && googleRedirectUser.email) {
+          console.log('[Auth] Google redirect successful for:', googleRedirectUser.email);
+          const googleRes = await authApi.loginWithGoogle({
+            email: googleRedirectUser.email,
+            full_name: googleRedirectUser.displayName,
+            avatar_url: googleRedirectUser.photoURL
+          });
+          if (isMounted && googleRes.token && googleRes.user) {
+            setToken(googleRes.token);
+            setUser(googleRes.user);
+            setStoredToken(googleRes.token);
+            setStoredUser(googleRes.user);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Auth] Google redirect result notice:', err);
+      }
+
+      // 3. Normal session token check
       const storedToken = getStoredToken();
       if (!storedToken) {
         if (isMounted) setIsLoading(false);
@@ -75,7 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (err) {
         console.warn('[Auth] Session check fallback:', err);
-        // If expired or invalid 401, clear stored auth
         if ((err as any)?.status === 401) {
           if (isMounted) {
             setUser(null);

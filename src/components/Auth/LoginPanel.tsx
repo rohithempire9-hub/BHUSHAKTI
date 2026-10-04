@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mail,
   Lock,
@@ -18,8 +18,8 @@ import {
 import { BhuShaktiLogo } from './BhuShaktiLogo';
 import { UserRole } from '../../types/auth';
 import { useAuth } from '../../context/AuthContext';
-import { authApi } from '../../services/apiClient';
-import { GoogleAccountChooserModal } from './GoogleAccountChooserModal';
+import { authApi, setStoredToken } from '../../services/apiClient';
+import { signInWithGoogleRedirect, checkGoogleRedirectResult } from '../../services/firebase';
 
 interface LoginPanelProps {
   onSuccess?: () => void;
@@ -39,7 +39,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   onSuccess,
   className = ''
 }) => {
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogle, refreshUser } = useAuth();
   const [tab, setTab] = useState<'signin' | 'register'>('signin');
 
   // Sign In fields (Must start empty as per Section 14 & 19)
@@ -66,13 +66,89 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   const [forgotStep, setForgotStep] = useState<'request' | 'reset'>('request');
   const [previewCode, setPreviewCode] = useState<string | null>(null);
 
-  // Google Account Chooser Modal state
-  const [googleModalOpen, setGoogleModalOpen] = useState(false);
-
   // State
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Handle Google OAuth Redirect Return
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Check URL parameters (?google_token=... or ?google_auth_error=...)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const googleToken = urlParams.get('google_token');
+      const googleAuthError = urlParams.get('google_auth_error');
+
+      if (googleToken) {
+        setStoredToken(googleToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        refreshUser()
+          .then(() => {
+            if (isMounted) {
+              setSuccessMsg('Authenticated successfully with Google.');
+              setTimeout(() => onSuccess?.(), 500);
+            }
+          })
+          .catch(() => {
+            if (isMounted) setErrorMsg('Failed to initialize session from Google authentication.');
+          });
+        return;
+      }
+
+      if (googleAuthError) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (googleAuthError === 'cancelled' || googleAuthError === 'access_denied') {
+          setErrorMsg('Google sign-in was cancelled.');
+        } else {
+          setErrorMsg('Google sign-in was unable to complete. Please try again.');
+        }
+        return;
+      }
+    }
+
+    // 2. Check Firebase Auth getRedirectResult
+    checkGoogleRedirectResult()
+      .then(async (googleUser) => {
+        if (!isMounted || !googleUser) return;
+        setIsLoading(true);
+        try {
+          const res = await loginWithGoogle({
+            email: googleUser.email,
+            full_name: googleUser.displayName,
+            avatar_url: googleUser.photoURL
+          });
+          if (res.ok && isMounted) {
+            setSuccessMsg('Authenticated successfully with Google.');
+            setTimeout(() => onSuccess?.(), 500);
+          }
+        } catch (err: any) {
+          if (isMounted) setErrorMsg(err.message || 'Error completing Google sign-in.');
+        } finally {
+          if (isMounted) setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('[LoginPanel] Google redirect error:', err);
+        const code = err?.code || '';
+        if (
+          code === 'auth/popup-closed-by-user' ||
+          code === 'auth/cancelled-popup-request' ||
+          code === 'auth/user-cancelled' ||
+          err?.message?.includes('cancelled')
+        ) {
+          setErrorMsg('Google sign-in was cancelled.');
+        } else {
+          setErrorMsg('Google sign-in was unable to complete. Please try again.');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loginWithGoogle, refreshUser, onSuccess]);
 
   // Sign in submit
   const handleSignIn = async (e: React.FormEvent) => {
@@ -207,14 +283,31 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
     }
   };
 
-  // SSO Action
-  const handleSocialClick = (provider: 'Google' | 'Microsoft') => {
+  // SSO Action - FULL PAGE REDIRECT for Google
+  const handleSocialClick = async (provider: 'Google' | 'Microsoft') => {
     if (provider === 'Google') {
       setErrorMsg(null);
       setSuccessMsg(null);
-      setGoogleModalOpen(true);
+      setIsLoading(true);
+      try {
+        await signInWithGoogleRedirect();
+      } catch (err: any) {
+        setIsLoading(false);
+        const code = err?.code || '';
+        if (
+          code === 'auth/popup-closed-by-user' ||
+          code === 'auth/cancelled-popup-request' ||
+          code === 'auth/user-cancelled' ||
+          err?.message?.includes('cancelled')
+        ) {
+          setErrorMsg('Google sign-in was cancelled.');
+        } else {
+          setErrorMsg(err.message || 'Unable to initiate Google Sign-In redirect.');
+        }
+      }
       return;
     }
+
     setIsLoading(true);
     setTimeout(() => {
       login('admin@bhusakthi.gov.in', 'BhuShakti@2026')
@@ -701,13 +794,6 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
           </div>
         </div>
       )}
-
-      {/* Google Account Chooser & Live Popup Modal */}
-      <GoogleAccountChooserModal
-        isOpen={googleModalOpen}
-        onClose={() => setGoogleModalOpen(false)}
-        onSuccess={onSuccess}
-      />
     </div>
   );
 };

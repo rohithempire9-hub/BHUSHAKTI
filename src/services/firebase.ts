@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   Auth,
   UserCredential
@@ -84,36 +85,59 @@ export function getFirebaseAuth(): Auth | null {
 }
 
 /**
- * Triggers Google Sign-In popup via Firebase Auth with select_account prompt
+ * Triggers Google Sign-In with a FULL-PAGE REDIRECT using prompt: 'select_account'
+ * The browser leaves the BHUSAKTHI AI application and navigates directly to Google's
+ * real official OAuth authorization page at accounts.google.com
  */
-export async function signInWithGooglePopup(): Promise<{
+export async function signInWithGoogleRedirect(): Promise<void> {
+  const clientId = (firebaseConfigData as any).oAuthClientId;
+  if (!clientId || typeof window === 'undefined') {
+    throw new Error('Google OAuth Client ID is not configured.');
+  }
+
+  // Exact callback URL registered in Google Cloud Console
+  const redirectUri = `${window.location.origin}/api/auth/google/callback`;
+
+  const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  googleAuthUrl.searchParams.set('client_id', clientId);
+  googleAuthUrl.searchParams.set('redirect_uri', redirectUri);
+  googleAuthUrl.searchParams.set('response_type', 'code');
+  googleAuthUrl.searchParams.set('scope', 'openid email profile');
+  googleAuthUrl.searchParams.set('prompt', 'select_account');
+  googleAuthUrl.searchParams.set('access_type', 'online');
+  googleAuthUrl.searchParams.set('state', `bhu_${Date.now()}`);
+
+  console.log('[GoogleOAuth] Redirecting browser to Google Authorization endpoint:', redirectUri);
+  // Full-page redirect: leaves BHUSAKTHI and opens Google-hosted account chooser
+  window.location.assign(googleAuthUrl.toString());
+}
+
+/**
+ * Checks for returned Google OAuth redirect result on application boot
+ */
+export async function checkGoogleRedirectResult(): Promise<{
   email: string;
   displayName: string;
   photoURL?: string;
   uid: string;
-}> {
-  if (!auth) {
-    throw new Error('Firebase Auth is not initialized. Please ensure network connectivity.');
+} | null> {
+  if (!auth) return null;
+  try {
+    const result: UserCredential | null = await getRedirectResult(auth);
+    if (!result || !result.user || !result.user.email) {
+      return null;
+    }
+    const user = result.user;
+    return {
+      email: user.email,
+      displayName: user.displayName || user.email.split('@')[0],
+      photoURL: user.photoURL || undefined,
+      uid: user.uid
+    };
+  } catch (err: any) {
+    console.warn('[Firebase] checkGoogleRedirectResult notice:', err);
+    throw err;
   }
-
-  const provider = new GoogleAuthProvider();
-  // Force Google account chooser so the user sees all available Google accounts
-  provider.setCustomParameters({
-    prompt: 'select_account'
-  });
-
-  const result: UserCredential = await signInWithPopup(auth, provider);
-  const user = result.user;
-  if (!user.email) {
-    throw new Error('No email address provided by the selected Google account.');
-  }
-
-  return {
-    email: user.email,
-    displayName: user.displayName || user.email.split('@')[0],
-    photoURL: user.photoURL || undefined,
-    uid: user.uid
-  };
 }
 
 /**
