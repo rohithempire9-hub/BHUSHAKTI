@@ -100,13 +100,13 @@ export const BhuShaktiAuthPage: React.FC<BhuShaktiAuthPageProps> = ({ onSuccess 
   const motto = MOTTO_TRANSLATIONS[currentLang] || MOTTO_TRANSLATIONS.en;
 
   return (
-    <div className="relative w-screen h-screen overflow-x-hidden lg:overflow-hidden bg-[#041a33] text-slate-100 flex flex-col justify-between font-sans select-none">
+    <div className="relative w-full min-h-screen overflow-x-hidden overflow-y-auto bg-[#041a33] text-slate-100 flex flex-col justify-between font-sans select-none">
       
       {/* ======================================================== */}
       {/* 1. CINEMATIC REALISTIC HIMALAYAN MOUNTAIN LANDSCAPE      */}
       {/* (HIGH-RESOLUTION PHOTOGRAPHY WITH SUBTLE BLUE OVERLAY)   */}
       {/* ======================================================== */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {/* Photorealistic High-Resolution Himalayan Mountain Landscape */}
         <img
           src="/images/himalayan_mountain_landscape.jpg"
@@ -186,8 +186,8 @@ export const BhuShaktiAuthPage: React.FC<BhuShaktiAuthPageProps> = ({ onSuccess 
       {/* ======================================================== */}
       {/* 3. MAIN CENTER STAGE: LEFT FEATURES, CENTER ROBOT/TERRAIN, RIGHT LOGIN */}
       {/* ======================================================== */}
-      <div className="relative z-20 flex-1 max-w-[1720px] w-full mx-auto px-6 sm:px-12 py-2 lg:py-0 flex items-center">
-        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-6 items-center h-full">
+      <div className="relative z-20 flex-1 max-w-[1720px] w-full mx-auto px-6 sm:px-12 py-4 sm:py-6 flex items-center">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center my-auto">
 
           {/* LEFT COLUMN: FEATURE NAVIGATION (lg:col-span-2) */}
           <div className="lg:col-span-2 xl:col-span-3 flex flex-col justify-center space-y-6 z-20 pt-2">
@@ -217,7 +217,7 @@ export const BhuShaktiAuthPage: React.FC<BhuShaktiAuthPageProps> = ({ onSuccess 
           </div>
 
           {/* RIGHT COLUMN: LOGIN PANEL (lg:col-span-4) */}
-          <div className="lg:col-span-4 xl:col-span-4 flex justify-center lg:justify-end z-30">
+          <div className="lg:col-span-4 xl:col-span-4 flex justify-center lg:justify-end z-30 py-2">
             <LoginPanel onSuccess={onSuccess} />
           </div>
 
@@ -227,7 +227,7 @@ export const BhuShaktiAuthPage: React.FC<BhuShaktiAuthPageProps> = ({ onSuccess 
       {/* ======================================================== */}
       {/* 4. BOTTOM BAR: MOTTO (LEFT) + 4 PREVIEW CARDS (CENTER)   */}
       {/* ======================================================== */}
-      <div className="relative z-30 w-full max-w-[1720px] mx-auto px-6 sm:px-12 pb-4 sm:pb-6 pt-1">
+      <div className="relative z-30 w-full max-w-[1720px] mx-auto px-6 sm:px-12 pb-6 sm:pb-8 pt-2 mt-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
           {/* Bottom-Left Motto */}
           <div className="lg:col-span-3">

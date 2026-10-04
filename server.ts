@@ -416,11 +416,30 @@ app.post('/api/auth/google', async (req, res) => {
   return res.status(result.status).json(result);
 });
 
+function getServerGoogleRedirectUri(req: express.Request): string {
+  if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.trim()) {
+    return process.env.GOOGLE_REDIRECT_URI.trim();
+  }
+  if (process.env.APP_URL && process.env.APP_URL.trim()) {
+    const clean = process.env.APP_URL.trim().replace(/\/+$/, '');
+    return `${clean}/api/auth/google/callback`;
+  }
+  const host = req.get('host') || 'localhost:3000';
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  return `${proto}://${host}/api/auth/google/callback`;
+}
+
+function getServerGoogleClientId(): string {
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID.trim()) {
+    return process.env.GOOGLE_CLIENT_ID.trim();
+  }
+  return (firebaseConfigData as any).oAuthClientId || '175043478589-smcop9id3n0ti5egcdjdo1t3n3jsp86b.apps.googleusercontent.com';
+}
+
 // Provides the official Google OAuth 2.0 full-page authorization URL with prompt=select_account
 app.get('/api/auth/google/url', (req, res) => {
-  const origin = `${req.protocol}://${req.get('host')}`;
-  const redirectUri = `${origin}/api/auth/google/callback`;
-  const clientId = (firebaseConfigData as any).oAuthClientId;
+  const redirectUri = getServerGoogleRedirectUri(req);
+  const clientId = getServerGoogleClientId();
 
   const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   googleAuthUrl.searchParams.set('client_id', clientId);
@@ -430,7 +449,7 @@ app.get('/api/auth/google/url', (req, res) => {
   googleAuthUrl.searchParams.set('prompt', 'select_account');
   googleAuthUrl.searchParams.set('access_type', 'online');
 
-  return res.json({ ok: true, url: googleAuthUrl.toString() });
+  return res.json({ ok: true, url: googleAuthUrl.toString(), redirectUri, clientId });
 });
 
 // Handles Google OAuth 2.0 full-page redirect callback (both POST for GIS credential and GET for query response)
@@ -480,10 +499,9 @@ app.all('/api/auth/google/callback', async (req, res) => {
 
   // 2. Google OAuth 2.0 Authorization Code flow (GET)
   if (code) {
-    const clientId = process.env.GOOGLE_CLIENT_ID || (firebaseConfigData as any).oAuthClientId;
+    const clientId = getServerGoogleClientId();
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const origin = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-    const redirectUri = `${origin}/api/auth/google/callback`;
+    const redirectUri = getServerGoogleRedirectUri(req);
 
     if (clientSecret) {
       try {
@@ -618,3 +636,5 @@ app.listen(PORT, '0.0.0.0', () => {
     VIRTUAL_SENSOR_REFRESH_MS
   );
 });
+
+export default app;

@@ -85,18 +85,62 @@ export function getFirebaseAuth(): Auth | null {
 }
 
 /**
+ * Returns the exact Google OAuth Redirect URI for the current deployment environment
+ */
+export function getGoogleRedirectUri(): string {
+  // 1. Explicit override from Vite env or defined process.env
+  const explicitEnv = 
+    (import.meta as any).env?.VITE_GOOGLE_REDIRECT_URI ||
+    (typeof process !== 'undefined' && (process.env as any)?.GOOGLE_REDIRECT_URI);
+  if (explicitEnv && typeof explicitEnv === 'string' && explicitEnv.trim()) {
+    return explicitEnv.trim();
+  }
+
+  // 2. Base APP_URL from Vite env or defined process.env
+  const appUrl = 
+    (import.meta as any).env?.VITE_APP_URL ||
+    (typeof process !== 'undefined' && (process.env as any)?.APP_URL);
+  if (appUrl && typeof appUrl === 'string' && appUrl.trim()) {
+    const clean = appUrl.trim().replace(/\/+$/, '');
+    return `${clean}/api/auth/google/callback`;
+  }
+
+  // 3. Dynamic browser origin
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const cleanOrigin = window.location.origin.replace(/\/+$/, '');
+    return `${cleanOrigin}/api/auth/google/callback`;
+  }
+
+  return 'https://bhusakthi-ai-interactive.vercel.app/api/auth/google/callback';
+}
+
+/**
+ * Returns the active Google OAuth Web Client ID
+ */
+export function getGoogleClientId(): string {
+  const envClientId = 
+    (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
+    (typeof process !== 'undefined' && (process.env as any)?.GOOGLE_CLIENT_ID);
+  if (envClientId && typeof envClientId === 'string' && envClientId.trim()) {
+    return envClientId.trim();
+  }
+  return (firebaseConfigData as any).oAuthClientId || '175043478589-smcop9id3n0ti5egcdjdo1t3n3jsp86b.apps.googleusercontent.com';
+}
+
+/**
  * Triggers Google Sign-In with a FULL-PAGE REDIRECT using prompt: 'select_account'
  * The browser leaves the BHUSAKTHI AI application and navigates directly to Google's
  * real official OAuth authorization page at accounts.google.com
  */
 export async function signInWithGoogleRedirect(): Promise<void> {
-  const clientId = (firebaseConfigData as any).oAuthClientId;
+  const clientId = getGoogleClientId();
   if (!clientId || typeof window === 'undefined') {
     throw new Error('Google OAuth Client ID is not configured.');
   }
 
   // Exact callback URL registered in Google Cloud Console
-  const redirectUri = `${window.location.origin}/api/auth/google/callback`;
+  const redirectUri = getGoogleRedirectUri();
+  const origin = window.location.origin;
 
   const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   googleAuthUrl.searchParams.set('client_id', clientId);
@@ -107,7 +151,31 @@ export async function signInWithGoogleRedirect(): Promise<void> {
   googleAuthUrl.searchParams.set('access_type', 'online');
   googleAuthUrl.searchParams.set('state', `bhu_${Date.now()}`);
 
-  console.log('[GoogleOAuth] Redirecting browser to Google Authorization endpoint:', redirectUri);
+  const debugInfo = {
+    event: 'GOOGLE OAUTH STARTED',
+    productionOrigin: origin,
+    clientId,
+    redirectUri,
+    authEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+    pathname: window.location.pathname,
+    generatedUrl: googleAuthUrl.toString(),
+    timestamp: new Date().toISOString()
+  };
+
+  // Safe structured console logging as requested in Step 11
+  console.log('GOOGLE OAUTH STARTED');
+  console.log('Production origin:', origin);
+  console.log('Client ID:', clientId);
+  console.log('Redirect URI:', redirectUri);
+  console.log('Authorization endpoint:', 'https://accounts.google.com/o/oauth2/v2/auth');
+
+  (window as any).__BHU_OAUTH_DEBUG__ = debugInfo;
+  try {
+    window.localStorage.setItem('__BHU_LAST_OAUTH_DEBUG__', JSON.stringify(debugInfo));
+  } catch {
+    // Ignore localStorage write failures if any
+  }
+
   // Full-page redirect: leaves BHUSAKTHI and opens Google-hosted account chooser
   window.location.assign(googleAuthUrl.toString());
 }

@@ -573,6 +573,11 @@ function aistudioMediaPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
+    define: {
+      'process.env.GOOGLE_CLIENT_ID': JSON.stringify(process.env.GOOGLE_CLIENT_ID || ''),
+      'process.env.GOOGLE_REDIRECT_URI': JSON.stringify(process.env.GOOGLE_REDIRECT_URI || ''),
+      'process.env.APP_URL': JSON.stringify(process.env.APP_URL || '')
+    },
     plugins: [react(), tailwindcss(), aistudioMediaPlugin(), geminiLandslideApiPlugin(), smsGatewayApiPlugin(), bhuShaktiIntelligencePlugin()],
     resolve: {
       alias: {
