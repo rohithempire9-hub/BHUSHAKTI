@@ -113,10 +113,6 @@ async function generateVirtualSensorPacket(station: LandslideStation) {
   const packet = {
     stationId: station.id,
 
-    temperatureC: Number(
-      (t.temperatureC + (Math.random() - 0.5) * 0.2).toFixed(1)
-    ),
-
     soilMoisturePct: Number(
       Math.max(
         0,
@@ -128,20 +124,6 @@ async function generateVirtualSensorPacket(station: LandslideStation) {
       Math.max(
         0,
         t.poreWaterPressureKpa + (Math.random() - 0.45) * 0.8
-      ).toFixed(1)
-    ),
-
-    rainfallRateMmH: Number(
-      Math.max(
-        0,
-        t.rainfallRateMmH + (Math.random() - 0.5) * 0.6
-      ).toFixed(1)
-    ),
-
-    rainfall24hMm: Number(
-      Math.max(
-        0,
-        t.rainfall24hMm + Math.random() * 0.3
       ).toFixed(1)
     ),
 
