@@ -154,5 +154,4 @@ export async function syncStationsWithRealWeather(
     const liveWeather = weather[index];
     return liveWeather ? syncStationWithLiveWeather(st, liveWeather) : st;
   });
-  return updatedStations;
 }
