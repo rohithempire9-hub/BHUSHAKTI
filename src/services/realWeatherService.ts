@@ -5,9 +5,6 @@ import { auditStationSafety } from './safeZoneAuditor';
 export interface LiveWeatherData {
   temperatureC: number;
   relativeHumidityPct: number;
-  windSpeedKmh: number;
-  surfacePressureHpa: number;
-  relativeHumidityPct: number;
   precipitationMm: number;
   rainMm: number;
   rainfall24hMm: number;
@@ -75,18 +72,6 @@ export async function fetchLiveWeatherBatch(
     console.warn('[BhuShakti] Batch live weather fetch failed:', err);
     return stations.map(() => null);
   }
-}
-
-/* Legacy single-station implementation retained through the batch API. */
-/*
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,surface_pressure,wind_speed_10m&hourly=precipitation&past_days=1&forecast_days=1&timezone=auto`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Weather fetch failed: ${res.statusText}`);
-    const data = await res.json();
-    const current = data.current;
-
-*/
 }
 
 /**
@@ -161,15 +146,13 @@ export function syncStationWithLiveWeather(
 export async function syncStationsWithRealWeather(
   stations: LandslideStation[]
 ): Promise<LandslideStation[]> {
-  const updatedStations = await Promise.all(
-    stations.map(async (st) => {
-      const liveWeather = await fetchOriginalWeatherForStation(
-        st.latitude,
-        st.longitude
-      );
-      if (liveWeather) return syncStationWithLiveWeather(st, liveWeather);
-      return st;
-    })
+  const weather = await fetchLiveWeatherBatch(
+    stations.map((st) => ({ latitude: st.latitude, longitude: st.longitude }))
   );
+
+  return stations.map((st, index) => {
+    const liveWeather = weather[index];
+    return liveWeather ? syncStationWithLiveWeather(st, liveWeather) : st;
+  });
   return updatedStations;
 }
