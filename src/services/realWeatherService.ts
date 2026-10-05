@@ -44,18 +44,25 @@ export async function fetchLiveWeatherBatch(
     if (!res.ok) throw new Error(`Weather fetch failed: ${res.statusText}`);
     const raw = await res.json();
     const datasets = Array.isArray(raw) ? raw : [raw];
-    const nowMs = Date.now();
 
     return datasets.map((data) => {
       const current = data.current;
       if (!current) return null;
       const hourlyTimes: string[] = data.hourly?.time ?? [];
       const hourlyRain: number[] = data.hourly?.precipitation ?? [];
-      const rainfall24hMm = hourlyTimes.reduce((sum, time, index) => {
-        const t = Date.parse(time);
-        if (!Number.isFinite(t) || nowMs - t < 0 || nowMs - t > 24 * 60 * 60 * 1000) return sum;
-        return sum + Math.max(0, Number(hourlyRain[index] ?? 0));
-      }, 0);
+      const currentTime = String(current.time ?? '');
+      let currentIndex = hourlyTimes.findIndex((time) => time === currentTime);
+      if (currentIndex < 0) {
+        currentIndex = hourlyTimes.reduce((best, time, index) => {
+          const distance = Math.abs(Date.parse(time) - Date.parse(currentTime));
+          const bestDistance = Math.abs(Date.parse(hourlyTimes[best] ?? currentTime) - Date.parse(currentTime));
+          return distance < bestDistance ? index : best;
+        }, 0);
+      }
+      const startIndex = Math.max(0, currentIndex - 23);
+      const rainfall24hMm = hourlyRain
+        .slice(startIndex, currentIndex + 1)
+        .reduce((sum, value) => sum + Math.max(0, Number(value ?? 0)), 0);
 
       return {
         temperatureC: current.temperature_2m ?? 24.0,
