@@ -97,6 +97,36 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         return;
       }
 
+      // 1b. Direct code callback fallback if client-routed
+      const codeParam = urlParams.get('code');
+      if (codeParam) {
+        setIsLoading(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetch(`/api/auth/google/callback?code=${encodeURIComponent(codeParam)}`)
+          .then(async (res) => {
+            if (res.redirected) {
+              window.location.assign(res.url);
+              return;
+            }
+            const data = await res.json();
+            if (data.token) {
+              setStoredToken(data.token);
+              await refreshUser();
+              if (isMounted) {
+                setSuccessMsg('Authenticated successfully with Google.');
+                setTimeout(() => onSuccess?.(), 500);
+              }
+            }
+          })
+          .catch((err) => {
+            console.warn('[LoginPanel] Direct code callback exchange warning:', err);
+          })
+          .finally(() => {
+            if (isMounted) setIsLoading(false);
+          });
+        return;
+      }
+
       if (googleAuthError) {
         window.history.replaceState({}, document.title, window.location.pathname);
         if (googleAuthError === 'cancelled' || googleAuthError === 'access_denied') {

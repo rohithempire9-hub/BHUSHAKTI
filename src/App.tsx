@@ -64,7 +64,6 @@ import { BhuShaktiCopilotModal } from './components/Copilot/BhuShaktiCopilotModa
 import { BhusakthiBotAvatar } from './components/Copilot/BhusakthiBotAvatar';
 import { SihDemoBar, DemoScenarioId } from './components/Demo/SihDemoBar';
 import { DisasterIntelligenceSuite } from './components/Disasters/DisasterIntelligenceSuite';
-import { BhuShaktiAuthPage } from './components/Auth/BhuShaktiAuthPage';
 import { useAuth } from './context/AuthContext';
 
 import {
@@ -92,8 +91,7 @@ import {
 const REFRESH_INTERVAL_MS = 5000;
 
 export default function App() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [showAuthPage, setShowAuthPage] = useState(false);
+  const { user, isAuthenticated } = useAuth();
 
   // Core Domain State
   const [stations, setStations] = useState<LandslideStation[]>([]);
@@ -449,26 +447,6 @@ export default function App() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center text-white space-y-4 font-mono">
-        <div className="w-12 h-12 border-3 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
-        <div className="text-xs tracking-wider text-cyan-300">INITIALIZING DISASTER COMMAND PERIMETER...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || showAuthPage) {
-    return (
-      <BhuShaktiAuthPage
-        onSuccess={() => {
-          setShowAuthPage(false);
-          setCurrentNavSection('dashboard');
-        }}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans antialiased flex flex-col selection:bg-blue-100 selection:text-blue-900 relative overflow-x-hidden bg-topo-dots">
       {/* 1. TOP AUTHORITATIVE ENTERPRISE HEADER */}
@@ -488,7 +466,7 @@ export default function App() {
           onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
           activeScenario={activeDemoScenario}
           onSelectScenario={handleSelectDemoScenario}
-          onOpenAuth={() => setShowAuthPage(true)}
+          onOpenAuth={() => setCurrentNavSection('settings')}
         />
       </div>
 
