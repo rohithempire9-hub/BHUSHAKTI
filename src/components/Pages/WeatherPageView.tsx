@@ -104,8 +104,8 @@ export const WeatherPageView: React.FC<WeatherPageViewProps> = ({
           };
           const temperature = tel.temperatureC ?? 22;
           const rainfall24h = tel.rainfall24hMm ?? 0;
-          const humidity = Math.min(99, Math.max(30, Math.round(tel.soilMoisturePct || 65)));
-          const windSpeed = Math.round(10 + (tel.rainfallRateMmH || 0) * 0.5);
+          const humidity = Math.round(tel.relativeHumidityPct ?? 0);
+          const windSpeed = Number((tel.windSpeedKmh ?? 0).toFixed(1));
           const isHeavyRain = rainfall24h > 40;
           const stateName = station.region || (station as any).state || 'Northeast';
 
