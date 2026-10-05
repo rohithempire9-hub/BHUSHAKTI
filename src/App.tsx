@@ -226,7 +226,27 @@ export default function App() {
 
         if (cancelled) return;
 
-        applyStations(loadedStations);
+        // Replace seeded/simulated weather immediately with live weather.
+        // Persist the live telemetry to Firestore so the realtime listener cannot
+        // overwrite it with the original demo values.
+        const liveStations = await syncStationsWithRealWeather(loadedStations);
+        const persistedStations = await Promise.all(
+          liveStations.map(async (station) => {
+            const updated = await updateStationTelemetry(
+              station.id,
+              station.telemetry,
+              station
+            );
+            return {
+              ...updated,
+              safeAuditResult: station.safeAuditResult ?? updated.safeAuditResult,
+              riskAssessment: station.riskAssessment ?? updated.riskAssessment,
+            };
+          })
+        );
+
+        if (cancelled) return;
+        applyStations(persistedStations);
 
         const loadedSubs = await getSubscribers();
         if (!cancelled) setSubscribers(loadedSubs);
@@ -271,6 +291,32 @@ export default function App() {
       unsubscribeStations?.();
     };
   }, []);
+
+  // Keep weather current after initial load. The dashboard is not allowed
+  // to fall back to the seeded demo weather values after startup.
+  useEffect(() => {
+    if (stations.length === 0) return;
+
+    const interval = setInterval(async () => {
+      if (isSyncingWeather) return;
+      setIsSyncingWeather(true);
+      try {
+        const liveStations = await syncStationsWithRealWeather(stations);
+        const persistedStations = await Promise.all(
+          liveStations.map(async (station) => {
+            return updateStationTelemetry(station.id, station.telemetry, station);
+          })
+        );
+        applyStations(persistedStations);
+      } catch (error) {
+        console.warn('[BhuShakti] Automatic live weather refresh failed:', error);
+      } finally {
+        setIsSyncingWeather(false);
+      }
+    }, 10 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [stations.length]);
 
   // ---------------------------------------------------------------------------
   // Sensor micro-fluctuation telemetry ticker for IoT Nodes
