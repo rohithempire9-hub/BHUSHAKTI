@@ -5,6 +5,9 @@ import { auditStationSafety } from './safeZoneAuditor';
 export interface LiveWeatherData {
   temperatureC: number;
   relativeHumidityPct: number;
+  windSpeedKmh: number;
+  surfacePressureHpa: number;
+  relativeHumidityPct: number;
   precipitationMm: number;
   rainMm: number;
   rainfall24hMm: number;
@@ -41,11 +44,11 @@ export async function fetchOriginalWeatherForStation(
     return {
       temperatureC: current.temperature_2m ?? 24.0,
       relativeHumidityPct: current.relative_humidity_2m ?? 70,
+      windSpeedKmh: current.wind_speed_10m ?? 8.0,
+      surfacePressureHpa: current.surface_pressure ?? 1010.0,
       precipitationMm: Math.max(0, current.precipitation ?? 0.0),
       rainMm: Math.max(0, current.rain ?? 0.0),
       rainfall24hMm: Number(rainfall24hMm.toFixed(1)),
-      surfacePressureHpa: current.surface_pressure ?? 1010.0,
-      windSpeedKmh: current.wind_speed_10m ?? 8.0,
       fetchedAt: new Date().toISOString(),
     };
   } catch (err) {
@@ -65,6 +68,9 @@ export function syncStationWithLiveWeather(
   const currentTelemetry = { ...station.telemetry };
 
   currentTelemetry.temperatureC = Number(liveWeather.temperatureC.toFixed(1));
+  currentTelemetry.relativeHumidityPct = Number(liveWeather.relativeHumidityPct.toFixed(0));
+  currentTelemetry.windSpeedKmh = Number(liveWeather.windSpeedKmh.toFixed(1));
+  currentTelemetry.surfacePressureHpa = Number(liveWeather.surfacePressureHpa.toFixed(1));
   currentTelemetry.rainfallRateMmH = Number(liveWeather.precipitationMm.toFixed(1));
   currentTelemetry.rainfall24hMm = liveWeather.rainfall24hMm;
 
