@@ -2,6 +2,9 @@ export type RiskStatus = 'safe' | 'moderate' | 'high' | 'critical';
 
 export interface SensorTelemetry {
   temperatureC: number;           // Ambient & surface soil temperature (°C)
+  relativeHumidityPct?: number;   // Live atmospheric relative humidity (%)
+  windSpeedKmh?: number;          // Live 10 m wind speed (km/h)
+  surfacePressureHpa?: number;    // Live surface pressure (hPa)
   soilMoisturePct: number;        // Volumetric Water Content (%)
   erosionRateMmPerYr: number;     // Soil erosion rate (mm/year)
   erosionLiveMmH: number;         // Active live runoff erosion (mm/hour)
