@@ -26,35 +26,67 @@ export async function fetchOriginalWeatherForStation(
   longitude: number
 ): Promise<LiveWeatherData | null> {
   try {
+    const results = await fetchLiveWeatherBatch([{ latitude, longitude }]);
+    return results[0] ?? null;
+  } catch (err) {
+    console.warn(`Could not fetch live weather for [${latitude}, ${longitude}]:`, err);
+    return null;
+  }
+}
+
+export async function fetchLiveWeatherBatch(
+  stations: Array<{ latitude: number; longitude: number }>
+): Promise<Array<LiveWeatherData | null>> {
+  if (stations.length === 0) return [];
+
+  try {
+    const latitudes = stations.map((s) => s.latitude.toFixed(4)).join(',');
+    const longitudes = stations.map((s) => s.longitude.toFixed(4)).join(',');
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitudes}&longitude=${longitudes}&current=temperature_2m,relative_humidity_2m,precipitation,rain,surface_pressure,wind_speed_10m&hourly=precipitation&past_days=1&forecast_days=1&timezone=auto`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Weather fetch failed: ${res.statusText}`);
+    const raw = await res.json();
+    const datasets = Array.isArray(raw) ? raw : [raw];
+    const nowMs = Date.now();
+
+    return datasets.map((data) => {
+      const current = data.current;
+      if (!current) return null;
+      const hourlyTimes: string[] = data.hourly?.time ?? [];
+      const hourlyRain: number[] = data.hourly?.precipitation ?? [];
+      const rainfall24hMm = hourlyTimes.reduce((sum, time, index) => {
+        const t = Date.parse(time);
+        if (!Number.isFinite(t) || nowMs - t < 0 || nowMs - t > 24 * 60 * 60 * 1000) return sum;
+        return sum + Math.max(0, Number(hourlyRain[index] ?? 0));
+      }, 0);
+
+      return {
+        temperatureC: current.temperature_2m ?? 24.0,
+        relativeHumidityPct: current.relative_humidity_2m ?? 70,
+        windSpeedKmh: current.wind_speed_10m ?? 8.0,
+        surfacePressureHpa: current.surface_pressure ?? 1010.0,
+        precipitationMm: Math.max(0, current.precipitation ?? 0.0),
+        rainMm: Math.max(0, current.rain ?? 0.0),
+        rainfall24hMm: Number(rainfall24hMm.toFixed(1)),
+        fetchedAt: new Date().toISOString(),
+      };
+    });
+  } catch (err) {
+    console.warn('[BhuShakti] Batch live weather fetch failed:', err);
+    return stations.map(() => null);
+  }
+}
+
+/* Legacy single-station implementation retained through the batch API. */
+/*
+  try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,surface_pressure,wind_speed_10m&hourly=precipitation&past_days=1&forecast_days=1&timezone=auto`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Weather fetch failed: ${res.statusText}`);
     const data = await res.json();
     const current = data.current;
 
-    const hourlyTimes: string[] = data.hourly?.time ?? [];
-    const hourlyRain: number[] = data.hourly?.precipitation ?? [];
-    const nowMs = Date.now();
-    const rainfall24hMm = hourlyTimes.reduce((sum, time, index) => {
-      const t = Date.parse(time);
-      if (!Number.isFinite(t) || nowMs - t < 0 || nowMs - t > 24 * 60 * 60 * 1000) return sum;
-      return sum + Math.max(0, Number(hourlyRain[index] ?? 0));
-    }, 0);
-
-    return {
-      temperatureC: current.temperature_2m ?? 24.0,
-      relativeHumidityPct: current.relative_humidity_2m ?? 70,
-      windSpeedKmh: current.wind_speed_10m ?? 8.0,
-      surfacePressureHpa: current.surface_pressure ?? 1010.0,
-      precipitationMm: Math.max(0, current.precipitation ?? 0.0),
-      rainMm: Math.max(0, current.rain ?? 0.0),
-      rainfall24hMm: Number(rainfall24hMm.toFixed(1)),
-      fetchedAt: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn(`Could not fetch live weather for [${latitude}, ${longitude}]:`, err);
-    return null;
-  }
+*/
 }
 
 /**
